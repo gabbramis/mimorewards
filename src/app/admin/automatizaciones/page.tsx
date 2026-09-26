@@ -143,6 +143,8 @@ export default function AutomatizacionesPage() {
     };
 
     useEffect(() => {
+        // The initial fetch hydrates the dashboard from Supabase.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -240,14 +242,18 @@ export default function AutomatizacionesPage() {
             const payload = {
                 title: modalData.title, rule_type: modalData.rule_type,
                 channel: modalData.channel, message_template: modalData.message_template,
-                business_id: BUSINESS_ID,
+                business_id: BUSINESS_ID, is_active: false,
             };
             if (modalData.id) {
                 const { error } = await supabase.from('automation_rules').update(payload).eq('id', modalData.id);
                 if (error) throw error;
                 showFeedback('success', 'Automatización actualizada.');
             } else {
+<<<<<<< HEAD
                 const { error } = await supabase.from('automation_rules').insert([{ ...payload, is_active: false }]);
+=======
+                const { error } = await supabase.from('automation_rules').insert([payload]);
+>>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
                 if (error) throw error;
                 showFeedback('success', 'Automatización creada.');
             }

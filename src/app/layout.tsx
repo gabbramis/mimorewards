@@ -12,8 +12,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
+<<<<<<< HEAD
   title: "Mimo Rewards | Fidelización",
   description: "Plataforma SaaS de Fidelización Digital",
+=======
+  title: "mimo rewards | Fidelización para tu comercio",
+  description: "Sumate al programa de beneficios de tu comercio favorito.",
+>>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
 };
 
 export default function RootLayout({ children }) {
