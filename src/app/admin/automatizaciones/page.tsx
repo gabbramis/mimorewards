@@ -240,14 +240,13 @@ export default function AutomatizacionesPage() {
             const payload = {
                 title: modalData.title, rule_type: modalData.rule_type,
                 channel: modalData.channel, message_template: modalData.message_template,
-                business_id: BUSINESS_ID,
+                business_id: BUSINESS_ID, is_active: false,
             };
             if (modalData.id) {
                 const { error } = await supabase.from('automation_rules').update(payload).eq('id', modalData.id);
                 if (error) throw error;
                 showFeedback('success', 'Automatización actualizada.');
             } else {
-                payload.is_active = false;
                 const { error } = await supabase.from('automation_rules').insert([payload]);
                 if (error) throw error;
                 showFeedback('success', 'Automatización creada.');
