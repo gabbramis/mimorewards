@@ -91,9 +91,10 @@ export default function CashierTerminal() {
                 ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
                 : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
 
+            // OPTIMIZATION: Removed select('*') to prevent fetching enormous metadata
             const { data, error } = await supabase
                 .from('customers')
-                .select('*')
+                .select('id, first_name, last_name, phone, current_stamps, unique_code')
                 .or(orQuery)
                 .maybeSingle();
 

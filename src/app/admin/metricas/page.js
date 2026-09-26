@@ -242,8 +242,8 @@ export default function MetricsDashboard() {
                                                 </span>
                                                 <div
                                                     className={`w-full max-w-[36px] rounded-t-xl transition-all duration-[600ms] ease-out border-t border-x ${isZero
-                                                            ? 'bg-slate-100 border-slate-100'
-                                                            : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-700/50 shadow-sm'
+                                                        ? 'bg-slate-100 border-slate-100'
+                                                        : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-700/50 shadow-sm'
                                                         }`}
                                                     style={{ height: `${percentage}%` }}
                                                     title={`${d.value} sellos el ${d.label}`} // Native tooltip

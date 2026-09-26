@@ -1,23 +1,36 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Search, Plus, MoreVertical, CheckCircle2, UserPlus, RefreshCcw } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export default function ContactsCRM() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState("");
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [stampSuccessId, setStampSuccessId] = useState(null);
+    const [toastMessage, setToastMessage] = useState(null);
+
+    // Edit Mode states
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState(null);
 
     const supabase = createClient();
     const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
-    const fetchCustomers = async () => {
+    const showToast = (msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const fetchCustomers = useCallback(async () => {
         setIsLoading(true);
         try {
+            // OPTIMIZATION: Only select required fields instead of *
             const { data, error } = await supabase
                 .from('customers')
-                .select('*')
+                .select('id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at')
                 .eq('business_id', BUSINESS_ID)
                 .order('created_at', { ascending: false });
 
@@ -28,11 +41,11 @@ export default function ContactsCRM() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [BUSINESS_ID]); // supabase instance is stable module-scoped via singleton now
 
     useEffect(() => {
         fetchCustomers();
-    }, []);
+    }, [fetchCustomers]);
 
     const handleManualStamp = async (id, currentStamps) => {
         // Optimistic UI update
@@ -52,10 +65,14 @@ export default function ContactsCRM() {
             });
             if (!res.ok) {
                 console.error("API error while updating");
+                alert("Hubo un error al guardar el sello. Los datos se revertirán.");
                 fetchCustomers(); // revert optimistic on error
             }
+            // OPTIMIZATION: Removed fetchCustomers(); on success, 
+            // the UI is already updated optimistically!
         } catch (err) {
             console.error(err);
+            alert("Hubo un error de conexión.");
             fetchCustomers();
         }
 
@@ -64,27 +81,42 @@ export default function ContactsCRM() {
         }, 2000);
     };
 
-    const filtered = customers.filter(c =>
+    // OPTIMIZATION: Memoize filtering logic to avoid re-calculating on simple re-renders
+    const filtered = useMemo(() => customers.filter(c =>
         ((c.first_name + " " + c.last_name).toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.unique_code?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.phone?.includes(searchTerm.toLowerCase()))
-    );
+    ), [customers, searchTerm]);
 
     return (
         <div className="p-6 sm:p-10 max-w-6xl mx-auto font-sans">
+            {toastMessage && (
+                <div className="fixed top-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 flex items-center gap-2 animate-in slide-in-from-top-2">
+                    <CheckCircle2 className="text-green-400 w-4 h-4" />
+                    {toastMessage}
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Directorio de Clientes</h1>
                     <p className="text-gray-500 text-sm mt-1.5 font-medium">Gestiona tu base de clientes y sella manualmente aquellos sin batería.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                    <button
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition shadow-sm border ${isEditMode ? 'bg-gray-900 text-white border-gray-900 ring-2 ring-gray-900 ring-offset-2' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        <Settings size={18} className={isEditMode ? "animate-spin-slow" : ""} />
+                        {isEditMode ? 'Editando...' : 'Modo Edición'}
+                    </button>
                     <button onClick={fetchCustomers} className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-sm">
                         <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} />
                         Refrescar
                     </button>
                     <a href={`/unirse/${BUSINESS_ID}`} target="_blank" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm">
                         <UserPlus size={18} />
-                        Ver App Registro
+                        Alta
                     </a>
                 </div>
             </div>
@@ -148,19 +180,29 @@ export default function ContactsCRM() {
                                         {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        {stampSuccessId === c.id ? (
-                                            <span className="inline-flex items-center justify-center gap-1.5 text-green-700 text-sm font-bold bg-green-100 px-4 py-2 rounded-xl transition-all">
-                                                <CheckCircle2 size={16} /> ¡Agregado!
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleManualStamp(c.id, c.current_stamps)}
-                                                disabled={c.current_stamps >= 10}
-                                                className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                                            >
-                                                +1 Sello Manual
-                                            </button>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {isEditMode ? (
+                                                <button
+                                                    onClick={() => setEditingCustomer({ ...c })}
+                                                    className="inline-flex items-center justify-center gap-1.5 text-blue-700 text-sm font-bold bg-blue-50 hover:bg-blue-100 border border-transparent hover:border-blue-200 px-4 py-2 rounded-xl transition-all shadow-sm"
+                                                    title="Editar Cliente"
+                                                >
+                                                    <Edit3 size={16} /> Editar
+                                                </button>
+                                            ) : stampSuccessId === c.id ? (
+                                                <span className="inline-flex items-center justify-center gap-1.5 text-green-700 text-sm font-bold bg-green-100 px-4 py-2 rounded-xl transition-all">
+                                                    <CheckCircle2 size={16} /> ¡Agregado!
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleManualStamp(c.id, c.current_stamps)}
+                                                    disabled={c.current_stamps >= 10}
+                                                    className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                                                >
+                                                    +1 Sello Manual
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -178,6 +220,184 @@ export default function ContactsCRM() {
                     </div>
                 )}
             </div>
+
+            {/* MODAL DE EDICIÓN */}
+            {editingCustomer && (
+                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <Edit3 className="w-5 h-5 text-gray-500" /> Editar Cliente
+                            </h2>
+                            <button onClick={() => setEditingCustomer(null)} className="text-gray-400 hover:text-gray-600 bg-white hover:bg-gray-50 rounded-full p-1.5 transition-colors shadow-sm border border-gray-200">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Nombre</label>
+                                    <input
+                                        type="text"
+                                        value={editingCustomer.first_name || ''}
+                                        onChange={e => setEditingCustomer({ ...editingCustomer, first_name: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Apellido</label>
+                                    <input
+                                        type="text"
+                                        value={editingCustomer.last_name || ''}
+                                        onChange={e => setEditingCustomer({ ...editingCustomer, last_name: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Teléfono (WhatsApp)</label>
+                                <input
+                                    type="tel"
+                                    value={editingCustomer.phone || ''}
+                                    onChange={e => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Fecha de Nacimiento</label>
+                                <input
+                                    type="date"
+                                    value={editingCustomer.birthdate || ''}
+                                    onChange={e => setEditingCustomer({ ...editingCustomer, birthdate: e.target.value })}
+                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Ajuste de Sellos (Manual)</label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setEditingCustomer({ ...editingCustomer, current_stamps: Math.max(0, (editingCustomer.current_stamps || 0) - 1) })}
+                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 shadow-sm"
+                                    >
+                                        <Minus className="w-5 h-5" />
+                                    </button>
+                                    <div className="w-16 text-center font-bold text-xl text-gray-900 bg-gray-50 border border-gray-200 py-1.5 rounded-xl shadow-inner">
+                                        {editingCustomer.current_stamps || 0}
+                                    </div>
+                                    <button
+                                        onClick={() => setEditingCustomer({ ...editingCustomer, current_stamps: Math.min(10, (editingCustomer.current_stamps || 0) + 1) })}
+                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 shadow-sm"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <button
+                                onClick={async () => {
+                                    if (confirm('¿Seguro que deseas eliminar este cliente permanentemente?')) {
+                                        const prevCustomers = [...customers];
+                                        // Optimistic Update
+                                        setCustomers(prevCustomers.filter(c => c.id !== editingCustomer.id));
+                                        setEditingCustomer(null);
+
+                                        // Limpieza preventiva (si no hay CASCADE configurado estricto)
+                                        await supabase.from('stamp_logs').delete().eq('customer_id', editingCustomer.id);
+                                        await supabase.from('automation_logs').delete().eq('customer_id', editingCustomer.id);
+
+                                        const { error } = await supabase.from('customers').delete().eq('id', editingCustomer.id);
+                                        if (error) {
+                                            setCustomers(prevCustomers);
+                                            alert("Error al eliminar");
+                                        } else {
+                                            showToast('Cliente eliminado con éxito.');
+                                            router.refresh(); // Invalidar caché para métricas globales
+                                        }
+                                    }
+                                }}
+                                className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 transition"
+                            >
+                                <Trash2 className="w-4 h-4" /> Eliminar
+                            </button>
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setEditingCustomer(null)}
+                                    className="px-4 py-2 font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        // SINCRONIZACIÓN EXACTA DB
+                                        const { count, error: countErr } = await supabase
+                                            .from('stamp_logs')
+                                            .select('*', { count: 'exact', head: true })
+                                            .eq('customer_id', editingCustomer.id);
+
+                                        const dbCount = count || 0;
+
+                                        const { error } = await supabase.from('customers').update({
+                                            first_name: editingCustomer.first_name,
+                                            last_name: editingCustomer.last_name,
+                                            phone: editingCustomer.phone,
+                                            birthdate: editingCustomer.birthdate || null,
+                                            current_stamps: editingCustomer.current_stamps
+                                        }).eq('id', editingCustomer.id);
+
+                                        if (!error && !countErr) {
+                                            if (editingCustomer.current_stamps > dbCount) {
+                                                const amountToInsert = editingCustomer.current_stamps - dbCount;
+                                                const inserts = Array.from({ length: amountToInsert }).map(() => ({
+                                                    customer_id: editingCustomer.id,
+                                                    business_id: BUSINESS_ID,
+                                                    method: 'MANUAL',
+                                                }));
+                                                await supabase.from('stamp_logs').insert(inserts);
+                                            }
+                                            else if (editingCustomer.current_stamps < dbCount) {
+                                                const amountToDelete = dbCount - editingCustomer.current_stamps;
+
+                                                const { data: logsToDelete } = await supabase
+                                                    .from('stamp_logs')
+                                                    .select('id')
+                                                    .eq('customer_id', editingCustomer.id)
+                                                    .order('created_at', { ascending: false })
+                                                    .limit(amountToDelete);
+
+                                                if (logsToDelete && logsToDelete.length > 0) {
+                                                    const ids = logsToDelete.map(log => log.id);
+                                                    await supabase
+                                                        .from('stamp_logs')
+                                                        .delete()
+                                                        .in('id', ids);
+                                                }
+                                            }
+
+                                            // Optimistic table update instead of full refetch
+                                            setCustomers(customers.map(c => c.id === editingCustomer.id ? editingCustomer : c));
+                                            setEditingCustomer(null);
+                                            showToast('Datos del cliente guardados.');
+                                            router.refresh(); // Invalidar caché en el servidor
+                                        } else {
+                                            alert('Error al guardar: ' + error.message);
+                                        }
+                                    }}
+                                    className="px-4 py-2 font-semibold text-white bg-gray-900 border border-gray-900 rounded-xl shadow hover:bg-gray-800 transition"
+                                >
+                                    Guardar Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
