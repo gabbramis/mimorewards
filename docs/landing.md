@@ -21,6 +21,12 @@ Configurar `NEXT_PUBLIC_MIMO_SITE_URL` con el dominio público final para que lo
 - Los accesos a `/caja` y `/admin` se mantienen en la sección para comercios, el menú móvil y el pie.
 - Los avisos de privacidad y términos describen únicamente esta etapa y el formulario de consulta.
 
+## Entrada NFC
+
+El flujo de alta y primer sello vive en `/t/[nfcId]`. Un soporte puede abrir, por ejemplo, `/t/ABC123`: la pantalla resuelve el comercio, identifica una tarjeta guardada en el dispositivo o muestra el registro de nombre, apellido, celular y fecha de nacimiento. El alta se procesa en `POST /api/customers`, crea la tarjeta de fidelización cuando la tabla está disponible y acredita el primer sello con método `NFC`.
+
+Para resolver soportes reales, aplicar [`database_migrations/001_nfc_flow.sql`](../database_migrations/001_nfc_flow.sql) y activar `MIMO_NFC_DIRECTORY_ENABLED=true`. Mientras se prepara ese inventario, `MIMO_DEFAULT_BUSINESS_ID` funciona como fallback para tokens como `ABC123`.
+
 ## Recursos visuales
 
 El logo reutiliza `public/mimo-logo`, actualizado al wordmark `mimo rewards` y copiado a `public/images/mimo-logo.png`. `public/images/mimo-wordmark.png` contiene el mismo archivo recortado al contenido visible para evitar espacio transparente excesivo. La landing usa ese wordmark en header, footer, dashboard y mockup del teléfono.

@@ -28,6 +28,27 @@ CREATE TABLE customers (
 CREATE INDEX idx_customers_unique_code ON customers(unique_code);
 CREATE INDEX idx_customers_phone ON customers(phone);
 
+-- NFC stands resolve a physical support to a business/program.
+CREATE TABLE nfc_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nfc_id TEXT UNIQUE NOT NULL,
+    business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+    label TEXT,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- One digital loyalty card per customer and business.
+CREATE TABLE loyalty_cards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+    business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+    current_stamps INT DEFAULT 0,
+    wallet_status TEXT DEFAULT 'PENDING',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (customer_id, business_id)
+);
+
 -- stamp_logs
 CREATE TABLE stamp_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

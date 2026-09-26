@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store } from "lucide-react";
 
 export default function AdminLayout({ children }) {
     return (
@@ -10,6 +10,10 @@ export default function AdminLayout({ children }) {
                     <span className="font-bold text-xl text-gray-900 tracking-tight">Mimo Admin</span>
                 </div>
                 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                    <Link href="/admin/negocios" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
+                        <Store size={20} />
+                        <span>Negocios</span>
+                    </Link>
                     <Link href="/admin/metricas" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
                         <LayoutDashboard size={20} />
                         <span>Métricas</span>

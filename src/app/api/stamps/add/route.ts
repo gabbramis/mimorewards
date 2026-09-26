@@ -13,17 +13,20 @@ export async function POST(request) {
         }
 
         // 1. Find Customer
-        const { data: customer, error: customerError } = await supabase
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier);
+        const customerQuery = supabase
             .from('customers')
-            .select('id, current_stamps, business_id')
-            .or(`id.eq.${identifier},unique_code.eq.${identifier}`)
-            .single();
+            .select('id, current_stamps, total_visits, business_id')
+            .limit(1);
+        const { data: customer, error: customerError } = isUuid
+            ? await customerQuery.eq('id', identifier).maybeSingle()
+            : await customerQuery.eq('unique_code', identifier).maybeSingle();
 
         if (customerError || !customer) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
-        const newTarget = customer.current_stamps + 1;
+        const newTarget = (customer.current_stamps || 0) + 1;
 
         // 2. Increment Stamps at DB atomically 
         // (In production, an SQL RPC function should be used to guarantee true atomicity on the counter)
@@ -31,6 +34,7 @@ export async function POST(request) {
             .from('customers')
             .update({
                 current_stamps: Math.min(newTarget, 10), // clamp max to 10 for safety bounds
+                total_visits: (customer.total_visits || 0) + 1,
                 last_visit_at: new Date().toISOString()
             })
             .eq('id', customer.id);

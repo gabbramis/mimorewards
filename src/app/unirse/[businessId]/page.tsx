@@ -58,8 +58,8 @@ export default function JoinLoyaltyProgram({ params }: { params: Promise<{ busin
 
     if (newCustomer) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans">
-                <div className="bg-white max-w-sm w-full rounded-3xl p-8 shadow-xl text-center">
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 font-sans">
+                <div className="bg-white max-w-sm w-full rounded-3xl p-6 shadow-xl text-center">
                     <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                         <UserPlus size={32} />
                     </div>
@@ -86,15 +86,15 @@ export default function JoinLoyaltyProgram({ params }: { params: Promise<{ busin
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center p-6 font-sans">
-            <div className="w-full max-w-md mt-6 sm:mt-10">
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 font-sans">
+            <div className="w-full max-w-md">
 
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Mimo Rewards</h1>
-                    <p className="text-gray-600">Únete al programa de fidelización y empieza a sumar visitas para obtener premios.</p>
+                <div className="text-center mb-5">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-1">Mimo Rewards</h1>
+                    <p className="text-gray-600 text-sm">Únete al programa de fidelización y empieza a sumar visitas para obtener premios.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 flex flex-col gap-5">
+                <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 flex flex-col gap-4">
                     {errorMsg && (
                         <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center gap-2 text-sm font-medium">
                             <AlertCircle size={16} />
@@ -102,7 +102,7 @@ export default function JoinLoyaltyProgram({ params }: { params: Promise<{ busin
                         </div>
                     )}
 
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nombre</label>
                             <div className="relative">
@@ -172,14 +172,14 @@ export default function JoinLoyaltyProgram({ params }: { params: Promise<{ busin
                                     disabled={isSubmitting}
                                 />
                             </div>
-                            <p className="text-xs text-gray-500 mt-2 font-medium">Usaremos esta fecha para enviarte beneficios el día de tu cumpleaños. 🎉</p>
+                            <p className="text-xs text-gray-500 mt-1 font-medium">Usaremos esta fecha para enviarte beneficios el día de tu cumpleaños.</p>
                         </div>
                     </div>
 
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-blue-600 text-white rounded-xl py-4 font-bold text-lg hover:bg-blue-700 transition mt-2 shadow-lg shadow-blue-200 flex justify-center items-center disabled:opacity-75"
+                        className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-base hover:bg-blue-700 transition mt-1 shadow-lg shadow-blue-200 flex justify-center items-center disabled:opacity-75"
                     >
                         {isSubmitting ? <Loader2 size={24} className="animate-spin" /> : "Unirme ahora"}
                     </button>
