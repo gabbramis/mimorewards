@@ -1,6 +1,7 @@
 -- businesses
 CREATE TABLE businesses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug TEXT UNIQUE,
     name TEXT NOT NULL,
     logo_url TEXT,
     reward_target INT DEFAULT 10,
