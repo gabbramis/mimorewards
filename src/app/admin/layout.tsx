@@ -1,16 +1,11 @@
 "use client";
 
 import Link from "next/link";
-<<<<<<< HEAD
 import { usePathname, useRouter } from "next/navigation";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, LogOut } from "lucide-react";
-import { createClient } from '@/lib/supabase/client';
-=======
-import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight } from "lucide-react";
->>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight, LogOut } from "lucide-react";
+import { createClient } from '@/lib/supabase/client';
 
 const navItems = [
     ["/admin/negocios", "Negocios", Store],
@@ -23,17 +18,14 @@ const navItems = [
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
-<<<<<<< HEAD
     const router = useRouter();
     const supabase = createClient();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
         router.push('/login');
     };
-=======
-    const [sidebarOpen, setSidebarOpen] = useState(false);
->>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
 
     const getLinkClass = (path: string) => {
         const isActive = pathname === path || pathname?.startsWith(path + '/');
@@ -65,25 +57,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         </Link>
                     ))}
                 </nav>
-<<<<<<< HEAD
-                <div className="p-5 border-t border-gray-100 flex flex-col gap-4">
+                <div className="m-admin-account p-5 flex flex-col gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                        <div className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
                             L
                         </div>
                         <div className="overflow-hidden">
-                            <p className="text-sm font-semibold text-gray-900 truncate">El Gran Cafe</p>
-                            <p className="text-xs text-blue-600 font-medium truncate">Plan Inception</p>
-=======
-                <div className="m-admin-account p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                            L
-                        </div>
-                        <div>
-                            <p className="text-sm font-semibold">El Gran Café</p>
-                            <p className="text-xs font-medium">Programa activo</p>
->>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
+                            <p className="text-sm font-semibold truncate">El Gran Café</p>
+                            <p className="text-xs font-medium truncate">Programa activo</p>
                         </div>
                     </div>
                     <button
