@@ -144,7 +144,10 @@ export default function MetricsDashboard() {
     };
 
     useEffect(() => {
+        // The metrics request is the external synchronization for this view.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMetrics();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Chart max value for scaling CSS bars
@@ -275,7 +278,7 @@ export default function MetricsDashboard() {
                                     <tbody className="divide-y divide-slate-100">
                                         {recentLogs.length === 0 ? (
                                             <tr>
-                                                <td colSpan="3" className="px-5 py-8 text-center text-slate-400 font-medium">
+                                                <td colSpan={3} className="px-5 py-8 text-center text-slate-400 font-medium">
                                                     No hay actividad reciente registrada en Supabase.
                                                 </td>
                                             </tr>

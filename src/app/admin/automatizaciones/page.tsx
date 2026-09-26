@@ -68,7 +68,7 @@ export default function AutomatizacionesPage() {
                 dbRules = newlyInserted || [];
             }
             // Add fallback title/channel if missing for old data mappings
-            const parsedRules = (dbRules || []).map(r => ({
+                const parsedRules = (dbRules || []).map(r => ({
                 ...r,
                 title: r.title || getRuleDefaults(r.rule_type).title,
                 channel: r.channel || 'WHATSAPP'
@@ -119,7 +119,10 @@ export default function AutomatizacionesPage() {
     };
 
     useEffect(() => {
+        // The effect intentionally hydrates the screen from Supabase on mount.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const showFeedback = (type, text) => {
@@ -217,7 +220,7 @@ export default function AutomatizacionesPage() {
         }
 
         try {
-            const payload = {
+            const payload: Record<string, any> = {
                 // Si la BD aún no tiene estas columnas, esto causará un error en Supabase
                 title: modalData.title,
                 rule_type: modalData.rule_type,
@@ -462,14 +465,14 @@ export default function AutomatizacionesPage() {
                             <tbody className="divide-y divide-slate-100">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center">
+                                        <td colSpan={5} className="px-6 py-12 text-center">
                                             <RefreshCw className="animate-spin text-slate-300 mx-auto w-6 h-6" />
                                         </td>
                                     </tr>
                                 ) : logs.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500 font-medium">
-                                            No hay disparos registrados aún. Haz clic en "Probar Ejecución" para evaluar clientes.
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                            No hay disparos registrados aún. Haz clic en &quot;Probar Ejecución&quot; para evaluar clientes.
                                         </td>
                                     </tr>
                                 ) : (

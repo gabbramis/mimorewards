@@ -41,9 +41,11 @@ export default function ContactsCRM() {
         } finally {
             setIsLoading(false);
         }
-    }, [BUSINESS_ID]); // supabase instance is stable module-scoped via singleton now
+    }, [BUSINESS_ID, supabase]);
 
     useEffect(() => {
+        // Hydrate the customer table once the client has mounted.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCustomers();
     }, [fetchCustomers]);
 
@@ -152,7 +154,7 @@ export default function ContactsCRM() {
                         <tbody className="divide-y divide-gray-100">
                             {isLoading && customers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-500">
+                                    <td colSpan={6} className="p-8 text-center text-gray-500">
                                         <RefreshCcw size={24} className="animate-spin mx-auto mb-2 text-gray-300" />
                                         Cargando base de clientes de Supabase...
                                     </td>
@@ -216,7 +218,7 @@ export default function ContactsCRM() {
                             <Search size={32} />
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 mb-1">Sin clientes registrados</h3>
-                        <p className="text-gray-500 font-medium max-w-sm mt-1">No hay clientes por ahora. Usa el botón "Ver App Registro" para dar de alta tu primer cliente con Supabase.</p>
+                        <p className="text-gray-500 font-medium max-w-sm mt-1">No hay clientes por ahora. Usa el botón &quot;Ver App Registro&quot; para dar de alta tu primer cliente con Supabase.</p>
                     </div>
                 )}
             </div>

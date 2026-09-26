@@ -1,6 +1,8 @@
 # Landing mimo rewards
 
-La página pública está en `src/app/page.js`. Los componentes reutilizables están en `src/components/landing/` y los estilos están limitados a `.m-landing` en `src/app/landing.css` para no modificar los paneles existentes.
+La página pública está en `src/app/page.tsx`. Los componentes reutilizables están en `src/components/landing/` y los estilos están limitados a `.m-landing` en `src/app/landing.css` para no modificar los paneles existentes.
+
+El proyecto usa TypeScript con `tsconfig.json`; las páginas y componentes usan `.ts`/`.tsx`, las rutas API usan `.ts` y `jsconfig.json` ya no se utiliza.
 
 ## Contacto
 
@@ -32,6 +34,6 @@ Prompt final usado para el recurso de identidad:
 ## Validación local
 
 ```powershell
-node node_modules/eslint/bin/eslint.js src/app/page.js src/app/layout.js src/components/landing
+npm run lint
 npm run build
 ```

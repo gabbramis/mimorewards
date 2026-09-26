@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
     try {

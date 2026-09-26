@@ -18,7 +18,9 @@ export default function CashierTerminal() {
 
     const playSuccessBeep = () => {
         try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const AudioContextConstructor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AudioContextConstructor) return;
+            const audioCtx = new AudioContextConstructor();
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             oscillator.connect(gainNode);
@@ -32,6 +34,66 @@ export default function CashierTerminal() {
             oscillator.stop(audioCtx.currentTime + 0.2);
         } catch (e) { } // Ignore if AudioContext fails/is blocked
     };
+
+    async function fetchCustomerProfile(identifier, method) {
+        setIsLoading(true);
+        setErrorMsg("");
+
+        try {
+            const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
+            const orQuery = isUUID
+                ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
+                : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
+
+            const { data, error } = await supabase
+                .from('customers')
+                .select('id, first_name, last_name, phone, current_stamps, unique_code')
+                .or(orQuery)
+                .maybeSingle();
+
+            if (error) {
+                console.error("Error al buscar cliente:", error);
+            }
+
+            if (data) {
+                playSuccessBeep();
+                setCustomer({
+                    id: data.id,
+                    firstName: data.first_name,
+                    lastName: data.last_name,
+                    phone: data.phone,
+                    currentStamps: data.current_stamps,
+                    targetStamps: 10,
+                    uniqueCode: data.unique_code
+                });
+                setManualInput("");
+            } else {
+                setErrorMsg("Cliente no encontrado o código inválido.");
+            }
+        } catch (error) {
+            console.error(error);
+            setErrorMsg("Ocurrió un error inesperado al conectar.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const extractIdentifier = (text) => {
+        // If it's a URL structure or contains the unique code:
+        const match = text.match(/CLI-\d+/i);
+        if (match) return match[0];
+        return text;
+    };
+
+    const onScanSuccess = (decodedText) => {
+        setScannerActive(false); // Dismiss scanner once detected
+        const id = extractIdentifier(decodedText);
+        setScanResult(id);
+        fetchCustomerProfile(id, 'QR');
+    };
+
+    const onScanFailure = () => { };
 
     useEffect(() => {
         if (scannerActive && !customer && !successMessage) {
@@ -55,74 +117,14 @@ export default function CashierTerminal() {
                 scannerRef.current = null;
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customer, successMessage, scannerActive]);
-
-    const extractIdentifier = (text) => {
-        // If it's a URL structure or contains the unique code:
-        const match = text.match(/CLI-\d+/i);
-        if (match) return match[0];
-        return text;
-    };
-
-    const onScanSuccess = (decodedText) => {
-        setScannerActive(false); // Dismiss scanner once detected
-        const id = extractIdentifier(decodedText);
-        setScanResult(id);
-        fetchCustomerProfile(id, 'QR');
-    };
-
-    const onScanFailure = () => { };
 
     const handleManualSearch = (e) => {
         e.preventDefault();
         if (!manualInput.trim()) return;
         setScannerActive(false); // Stop scanner if running
         fetchCustomerProfile(manualInput, 'MANUAL');
-    };
-
-    const fetchCustomerProfile = async (identifier, method) => {
-        setIsLoading(true);
-        setErrorMsg("");
-
-        try {
-            const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
-            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
-            const orQuery = isUUID
-                ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
-                : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
-
-            // OPTIMIZATION: Removed select('*') to prevent fetching enormous metadata
-            const { data, error } = await supabase
-                .from('customers')
-                .select('id, first_name, last_name, phone, current_stamps, unique_code')
-                .or(orQuery)
-                .maybeSingle();
-
-            if (error) {
-                console.error("Error al buscar cliente:", error);
-            }
-
-            if (data) {
-                playSuccessBeep();
-                setCustomer({
-                    id: data.id,
-                    firstName: data.first_name,
-                    lastName: data.last_name,
-                    phone: data.phone,
-                    currentStamps: data.current_stamps,
-                    targetStamps: 10,
-                    uniqueCode: data.unique_code
-                });
-                setManualInput(""); // reset input
-            } else {
-                setErrorMsg("Cliente no encontrado o código inválido.");
-            }
-        } catch (error) {
-            console.error(error);
-            setErrorMsg("Ocurrió un error inesperado al conectar.");
-        } finally {
-            setIsLoading(false);
-        }
     };
 
     const handleAddStamp = async () => {

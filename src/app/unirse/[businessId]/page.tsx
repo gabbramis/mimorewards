@@ -4,7 +4,7 @@ import { useState, use } from "react";
 import { UserPlus, UserIcon, Phone, Calendar, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
-export default function JoinLoyaltyProgram({ params }) {
+export default function JoinLoyaltyProgram({ params }: { params: Promise<{ businessId: string }> }) {
     const resolvedParams = use(params);
     const businessId = resolvedParams.businessId;
     const supabase = createClient();
