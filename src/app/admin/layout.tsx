@@ -1,7 +1,23 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings } from "lucide-react";
 
 export default function AdminLayout({ children }) {
+    const pathname = usePathname();
+
+    const getLinkClass = (path) => {
+        // En Next.js App Router, para verificar si la ruta es activa:
+        const isActive = pathname === path || pathname?.startsWith(path + '/');
+
+        const baseClass = "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
+        if (isActive) {
+            return `${baseClass} text-red-600 bg-red-50 font-medium`;
+        }
+        return `${baseClass} text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal`;
+    };
+
     return (
         <div className="flex h-screen bg-gray-50 font-sans">
             {/* Sidebar */}
@@ -10,23 +26,23 @@ export default function AdminLayout({ children }) {
                     <span className="font-bold text-xl text-gray-900 tracking-tight">Mimo Admin</span>
                 </div>
                 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-                    <Link href="/admin/metricas" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
+                    <Link href="/admin/metricas" className={getLinkClass("/admin/metricas")}>
                         <LayoutDashboard size={20} />
                         <span>Métricas</span>
                     </Link>
-                    <Link href="/admin/contactos" className="flex items-center gap-3 px-3 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-medium">
+                    <Link href="/admin/contactos" className={getLinkClass("/admin/contactos")}>
                         <Users size={20} />
                         <span>Contactos (CRM)</span>
                     </Link>
-                    <Link href="/admin/conversaciones" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
+                    <Link href="/admin/conversaciones" className={getLinkClass("/admin/conversaciones")}>
                         <MessageSquare size={20} />
                         <span>Conversaciones</span>
                     </Link>
-                    <Link href="/admin/automatizaciones" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
+                    <Link href="/admin/automatizaciones" className={getLinkClass("/admin/automatizaciones")}>
                         <Megaphone size={20} />
                         <span>Automatizaciones</span>
                     </Link>
-                    <Link href="/admin/ajustes" className="flex items-center gap-3 px-3 py-2.5 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition font-medium">
+                    <Link href="/admin/ajustes" className={getLinkClass("/admin/ajustes")}>
                         <Settings size={20} />
                         <span>Ajustes</span>
                     </Link>

@@ -1,29 +1,19 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import {
-    Cake,
-    Clock,
-    Award,
-    Check,
-    RefreshCw,
-    CheckCircle2,
-    AlertCircle,
-    Plus,
-    Trash2,
-    Edit2,
-    X,
-    Smartphone, // Para app/sms
-    MessageSquare,
-    Gift,
-    Target,
-    UserPlus
+    Cake, Clock, Award, Check, RefreshCw, CheckCircle2, AlertCircle, Plus, Trash2, Edit2, X,
+    Smartphone, MessageSquare, Gift, Target, UserPlus, Play, CheckCheck, Eye, Search, Zap, Send, RotateCcw
 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export default function AutomatizacionesPage() {
     const [rules, setRules] = useState([]);
     const [logs, setLogs] = useState([]);
-    const [metrics, setMetrics] = useState({ totalLogs: 0, impactedCustomers: 0 });
+    const [metrics, setMetrics] = useState({
+        activeRulesCount: 0,
+        thisMonthLogsStr: "0",
+        returnRateStr: "0%",
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [isRunning, setIsRunning] = useState(false);
     const [feedback, setFeedback] = useState(null);
@@ -33,82 +23,116 @@ export default function AutomatizacionesPage() {
     const [modalData, setModalData] = useState(getInitialModalData());
     const textareaRef = useRef(null);
 
+    // Tabla Historial States
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState("Todos");
+
     const supabase = createClient();
-    const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119"; // ID de pruebas
+    const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
     function getInitialModalData() {
         return {
-            id: null,
-            title: "",
-            rule_type: "BIRTHDAY",
-            channel: "WHATSAPP", // 'WHATSAPP' o 'SMS'
-            message_template: ""
+            id: null, title: "", rule_type: "BIRTHDAY", channel: "WHATSAPP", message_template: ""
         };
     }
 
     const fetchConfig = async () => {
         setIsLoading(true);
         try {
-            // Fetch Reglas
+            // Reglas
             let { data: dbRules } = await supabase
                 .from('automation_rules')
                 .select('*')
                 .eq('business_id', BUSINESS_ID)
                 .order('created_at', { ascending: false });
 
-            // Seed inicial si está vacío
             if (!dbRules || dbRules.length === 0) {
                 const initialRules = [
-                    { business_id: BUSINESS_ID, rule_type: 'BIRTHDAY', is_active: false, message_template: '¡Feliz cumple {nombre}! 🎂 Te esperamos en El Gran Café con una consumición de regalo para festejar tu día. Mostrá este mensaje en caja.' },
-                    { business_id: BUSINESS_ID, rule_type: 'INACTIVE', is_active: false, message_template: '¡Hola {nombre}! Hace unos días no te vemos por El Gran Café ☕ Te dejamos un beneficio especial en tu próxima visita para que vuelvas a sumar sellos.' },
-                    { business_id: BUSINESS_ID, rule_type: 'WELCOME', is_active: false, message_template: '¡Bienvenido al Club de El Gran Café! ☕ Ya tenés tus primeros sellos acreditados. Mencioná tu celular al barista para seguir sumando.' }
+                    { business_id: BUSINESS_ID, rule_type: 'BIRTHDAY', is_active: false, message_template: '¡Feliz cumple {nombre}! 🎂 Te esperamos con un regalo para festejar.' },
+                    { business_id: BUSINESS_ID, rule_type: 'INACTIVE', is_active: false, message_template: '¡Hola {nombre}! Hace unos días no te vemos ☕ Te dejamos un beneficio.' },
                 ];
                 await supabase.from('automation_rules').insert(initialRules);
                 const { data: newlyInserted } = await supabase.from('automation_rules').select('*').eq('business_id', BUSINESS_ID).order('created_at', { ascending: false });
                 dbRules = newlyInserted || [];
             }
-            // Add fallback title/channel if missing for old data mappings
-                const parsedRules = (dbRules || []).map(r => ({
+
+            const parsedRules = (dbRules || []).map(r => ({
                 ...r,
                 title: r.title || getRuleDefaults(r.rule_type).title,
                 channel: r.channel || 'WHATSAPP'
             }));
-
             setRules(parsedRules);
 
-            // Fetch Logs
+            // Log Histórico
             const { data: dbLogs } = await supabase
                 .from('automation_logs')
                 .select(`
-                    id,
-                    status,
-                    sent_at,
-                    rule_id,
+                    id, status, sent_at,
                     customers ( customer_id:id, first_name, last_name, phone ),
                     automation_rules ( rule_type, title )
                 `)
                 .eq('business_id', BUSINESS_ID)
                 .order('sent_at', { ascending: false })
-                .limit(20);
+                .limit(40);
 
             setLogs(dbLogs || []);
 
-            // Metrics
-            const { count: totalLogsCount } = await supabase
+            // Métricas Reales
+
+            // 1. Activas
+            const countActives = parsedRules.filter(r => r.is_active).length;
+
+            // 2. Envíos Mes Actual
+            const beginningOfMonth = new Date();
+            beginningOfMonth.setDate(1);
+            beginningOfMonth.setHours(0, 0, 0, 0);
+
+            const { count: thisMonthLogsCount } = await supabase
                 .from('automation_logs')
                 .select('*', { count: 'exact', head: true })
-                .eq('business_id', BUSINESS_ID);
+                .eq('business_id', BUSINESS_ID)
+                .gte('sent_at', beginningOfMonth.toISOString());
 
+            // 3. Tasa de Retorno (Clientes que volvieron a canjear/sellar luego del msj)
             const { data: allLogs } = await supabase
                 .from('automation_logs')
-                .select('customer_id')
+                .select('customer_id, sent_at')
                 .eq('business_id', BUSINESS_ID);
 
-            const uniqueCustomers = new Set(allLogs?.map(l => l.customer_id) || []).size;
+            const { data: allStamps } = await supabase
+                .from('stamp_logs')
+                .select('customer_id, created_at')
+                .eq('business_id', BUSINESS_ID);
+
+            let returnedCount = 0;
+            let totalUniqueAlerted = 0;
+
+            if (allLogs && allLogs.length > 0) {
+                const earliestLog = {};
+                allLogs.forEach(log => {
+                    const current = earliestLog[log.customer_id];
+                    if (!current || new Date(log.sent_at) < current) {
+                        earliestLog[log.customer_id] = new Date(log.sent_at);
+                    }
+                });
+
+                totalUniqueAlerted = Object.keys(earliestLog).length;
+
+                if (allStamps && allStamps.length > 0) {
+                    Object.keys(earliestLog).forEach(custId => {
+                        const firstLogDate = earliestLog[custId];
+                        const hasStampsAfter = allStamps.some(s => s.customer_id === custId && new Date(s.created_at) > firstLogDate);
+                        if (hasStampsAfter) returnedCount++;
+                    });
+                }
+            }
+
+            const calculatedReturnRate = totalUniqueAlerted > 0 ? Math.round((returnedCount / totalUniqueAlerted) * 100) : 0;
 
             setMetrics({
-                totalLogs: totalLogsCount || 0,
-                impactedCustomers: uniqueCustomers
+                activeRulesCount: countActives,
+                thisMonthLogsStr: (thisMonthLogsCount || 0).toString(),
+                returnRateStr: `${calculatedReturnRate}%`
             });
 
         } catch (error) {
@@ -119,8 +143,6 @@ export default function AutomatizacionesPage() {
     };
 
     useEffect(() => {
-        // The effect intentionally hydrates the screen from Supabase on mount.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -130,7 +152,6 @@ export default function AutomatizacionesPage() {
         setTimeout(() => setFeedback(null), 3000);
     };
 
-    // --- ACCIONES DE REGLAS ---
     const handleRunEngine = async () => {
         setIsRunning(true);
         try {
@@ -138,12 +159,12 @@ export default function AutomatizacionesPage() {
             const data = await res.json();
             if (data.success) {
                 showFeedback('success', data.message || 'Ejecución finalizada.');
-                fetchConfig(); // refrescar historial
+                fetchConfig();
             } else {
                 showFeedback('error', 'Error en la ejecución: ' + data.error);
             }
         } catch (error) {
-            showFeedback('error', 'Ocurrió un error al contactar al motor de automatización.');
+            showFeedback('error', 'Error al contactar motor.');
         } finally {
             setIsRunning(false);
         }
@@ -154,20 +175,22 @@ export default function AutomatizacionesPage() {
         setRules(prev => prev.map(r => r.id === id ? { ...r, is_active: newStatus } : r));
         try {
             await supabase.from('automation_rules').update({ is_active: newStatus }).eq('id', id);
+            fetchConfig(); // actualizar metricas
         } catch (e) {
             setRules(prev => prev.map(r => r.id === id ? { ...r, is_active: currentStatus } : r));
-            showFeedback('error', 'No se pudo actualizar el estado de la regla.');
+            showFeedback('error', 'No se pudo actualizar el estado.');
         }
     };
 
     const handleDeleteRule = async (id) => {
-        if (!window.confirm("¿Seguro que deseas eliminar esta automatización?")) return;
+        if (!window.confirm("¿Seguro que deseas eliminar esta regla?")) return;
         setRules(prev => prev.filter(r => r.id !== id));
         try {
             await supabase.from('automation_rules').delete().eq('id', id);
-            showFeedback('success', 'Automatización eliminada correctamente.');
+            showFeedback('success', 'Regla eliminada.');
+            fetchConfig(); // refresh kpis
         } catch (e) {
-            fetchConfig(); // rollback UI
+            fetchConfig();
             showFeedback('error', 'Error al eliminar.');
         }
     };
@@ -180,15 +203,12 @@ export default function AutomatizacionesPage() {
         window.open(`https://wa.me/?text=${encodeURIComponent(sampleText)}`, '_blank');
     };
 
-    // --- MODAL Y EDITOR ---
     const openModal = (rule = null) => {
         if (rule) {
             setModalData({
-                id: rule.id,
+                ...rule,
                 title: rule.title || getRuleDefaults(rule.rule_type).title,
-                rule_type: rule.rule_type,
-                channel: rule.channel || 'WHATSAPP',
-                message_template: rule.message_template
+                channel: rule.channel || 'WHATSAPP'
             });
         } else {
             setModalData(getInitialModalData());
@@ -200,10 +220,8 @@ export default function AutomatizacionesPage() {
         if (textareaRef.current) {
             const start = textareaRef.current.selectionStart;
             const end = textareaRef.current.selectionEnd;
-            const currentText = modalData.message_template;
-            const newText = currentText.substring(0, start) + tag + currentText.substring(end);
-            setModalData(prev => ({ ...prev, message_template: newText }));
-            // Reposition cursor
+            const text = modalData.message_template;
+            setModalData(prev => ({ ...prev, message_template: text.substring(0, start) + tag + text.substring(end) }));
             setTimeout(() => {
                 textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + tag.length;
                 textareaRef.current.focus();
@@ -215,309 +233,328 @@ export default function AutomatizacionesPage() {
 
     const handleSaveModal = async () => {
         if (!modalData.title.trim() || !modalData.message_template.trim()) {
-            alert('El título y el mensaje son obligatorios.');
+            alert('Título y mensaje son obligatorios.');
             return;
         }
-
         try {
-            const payload: Record<string, any> = {
-                // Si la BD aún no tiene estas columnas, esto causará un error en Supabase
-                title: modalData.title,
-                rule_type: modalData.rule_type,
-                channel: modalData.channel,
-                message_template: modalData.message_template,
+            const payload = {
+                title: modalData.title, rule_type: modalData.rule_type,
+                channel: modalData.channel, message_template: modalData.message_template,
                 business_id: BUSINESS_ID,
             };
-
             if (modalData.id) {
-                // UPDATE
                 const { error } = await supabase.from('automation_rules').update(payload).eq('id', modalData.id);
                 if (error) throw error;
-
-                setRules(prev => prev.map(r => r.id === modalData.id ? { ...r, ...payload } : r));
                 showFeedback('success', 'Automatización actualizada.');
             } else {
-                // CREATE
-                payload.is_active = false; // default desactivado
-                const { data: newRow, error } = await supabase.from('automation_rules').insert([payload]).select().single();
+                payload.is_active = false;
+                const { error } = await supabase.from('automation_rules').insert([payload]);
                 if (error) throw error;
-
-                if (newRow) {
-                    setRules([newRow, ...rules]);
-                }
-                showFeedback('success', 'Automatización creada exitosamente.');
+                showFeedback('success', 'Automatización creada.');
             }
+            fetchConfig(); // refrescar
             setIsModalOpen(false);
         } catch (e) {
-            console.error("Error saving rule:", e);
-            showFeedback('error', e.message || 'Ocurrió un error al guardar en la BD.');
+            showFeedback('error', 'Ocurrió un error al guardar.');
         }
     };
 
-    // Helpers UI
     function getRuleDefaults(type) {
         switch (type) {
-            case 'BIRTHDAY': return { title: "Promo de Cumpleaños", icon: Cake, desc: "Dispara en su fecha de nacimiento" };
-            case 'INACTIVE': return { title: "Recuperación Inactivos", icon: Clock, desc: "Sin sellos en el último mes" };
-            case 'WELCOME': return { title: "Bienvenida al Club", icon: UserPlus, desc: "Inmediato al registrarse" };
-            case 'NEAR_REWARD': return { title: "A un paso del Premio", icon: Target, desc: "Empuje al llegar a 8 o 9 sellos" };
-            case 'REWARD': return { title: "Premio Disponible", icon: Gift, desc: "Alcanzó el tope (10 sellos)" };
-            default: return { title: "Automatización", icon: CheckCircle2, desc: "Envío dinámico" };
+            case 'BIRTHDAY': return { title: "Promo de Cumpleaños", icon: Cake, desc: "Fecha de nacimiento", timing: "09:00 hs el mismo día" };
+            case 'INACTIVE': return { title: "Recuperación Inactivos", icon: Clock, desc: "Sin sellos recientes", timing: "30 días inactividad" };
+            case 'WELCOME': return { title: "Bienvenida al Club", icon: UserPlus, desc: "1er sello sumado", timing: "15 min luego del sello" };
+            case 'NEAR_REWARD': return { title: "A un paso del Premio", icon: Target, desc: "Cerca de la meta", timing: "Inmediato" };
+            case 'REWARD': return { title: "Premio Disponible", icon: Gift, desc: "Tarjeta completa", timing: "Inmediato" };
+            default: return { title: "Regla Custom", icon: CheckCircle2, desc: "Envío dinámico", timing: "Personalizado" };
         }
     }
 
-    const segmentOptions = [
-        { value: 'BIRTHDAY', label: '🎂 Cumpleaños del cliente' },
-        { value: 'INACTIVE', label: '💤 Cliente Inactivo (+30 días)' },
-        { value: 'WELCOME', label: '✨ Nuevo Cliente (Bienvenida)' },
-        { value: 'NEAR_REWARD', label: '🎯 Cerca del Premio (8 o 9 sellos)' },
-        { value: 'REWARD', label: '🎁 Tarjeta Completa (10 sellos)' }
-    ];
+    const filteredLogs = logs.filter(log => {
+        const cName = log.customers ? `${log.customers.first_name} ${log.customers.last_name}`.toLowerCase() : "";
+        const cPhone = log.customers?.phone?.toLowerCase() || "";
+        const matchesSearch = cName.includes(searchQuery.toLowerCase()) || cPhone.includes(searchQuery.toLowerCase());
 
-    const activeRulesCount = rules.filter(r => r.is_active).length;
+        // Mock status filters logic mapping
+        let matchesStatus = true;
+        // As request: 'Todos', 'Leído', 'Entregado', 'Respondido'
+        if (statusFilter === "Entregado") matchesStatus = log.status === 'SENT';
+        if (statusFilter === "Leído" || statusFilter === "Respondido") matchesStatus = false;
+
+        return matchesSearch && matchesStatus;
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 p-6 md:p-8 font-sans pb-20">
             <div className="max-w-7xl mx-auto space-y-8">
 
-                {/* 1. CABECERA Y ACCIONES SUPERIORES */}
-                <div className="space-y-4">
-                    <div className="flex items-center text-sm text-slate-500 font-medium">
-                        <span>Mimo</span>
-                        <span className="mx-2">›</span>
-                        <span>Campañas</span>
-                        <span className="mx-2">›</span>
-                        <span className="text-slate-900">Automatizaciones</span>
+                {/* CABECERA */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-1">
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Automatizaciones de Mensajería</h1>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100/60 text-green-700 border border-green-200 shadow-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                Motor Activo - WhatsApp Cloud API
+                            </span>
+                        </div>
+                        <p className="text-slate-500 text-sm font-medium">Incrementa tu fidelidad automatizando mensajes personalizados.</p>
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="space-y-3">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-                                MÓDULO DE RETENCIÓN • Motor Activo
-                            </span>
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                                Automatizaciones
-                            </h1>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <button
-                                onClick={handleRunEngine}
-                                disabled={isRunning || isLoading}
-                                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isRunning ? <RefreshCw className="w-4 h-4 animate-spin text-slate-400" /> : <RefreshCw className="w-4 h-4 text-slate-500" />}
-                                Probar Ejecución
-                            </button>
-                            <button
-                                onClick={() => openModal()}
-                                className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg shadow hover:bg-slate-800 transition-colors flex items-center gap-2"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Nueva Automatización
-                            </button>
-                        </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <button
+                            onClick={handleRunEngine}
+                            disabled={isRunning || isLoading}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+                        >
+                            {isRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 text-slate-500" />}
+                            Simular Disparo / Test
+                        </button>
+                        {/* BOTÓN ROJO CORAL MIMO IDENTITY */}
+                        <button
+                            onClick={() => openModal()}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 border border-red-500 rounded-xl shadow-sm hover:bg-red-600 transition"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Nueva Regla
+                        </button>
                     </div>
                 </div>
 
-                {/* Feedback flotante superior */}
                 {feedback && (
-                    <div className={`p-4 rounded-xl flex items-center gap-3 font-medium shadow-sm border ${feedback.type === 'success' ? 'bg-[#DCF8C6]/50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                        {feedback.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5" />}
+                    <div className={`p-4 rounded-xl flex items-center gap-3 font-medium shadow-xs border animate-in fade-in slide-in-from-top-2 ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                        {feedback.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5" />}
                         {feedback.text}
                     </div>
                 )}
 
-                {/* 2. RESUMEN DE KPIS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <h3 className="text-sm font-medium text-slate-500 mb-1">Automatizaciones Activas</h3>
-                        <div className="flex items-baseline gap-2">
-                            <p className="text-3xl font-bold text-slate-900">{isLoading ? '-' : activeRulesCount}</p>
-                            <span className="text-sm font-medium text-slate-400">/ {rules.length} total</span>
+                {/* KPIs EXACTAMENTE 4 CARDS REALES Y LIMPIAS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Tarjeta 1 - Activas */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between items-start group">
+                        <div className="bg-slate-50 p-2 rounded-lg text-slate-500 mb-3 group-hover:bg-red-50 group-hover:text-red-500 transition-colors">
+                            <Zap size={18} />
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-slate-900">{isLoading ? '-' : metrics.activeRulesCount}</p>
+                            <h3 className="text-sm font-bold text-slate-500 mt-0.5">Automatizaciones Activas</h3>
+                            <span className="text-xs font-semibold text-slate-400">{metrics.activeRulesCount} de {rules.length} configuradas</span>
                         </div>
                     </div>
 
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <h3 className="text-sm font-medium text-slate-500 mb-1">Mensajes Enviados</h3>
-                        <p className="text-3xl font-bold text-slate-900">{isLoading ? '-' : metrics.totalLogs}</p>
+                    {/* Tarjeta 2 - Envíos */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between items-start group">
+                        <div className="bg-slate-50 p-2 rounded-lg text-slate-500 mb-3 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                            <Send size={18} />
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-slate-900">{isLoading ? '-' : metrics.thisMonthLogsStr}</p>
+                            <h3 className="text-sm font-bold text-slate-500 mt-0.5">Mensajes Enviados</h3>
+                            <span className="text-xs font-semibold text-slate-400">Envíos acumulados este mes</span>
+                        </div>
                     </div>
 
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <h3 className="text-sm font-medium text-slate-500 mb-1">Clientes Impactados</h3>
-                        <p className="text-3xl font-bold text-slate-900">{isLoading ? '-' : metrics.impactedCustomers}</p>
+                    {/* Tarjeta 3 - Retorno */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between items-start group">
+                        <div className="bg-slate-50 p-2 rounded-lg text-slate-500 mb-3 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
+                            <RotateCcw size={18} />
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-slate-900">{isLoading ? '-' : metrics.returnRateStr}</p>
+                            <h3 className="text-sm font-bold text-slate-500 mt-0.5">Tasa de Retorno</h3>
+                            <span className="text-xs font-semibold text-slate-400">Clientes reactivados tras mensaje</span>
+                        </div>
+                    </div>
+
+                    {/* Tarjeta 4 - Empty Placeholder */}
+                    <div className="bg-slate-50/50 p-5 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-center opacity-70">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mb-2">
+                            <AlertCircle size={14} className="text-slate-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-400">Próxima métrica</p>
+                        <span className="text-xs text-slate-400 mt-1">en desarrollo</span>
                     </div>
                 </div>
 
-                {/* 3. GRILLA DE REGLAS INTERACTIVA */}
+                {/* LISTADO DE REGLAS (Tarjetas Horizontales Limpias) */}
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight pt-2">Flujos y Campañas Activas</h2>
+
                 {isLoading ? (
                     <div className="flex justify-center items-center py-20">
                         <RefreshCw className="animate-spin text-slate-300 w-10 h-10" />
                     </div>
+                ) : rules.length === 0 ? (
+                    <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-400 mb-4"><MessageSquare className="w-8 h-8" /></div>
+                        <h3 className="font-bold text-slate-800 text-xl tracking-tight">Crea tu primera automatización</h3>
+                        <p className="text-slate-500 mt-2 max-w-sm">Aún no hay mensajes. Configura reglas de envío automático para retener a tus clientes.</p>
+                        <button onClick={() => openModal()} className="mt-6 px-6 py-3 text-sm font-bold text-white bg-red-500 rounded-xl shadow-xs hover:bg-red-600 transition flex items-center gap-2">
+                            <Plus className="w-5 h-5" /> Nueva Regla
+                        </button>
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-4">
                         {rules.map(rule => {
                             const meta = getRuleDefaults(rule.rule_type);
                             const Icon = meta.icon;
-                            const isWhatsApp = rule.channel === 'WHATSAPP';
 
                             return (
-                                <div key={rule.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col h-full group hover:border-slate-300 transition-colors">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-start gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center ${isWhatsApp ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                <Icon className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-900 leading-tight">
-                                                    {rule.title}
-                                                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${isWhatsApp ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                        {rule.channel}
-                                                    </span>
-                                                </h3>
-                                                <p className="text-xs text-slate-500 mt-1 font-medium bg-slate-50 inline-block px-1.5 py-0.5 rounded border border-slate-100">
-                                                    Disparador: {meta.desc}
-                                                </p>
-                                            </div>
+                                <div key={rule.id} className={`bg-white border rounded-2xl p-0 shadow-xs overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-sm ${rule.is_active ? 'border-slate-100' : 'border-slate-100 opacity-80'}`}>
+                                    {/* Izquierda: Info */}
+                                    <div className="p-5 sm:p-6 flex-1 flex items-start gap-4 border-b md:border-b-0 md:border-r border-slate-100">
+                                        <div className={`w-12 h-12 rounded-xl flex shrink-0 items-center justify-center text-xl font-bold ${rule.is_active ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+                                            <Icon className="w-6 h-6" />
                                         </div>
-                                        <button
-                                            onClick={() => handleToggle(rule.id, rule.is_active)}
-                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full focus:outline-none border-2 border-transparent transition-colors ${rule.is_active ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                                        >
-                                            <span className={`${rule.is_active ? 'translate-x-5' : 'translate-x-0'} inline-block h-5 w-5 transform rounded-full bg-white transition shadow-sm`} />
-                                        </button>
-                                    </div>
+                                        <div className="w-full">
+                                            <div className="flex justify-between items-start w-full">
+                                                <div>
+                                                    <h3 className="font-bold text-lg text-slate-900 leading-tight">{rule.title}</h3>
+                                                    <div className="flex items-center gap-3 flex-wrap mt-1">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500">
+                                                            {meta.timing}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
-                                    <div className={`mt-2 ${isWhatsApp ? 'bg-[#DCF8C6]' : 'bg-slate-100'} shadow-sm rounded-xl p-4 mb-5 relative text-sm text-slate-800 self-start w-[90%] transition-colors border ${isWhatsApp ? 'border-[#DCF8C6]' : 'border-slate-200'}`}>
-                                        <div className={`absolute top-0 left-[-6px] w-0 h-0 border-t-[8px] ${isWhatsApp ? 'border-t-[#DCF8C6]' : 'border-t-slate-100'} border-l-[8px] border-l-transparent transition-colors`}></div>
-                                        {rule.message_template}
-                                        <div className="text-[10px] text-slate-500 text-right mt-1 flex justify-end items-center gap-1">
-                                            <Check className={`w-3 h-3 ${isWhatsApp ? 'text-blue-500' : 'text-slate-400'}`} />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => openModal(rule)}
-                                                className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors"
-                                            >
-                                                <Edit2 className="w-3.5 h-3.5" /> Editar
-                                            </button>
-                                            {isWhatsApp && (
+                                                {/* Coral Toggle */}
                                                 <button
-                                                    onClick={() => handleTestWhatsApp(rule.message_template)}
-                                                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                                                    onClick={() => handleToggle(rule.id, rule.is_active)}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full focus:outline-none transition-colors duration-200 mt-1 ${rule.is_active ? 'bg-red-500' : 'bg-slate-200'}`}
                                                 >
-                                                    Probar Envío
+                                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${rule.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                                                 </button>
-                                            )}
+                                            </div>
+
+                                            <div className="mt-4 bg-slate-50 rounded-xl p-3 text-sm text-slate-600 font-medium italic relative">
+                                                <div className="absolute top-0 left-4 w-3 h-3 bg-slate-50 border-t border-l border-slate-50 -translate-y-1.5 rotate-45"></div>
+                                                &quot;{rule.message_template.length > 80 ? rule.message_template.substring(0, 80) + '...' : rule.message_template}&quot;
+                                            </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteRule(rule.id)}
-                                            className="text-slate-400 hover:text-red-500 bg-white hover:bg-red-50 border border-transparent hover:border-red-100 p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                            title="Eliminar Automatización"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
+                                    </div>
+
+                                    {/* Derecha: Acciones Limpias */}
+                                    <div className="p-4 sm:p-6 flex flex-row md:flex-col justify-end md:items-end gap-3 md:w-28 bg-slate-50/30">
+                                        <button onClick={() => openModal(rule)} className="flex flex-1 md:flex-none justify-center items-center gap-2 p-2 text-sm font-semibold text-slate-500 hover:text-red-500 bg-white hover:bg-red-50 rounded-lg border border-slate-200 transition-colors shadow-xs" title="Editar">
+                                            <Edit2 size={16} /> <span className="md:hidden">Editar</span>
+                                        </button>
+                                        <button onClick={() => handleTestWhatsApp(rule.message_template)} className="flex flex-1 md:flex-none justify-center items-center gap-2 p-2 text-sm font-semibold text-slate-500 hover:text-blue-500 bg-white hover:bg-blue-50 rounded-lg border border-slate-200 transition-colors shadow-xs" title="Vista Previa">
+                                            <Eye size={16} /> <span className="md:hidden">Probar</span>
+                                        </button>
+                                        <button onClick={() => handleDeleteRule(rule.id)} className="flex flex-1 md:flex-none justify-center items-center gap-2 p-2 text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 rounded-lg border border-slate-200 transition-colors shadow-xs" title="Borrar">
+                                            <Trash2 size={16} /> <span className="md:hidden">Borrar</span>
                                         </button>
                                     </div>
                                 </div>
                             );
                         })}
-
-                        {/* Empty/Add card state if no rules exist */}
-                        {!isLoading && rules.length === 0 && (
-                            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center col-span-full">
-                                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-3">
-                                    <MessageSquare className="w-6 h-6" />
-                                </div>
-                                <h3 className="font-bold text-slate-700 text-lg">Sin Automatizaciones</h3>
-                                <p className="text-slate-500 text-sm mt-1 max-w-sm">No hay mensajes configurados aún. Empieza creando tu primera regla de retención para interactuar con tus clientes en piloto automático.</p>
-                                <button
-                                    onClick={() => openModal()}
-                                    className="mt-4 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg shadow hover:bg-slate-800 transition-colors flex items-center gap-2"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    Crear mi Primera Regla
-                                </button>
-                            </div>
-                        )}
                     </div>
                 )}
 
-                {/* 4. AUDITORÍA INFERIOR (HISTORIAL) */}
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-8">
-                    <div className="p-5 border-b border-slate-200 bg-white flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-slate-900">Historial de Disparos</h2>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 uppercase tracking-wider">Últimos {logs.length} registros</span>
+                {/* HISTORIAL OPERATIVO (Auditoría) */}
+                <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden mt-10">
+                    <div className="p-5 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                            Auditoría de Envíos Realizados
+                        </h2>
+
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                            <div className="relative w-full sm:w-80">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={16} className="text-slate-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por cliente o teléfono..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-medium rounded-xl pl-10 pr-4 py-2 focus:ring-1 focus:ring-red-500 focus:bg-white outline-none transition"
+                                />
+                            </div>
+
+                            <div className="flex bg-slate-50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto hide-scrollbar">
+                                {['Todos', 'Entregado'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setStatusFilter(f)}
+                                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${statusFilter === f
+                                            ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                    >
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600 min-w-[700px]">
-                            <thead className="text-[11px] uppercase bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 tracking-wider">
+                    <div className="overflow-x-auto w-full">
+                        <table className="w-full text-leftbg-white text-sm">
+                            <thead className="bg-slate-50 border-b border-slate-100 font-bold text-[11px] text-slate-500 uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-6 py-4">CLIENTE</th>
-                                    <th className="px-6 py-4">REGLA DISPARADA</th>
-                                    <th className="px-6 py-4">CANAL</th>
-                                    <th className="px-6 py-4">FECHA</th>
-                                    <th className="px-6 py-4">ESTADO</th>
+                                    <th className="px-6 py-4">Cliente</th>
+                                    <th className="px-6 py-4">Regla</th>
+                                    <th className="px-6 py-4 text-center">Fecha y Hora</th>
+                                    <th className="px-6 py-4 text-center">WhatsApp Status</th>
+                                    <th className="px-6 py-4 text-right"></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-50">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center">
-                                            <RefreshCw className="animate-spin text-slate-300 mx-auto w-6 h-6" />
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                                            <RefreshCw className="animate-spin text-slate-300 mx-auto w-6 h-6 mb-3" />
                                         </td>
                                     </tr>
-                                ) : logs.length === 0 ? (
+                                ) : filteredLogs.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                            No hay disparos registrados aún. Haz clic en &quot;Probar Ejecución&quot; para evaluar clientes.
+                                        <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-medium">
+                                            No se encontraron envíos que coincidan.
                                         </td>
                                     </tr>
                                 ) : (
-                                    logs.map((log) => {
+                                    filteredLogs.map((log) => {
                                         const c = log.customers;
                                         const r = log.automation_rules;
                                         const clientName = c ? `${c.first_name} ${c.last_name}` : 'Desconocido';
-
-                                        // Generar avatar
-                                        const initials = c ? (c.first_name[0] + c.last_name[0]).toUpperCase() : '??';
-                                        const colors = ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-rose-100 text-rose-700', 'bg-emerald-100 text-emerald-700', 'bg-sky-100 text-sky-700'];
-                                        const colorClass = colors[(c?.first_name?.length || 0) % colors.length];
-
+                                        const phone = c?.phone || 'Sin número';
+                                        const initials = c ? `${c.first_name[0]}${c.last_name[0]}`.toUpperCase() : '??';
                                         const ruleTitle = r?.title || getRuleDefaults(r?.rule_type).title || 'Automatización';
+
                                         const dateObj = new Date(log.sent_at);
-                                        const fDate = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                        const fDate = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
                                         const fTime = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
                                         return (
-                                            <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="px-6 py-4 flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-full flex flex-shrink-0 items-center justify-center font-bold text-xs ${colorClass}`}>
-                                                        {initials}
+                                            <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                <td className="px-6 py-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-full bg-red-50 text-red-500 flex items-center justify-center font-bold text-xs shrink-0">
+                                                            {initials}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-slate-900">{clientName}</div>
+                                                            <div className="text-[11px] text-slate-400 font-medium font-mono">{phone}</div>
+                                                        </div>
                                                     </div>
-                                                    <span className="font-medium text-slate-900">{clientName}</span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-sm text-slate-700 font-medium">
-                                                        {ruleTitle}
-                                                    </span>
+                                                <td className="px-6 py-3">
+                                                    <div className="font-bold text-slate-700">{ruleTitle}</div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 uppercase tracking-widest">
-                                                        WHATSAPP {/* Simplificado para maqueta */}
-                                                    </span>
+                                                <td className="px-6 py-3 text-center">
+                                                    <div className="font-bold text-slate-900">{fDate}</div>
+                                                    <div className="text-[11px] text-slate-400 font-bold">{fTime} hs</div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="font-medium text-slate-700">{fDate}</div>
-                                                    <div className="text-[11px] text-slate-400 font-medium">{fTime}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        <CheckCircle2 className="w-3 h-3" />
+                                                <td className="px-6 py-3 text-center">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-bold bg-green-50 text-green-700 border border-green-100">
+                                                        <CheckCheck size={14} className="text-[#34B7F1]" />
                                                         {log.status === 'SENT' ? 'ENTREGADO' : log.status}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-3 text-right">
+                                                    <button className="text-xs font-bold text-slate-400 hover:text-red-500 bg-white border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition shadow-xs opacity-0 group-hover:opacity-100">
+                                                        Ver
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );
@@ -527,83 +564,60 @@ export default function AutomatizacionesPage() {
                         </table>
                     </div>
                 </div>
-
             </div>
 
-            {/* --- MODAL DE CREACIÓN / EDICIÓN --- */}
+            {/* MODAL CONFIG */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col md:flex-row animate-in fade-in zoom-in-95 duration-200">
-                        {/* Columna Izquierda: Formulario */}
-                        <div className="flex-1 p-6 md:p-8 flex flex-col">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="p-6 md:p-8 flex flex-col">
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-slate-900">{modalData.id ? 'Editar Automatización' : 'Nueva Automatización'}</h2>
-                                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full p-1.5 transition-colors">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">{modalData.id ? 'Editar Automatización' : 'Nueva Automatización'}</h2>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-full p-2.5 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <div className="space-y-4 flex-1">
-                                {/* Título */}
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 block">Nombre de la campaña</label>
+                                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Nombre Interno</label>
                                     <input
                                         type="text"
+                                        placeholder="Ej: Promo Cumpleañeros"
                                         value={modalData.title}
                                         onChange={(e) => setModalData({ ...modalData, title: e.target.value })}
-                                        placeholder="Ej: Promo Cumpleañeros Café"
-                                        className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition w-full"
+                                        className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-full"
                                     />
                                 </div>
 
-                                {/* Segmento */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 block">Segmento / Disparador</label>
+                                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Disparador (Evento)</label>
                                     <select
                                         value={modalData.rule_type}
                                         onChange={(e) => setModalData({ ...modalData, rule_type: e.target.value })}
-                                        className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:bg-white focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition cursor-pointer w-full"
+                                        className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 outline-none w-full appearance-none"
                                     >
-                                        {segmentOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value} className="text-slate-900 bg-white">{opt.label}</option>
-                                        ))}
+                                        <option value="WELCOME">Nuevo Cliente</option>
+                                        <option value="BIRTHDAY">Cumpleaños</option>
+                                        <option value="INACTIVE">Inactividad (30 días)</option>
+                                        <option value="NEAR_REWARD">Cerca de Premio</option>
+                                        <option value="REWARD">Premio Disponible</option>
                                     </select>
                                 </div>
 
-                                {/* Canal */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 block">Canal de Envío</label>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setModalData({ ...modalData, channel: 'WHATSAPP' })}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold transition-all border ${modalData.channel === 'WHATSAPP' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                        >
-                                            <Smartphone className="w-4 h-4" /> WhatsApp
-                                        </button>
-                                        <button
-                                            onClick={() => setModalData({ ...modalData, channel: 'SMS' })}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold transition-all border ${modalData.channel === 'SMS' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                        >
-                                            <MessageSquare className="w-4 h-4" /> SMS
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Textarea y Chips */}
-                                <div>
-                                    <div className="flex justify-between items-center mb-1.5 mt-2">
-                                        <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">Plantilla de Mensaje</label>
-                                    </div>
-                                    <div className="border border-slate-300 rounded-xl bg-slate-50 focus-within:bg-white focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 transition overflow-hidden">
-                                        <div className="bg-slate-100/80 border-b border-slate-200 px-3 py-2 flex flex-wrap gap-1.5">
-                                            <button onClick={() => insertTag('{nombre}')} className="bg-white border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition cursor-pointer">+ {'{nombre}'}</button>
-                                            <button onClick={() => insertTag('{negocio}')} className="bg-white border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition cursor-pointer">+ {'{negocio}'}</button>
-                                            <button onClick={() => insertTag('{sellos_faltantes}')} className="bg-white border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition cursor-pointer">+ {'{sellos_faltantes}'}</button>
+                                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Mensaje (WhatsApp)</label>
+                                    <div className="border border-slate-300 rounded-xl bg-slate-50 focus-within:bg-white focus-within:border-red-500 transition">
+                                        <div className="bg-slate-100/50 border-b border-slate-200 px-3 py-2 flex flex-wrap gap-2">
+                                            <button onClick={() => insertTag('{nombre}')} className="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-xs hover:text-red-500 transition">+ {'{nombre}'}</button>
+                                            <button onClick={() => insertTag('{negocio}')} className="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded shadow-xs hover:text-red-500 transition">+ {'{negocio}'}</button>
                                         </div>
                                         <textarea
                                             ref={textareaRef}
-                                            className="w-full bg-transparent p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none resize-none min-h-[120px]"
-                                            placeholder="Escribe tu mensaje aquí..."
+                                            placeholder="Escribe el cuerpo del mensaje..."
+                                            className="w-full bg-transparent p-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none resize-none min-h-[120px]"
                                             value={modalData.message_template}
                                             onChange={(e) => setModalData({ ...modalData, message_template: e.target.value })}
                                         />
@@ -611,54 +625,15 @@ export default function AutomatizacionesPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3 mt-6 pt-5 border-t border-slate-100">
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full sm:w-auto"
-                                >
+                            <div className="flex items-center gap-3 mt-8">
+                                <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition w-full sm:w-auto">
                                     Cancelar
                                 </button>
-                                <button
-                                    onClick={handleSaveModal}
-                                    className="flex-1 px-5 py-2.5 text-sm font-semibold text-white bg-slate-900 border border-slate-900 rounded-xl shadow hover:bg-slate-800 transition-colors"
-                                >
-                                    Guardar Automatización
+                                <button onClick={handleSaveModal} className="flex-1 px-5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 transition shadow-sm border border-red-500">
+                                    Guardar
                                 </button>
                             </div>
                         </div>
-
-                        {/* Columna Derecha: Preview Live */}
-                        <div className="bg-[#EFEAE2] flex-1 border-l border-slate-200 hidden md:flex flex-col">
-                            <div className="bg-slate-900 px-4 py-3 flex items-center gap-3">
-                                <div className="w-8 h-8 bg-slate-700 rounded-full flex shrink-0 items-center justify-center text-white font-bold text-xs">
-                                    <Smartphone className="w-4 h-4" />
-                                </div>
-                                <span className="text-white font-semibold text-sm">Vista Previa Cliente</span>
-                            </div>
-
-                            <div className="p-6 flex-1 flex flex-col justify-end overflow-hidden"
-                                style={{ backgroundImage: 'radial-gradient(#d1cfcb 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-
-                                {modalData.message_template.trim() ? (
-                                    <div className={`mt-2 ${modalData.channel === 'WHATSAPP' ? 'bg-[#DCF8C6]' : 'bg-white'} shadow-md rounded-xl p-3.5 relative text-sm text-slate-800 self-start max-w-[95%] break-words whitespace-pre-wrap animate-in fade-in slide-in-from-bottom-2`}>
-                                        <div className={`absolute top-0 left-[-6px] w-0 h-0 border-t-[8px] ${modalData.channel === 'WHATSAPP' ? 'border-t-[#DCF8C6]' : 'border-t-white'} border-l-[8px] border-l-transparent`}></div>
-                                        {modalData.message_template
-                                            .replace(/{nombre}/g, 'Franco Franco')
-                                            .replace(/{negocio}/g, 'El Gran Café')
-                                            .replace(/{sellos_faltantes}/g, '2')}
-                                        <div className="text-[10px] text-slate-400 text-right mt-1 pt-1 flex justify-end items-center gap-1 mix-blend-multiply">
-                                            Ahora <Check className={`w-3 h-3 ${modalData.channel === 'WHATSAPP' ? 'text-blue-500' : 'text-slate-400'}`} />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="bg-white/60 backdrop-blur-sm self-center px-4 py-2 rounded-xl border border-slate-200/50 shadow-sm text-center">
-                                        <p className="text-xs font-semibold text-slate-500 mb-1">Preview en Tiempo Real</p>
-                                        <p className="text-[10px] text-slate-400">El mensaje interpolado se mostrará aquí.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             )}
