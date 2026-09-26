@@ -2,65 +2,71 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store } from "lucide-react";
+import Image from "next/image";
+import { useState, type ReactNode } from "react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight } from "lucide-react";
 
-export default function AdminLayout({ children }) {
+const navItems = [
+    ["/admin/negocios", "Negocios", Store],
+    ["/admin/metricas", "Métricas", LayoutDashboard],
+    ["/admin/contactos", "Clientes", Users],
+    ["/admin/conversaciones", "Conversaciones", MessageSquare],
+    ["/admin/automatizaciones", "Automatizaciones", Megaphone],
+    ["/admin/ajustes", "Ajustes", Settings],
+] as const;
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const getLinkClass = (path) => {
+    const getLinkClass = (path: string) => {
         const isActive = pathname === path || pathname?.startsWith(path + '/');
-        const baseClass = "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
+        const baseClass = "m-admin-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
         if (isActive) {
-            return `${baseClass} text-red-600 bg-red-50 font-medium`;
+            return `${baseClass} is-active font-medium`;
         }
-        return `${baseClass} text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal`;
+        return `${baseClass} font-normal`;
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans">
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-                <div className="h-16 flex items-center px-6 border-b border-gray-100">
-                    <span className="font-bold text-xl text-gray-900 tracking-tight">Mimo Admin</span>
+        <div className="m-admin-shell flex h-screen font-sans">
+            {sidebarOpen && <button className="m-admin-backdrop" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)} />}
+            <aside className={`m-admin-sidebar flex flex-col ${sidebarOpen ? "is-open" : ""}`}>
+                <div className="m-admin-brand-row flex items-center justify-between">
+                    <Link href="/admin/metricas" className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
+                        <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
+                        <span>Panel para comercios</span>
+                    </Link>
+                    <button className="m-admin-close" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
                 </div>
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-                    <Link href="/admin/negocios" className={getLinkClass("/admin/negocios")}>
-                        <Store size={20} />
-                        <span>Negocios</span>
-                    </Link>
-                    <Link href="/admin/metricas" className={getLinkClass("/admin/metricas")}>
-                        <LayoutDashboard size={20} />
-                        <span>Métricas</span>
-                    </Link>
-                    <Link href="/admin/contactos" className={getLinkClass("/admin/contactos")}>
-                        <Users size={20} />
-                        <span>Contactos (CRM)</span>
-                    </Link>
-                    <Link href="/admin/conversaciones" className={getLinkClass("/admin/conversaciones")}>
-                        <MessageSquare size={20} />
-                        <span>Conversaciones</span>
-                    </Link>
-                    <Link href="/admin/automatizaciones" className={getLinkClass("/admin/automatizaciones")}>
-                        <Megaphone size={20} />
-                        <span>Automatizaciones</span>
-                    </Link>
-                    <Link href="/admin/ajustes" className={getLinkClass("/admin/ajustes")}>
-                        <Settings size={20} />
-                        <span>Ajustes</span>
-                    </Link>
+                <nav className="m-admin-nav flex-1 px-4 py-6 space-y-2 overflow-y-auto" aria-label="Navegación del panel">
+                    <p className="m-admin-nav-label">GESTIÓN</p>
+                    {navItems.map(([href, label, Icon]) => (
+                        <Link key={href} href={href} className={getLinkClass(href)} onClick={() => setSidebarOpen(false)}>
+                            <Icon size={19} strokeWidth={1.9} />
+                            <span>{label}</span>
+                            <ChevronRight className="m-admin-nav-arrow" size={15} />
+                        </Link>
+                    ))}
                 </nav>
-                <div className="p-5 border-t border-gray-100">
+                <div className="m-admin-account p-5">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                        <div className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
                             L
                         </div>
                         <div>
-                            <p className="text-sm font-semibold text-gray-900">El Gran Cafe</p>
-                            <p className="text-xs text-blue-600 font-medium">Plan Inception</p>
+                            <p className="text-sm font-semibold">El Gran Café</p>
+                            <p className="text-xs font-medium">Programa activo</p>
                         </div>
                     </div>
                 </div>
             </aside>
-            <main className="flex-1 overflow-auto bg-gray-50">
+            <main className="m-admin-main flex-1 overflow-auto">
+                <div className="m-admin-mobile-header">
+                    <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
+                    <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />
+                    <span>Panel</span>
+                </div>
                 {children}
             </main>
         </div>

@@ -706,3 +706,334 @@ body {
     width: 21px;
   }
 }
+
+/* Merchant admin -------------------------------------------------------- */
+.m-admin-shell {
+  --admin-red: #ff1f2d;
+  --admin-cream: #fff6ee;
+  --admin-pink: #ffd9dc;
+  --admin-ink: #1f1f1f;
+  --admin-muted: #746c67;
+  background: var(--admin-cream);
+  color: var(--admin-ink);
+}
+
+.m-admin-sidebar {
+  background: #fffaf5;
+  border-right: 1px solid #f0e2d9;
+  flex: 0 0 258px;
+  position: relative;
+  z-index: 20;
+}
+
+.m-admin-brand-row {
+  border-bottom: 1px solid #f0e2d9;
+  min-height: 90px;
+  padding: 20px 22px;
+}
+
+.m-admin-brand {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.m-admin-brand img {
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+  width: 112px;
+}
+
+.m-admin-brand span {
+  color: #9a8d84;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.m-admin-close,
+.m-admin-menu {
+  align-items: center;
+  border: 0;
+  border-radius: 12px;
+  color: var(--admin-ink);
+  cursor: pointer;
+  display: none;
+  justify-content: center;
+}
+
+.m-admin-nav {
+  padding-top: 25px;
+}
+
+.m-admin-nav-label {
+  color: #aa9e96;
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0 12px 10px;
+}
+
+.m-admin-nav-link {
+  color: #796f69;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 12px;
+}
+
+.m-admin-nav-link svg:first-child {
+  color: #a69991;
+}
+
+.m-admin-nav-link:hover {
+  background: #fff0f1;
+  color: var(--admin-red);
+}
+
+.m-admin-nav-link:hover svg:first-child,
+.m-admin-nav-link.is-active svg:first-child {
+  color: var(--admin-red);
+}
+
+.m-admin-nav-link.is-active {
+  background: var(--admin-red);
+  box-shadow: 0 8px 18px rgba(255, 31, 45, 0.16);
+  color: #fff;
+}
+
+.m-admin-nav-link.is-active svg:first-child {
+  color: #fff;
+}
+
+.m-admin-nav-arrow {
+  margin-left: auto;
+  opacity: 0;
+}
+
+.m-admin-nav-link.is-active .m-admin-nav-arrow,
+.m-admin-nav-link:hover .m-admin-nav-arrow {
+  opacity: .8;
+}
+
+.m-admin-account {
+  border-top: 1px solid #f0e2d9;
+}
+
+.m-admin-account p:first-child {
+  color: var(--admin-ink);
+}
+
+.m-admin-account p:last-child {
+  color: var(--admin-red);
+}
+
+.m-admin-avatar {
+  background: var(--admin-red);
+}
+
+.m-admin-main {
+  background:
+    radial-gradient(circle at 92% 3%, rgba(255, 217, 220, .48), transparent 25rem),
+    var(--admin-cream);
+}
+
+.m-admin-main > div:not(.m-admin-mobile-header) {
+  color: var(--admin-ink);
+}
+
+.m-admin-main .bg-white {
+  background-color: rgba(255, 255, 255, .86) !important;
+}
+
+.m-admin-main .bg-gray-50,
+.m-admin-main .bg-slate-50,
+.m-admin-main .bg-gray-50\/50,
+.m-admin-main .bg-slate-50\/80 {
+  background-color: #fffaf5 !important;
+}
+
+.m-admin-main .border-gray-200,
+.m-admin-main .border-gray-100,
+.m-admin-main .border-slate-200,
+.m-admin-main .border-slate-100 {
+  border-color: #f0e2d9 !important;
+}
+
+.m-admin-main .text-gray-900,
+.m-admin-main .text-slate-900,
+.m-admin-main .text-slate-700 {
+  color: var(--admin-ink) !important;
+}
+
+.m-admin-main .text-gray-500,
+.m-admin-main .text-gray-600,
+.m-admin-main .text-slate-500,
+.m-admin-main .text-slate-400 {
+  color: var(--admin-muted) !important;
+}
+
+.m-admin-main .text-blue-600,
+.m-admin-main .text-blue-700,
+.m-admin-main .text-indigo-600,
+.m-admin-main .text-indigo-700 {
+  color: var(--admin-red) !important;
+}
+
+.m-admin-main .bg-blue-600,
+.m-admin-main .bg-indigo-600,
+.m-admin-main .bg-black,
+.m-admin-main .bg-gradient-to-r,
+.m-admin-main .bg-gradient-to-br {
+  background: var(--admin-red) !important;
+}
+
+.m-admin-main .hover\:bg-blue-700:hover,
+.m-admin-main .hover\:bg-blue-800:hover {
+  background: #dc1524 !important;
+}
+
+.m-admin-main .focus\:ring-blue-500:focus,
+.m-admin-main .focus\:border-blue-500:focus {
+  --tw-ring-color: rgba(255, 31, 45, .25) !important;
+  border-color: var(--admin-red) !important;
+}
+
+.m-admin-main .rounded-xl,
+.m-admin-main .rounded-2xl {
+  border-radius: 18px;
+}
+
+.m-admin-main .shadow-sm,
+.m-admin-main .shadow-md,
+.m-admin-main .shadow-xl {
+  box-shadow: 0 12px 30px rgba(112, 74, 53, .08);
+}
+
+.m-admin-main input,
+.m-admin-main select,
+.m-admin-main textarea {
+  background-color: #fffdfb !important;
+  border-color: #eaded6 !important;
+}
+
+.m-admin-main input:focus,
+.m-admin-main select:focus,
+.m-admin-main textarea:focus {
+  border-color: var(--admin-red) !important;
+  box-shadow: 0 0 0 3px rgba(255, 31, 45, .1) !important;
+  outline: 0;
+}
+
+.m-admin-main table thead {
+  background: #fffaf5 !important;
+}
+
+.m-admin-main table tbody tr:hover {
+  background: #fff6f4 !important;
+}
+
+.m-admin-mobile-header {
+  align-items: center;
+  display: none;
+  justify-content: space-between;
+  padding: 15px 18px;
+}
+
+.m-admin-mobile-header img {
+  height: 30px;
+  object-fit: contain;
+  width: 78px;
+}
+
+.m-admin-mobile-header span {
+  color: #9a8d84;
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+@media (max-width: 860px) {
+  .m-admin-sidebar {
+    bottom: 0;
+    box-shadow: 12px 0 35px rgba(77, 47, 31, .16);
+    left: 0;
+    position: fixed;
+    top: 0;
+    transform: translateX(-105%);
+    transition: transform 220ms ease;
+    width: min(86vw, 290px);
+  }
+
+  .m-admin-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .m-admin-close {
+    background: #fff0f1;
+    display: flex;
+    height: 34px;
+    width: 34px;
+  }
+
+  .m-admin-backdrop {
+    background: rgba(31, 31, 31, .28);
+    border: 0;
+    inset: 0;
+    position: fixed;
+    z-index: 10;
+  }
+
+  .m-admin-mobile-header {
+    display: flex;
+  }
+
+  .m-admin-menu {
+    background: #fffaf5;
+    display: flex;
+    height: 38px;
+    width: 38px;
+  }
+
+  .m-admin-main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .m-admin-main {
+    overflow-x: hidden;
+  }
+
+  .m-admin-main > div:not(.m-admin-mobile-header) {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 22px !important;
+  }
+
+  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex > button,
+  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex > a {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 42px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .m-admin-main h1 {
+    font-size: 1.8rem !important;
+    line-height: 1.05;
+  }
+}

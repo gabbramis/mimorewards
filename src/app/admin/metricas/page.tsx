@@ -142,6 +142,8 @@ export default function MetricsDashboard() {
     };
 
     useEffect(() => {
+        // The initial fetch hydrates the dashboard from Supabase.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMetrics();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

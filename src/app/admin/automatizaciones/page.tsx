@@ -143,6 +143,8 @@ export default function AutomatizacionesPage() {
     };
 
     useEffect(() => {
+        // The initial fetch hydrates the dashboard from Supabase.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
