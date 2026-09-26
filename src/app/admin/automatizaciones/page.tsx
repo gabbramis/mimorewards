@@ -247,8 +247,7 @@ export default function AutomatizacionesPage() {
                 if (error) throw error;
                 showFeedback('success', 'Automatización actualizada.');
             } else {
-                payload.is_active = false;
-                const { error } = await supabase.from('automation_rules').insert([payload]);
+                const { error } = await supabase.from('automation_rules').insert([{ ...payload, is_active: false }]);
                 if (error) throw error;
                 showFeedback('success', 'Automatización creada.');
             }

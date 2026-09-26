@@ -45,9 +45,9 @@ export default function ContactsCRM() {
 
     useEffect(() => {
         // Hydrate the customer table once the client has mounted.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCustomers();
-    }, [fetchCustomers]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleManualStamp = async (id, currentStamps) => {
         // Optimistic UI update

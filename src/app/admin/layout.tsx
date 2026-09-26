@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, LogOut } from "lucide-react";
+import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLayout({ children }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const supabase = createClient();
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/login');
+    };
 
     const getLinkClass = (path) => {
         // En Next.js App Router, para verificar si la ruta es activa:
@@ -47,16 +55,22 @@ export default function AdminLayout({ children }) {
                         <span>Ajustes</span>
                     </Link>
                 </nav>
-                <div className="p-5 border-t border-gray-100">
+                <div className="p-5 border-t border-gray-100 flex flex-col gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
                             L
                         </div>
-                        <div>
-                            <p className="text-sm font-semibold text-gray-900">El Gran Cafe</p>
-                            <p className="text-xs text-blue-600 font-medium">Plan Inception</p>
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-semibold text-gray-900 truncate">El Gran Cafe</p>
+                            <p className="text-xs text-blue-600 font-medium truncate">Plan Inception</p>
                         </div>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-red-600 transition-colors w-full p-2 hover:bg-red-50 rounded-lg justify-start"
+                    >
+                        <LogOut size={18} /> Cerrar sesión
+                    </button>
                 </div>
             </aside>
 
