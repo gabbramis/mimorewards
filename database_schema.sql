@@ -4,6 +4,7 @@ CREATE TABLE businesses (
     slug TEXT UNIQUE,
     name TEXT NOT NULL,
     logo_url TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
     reward_target INT DEFAULT 10,
     reward_description TEXT
 );

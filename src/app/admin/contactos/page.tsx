@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
-export default function ContactsCRM() {
+export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
+
+export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMProps = {}) {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState("");
     const [customers, setCustomers] = useState([]);
@@ -17,7 +19,6 @@ export default function ContactsCRM() {
     const [editingCustomer, setEditingCustomer] = useState(null);
 
     const supabase = createClient();
-    const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
     const showToast = (msg) => {
         setToastMessage(msg);
@@ -28,11 +29,12 @@ export default function ContactsCRM() {
         setIsLoading(true);
         try {
             // OPTIMIZATION: Only select required fields instead of *
-            const { data, error } = await supabase
+            let customersQuery = supabase
                 .from('customers')
                 .select('id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at')
-                .eq('business_id', BUSINESS_ID)
                 .order('created_at', { ascending: false });
+            if (businessId) customersQuery = customersQuery.eq('business_id', businessId);
+            const { data, error } = await customersQuery;
 
             if (error) throw error;
             setCustomers(data || []);
@@ -41,7 +43,7 @@ export default function ContactsCRM() {
         } finally {
             setIsLoading(false);
         }
-    }, [BUSINESS_ID, supabase]);
+    }, [businessId, supabase]);
 
     useEffect(() => {
         // Hydrate the customer table once the client has mounted.
@@ -105,21 +107,18 @@ export default function ContactsCRM() {
                     <p className="text-gray-500 text-sm mt-1.5 font-medium">Gestiona tu base de clientes y sella manualmente aquellos sin batería.</p>
                 </div>
                 <div className="flex gap-3 items-center">
-                    <button
+                    {!merchantMode && <button
                         onClick={() => setIsEditMode(!isEditMode)}
                         className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition shadow-sm border ${isEditMode ? 'bg-gray-900 text-white border-gray-900 ring-2 ring-gray-900 ring-offset-2' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                     >
                         <Settings size={18} className={isEditMode ? "animate-spin-slow" : ""} />
                         {isEditMode ? 'Editando...' : 'Modo Edición'}
-                    </button>
+                    </button>}
                     <button onClick={fetchCustomers} className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-sm">
                         <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} />
                         Refrescar
                     </button>
-                    <a href={`/unirse/${BUSINESS_ID}`} target="_blank" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm">
-                        <UserPlus size={18} />
-                        Alta
-                    </a>
+                    {businessId && <a href={`/t/${businessId}`} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm"><UserPlus size={18} /> Alta</a>}
                 </div>
             </div>
 
@@ -358,7 +357,7 @@ export default function ContactsCRM() {
                                                 const amountToInsert = editingCustomer.current_stamps - dbCount;
                                                 const inserts = Array.from({ length: amountToInsert }).map(() => ({
                                                     customer_id: editingCustomer.id,
-                                                    business_id: BUSINESS_ID,
+                                                    business_id: editingCustomer.business_id,
                                                     method: 'MANUAL',
                                                 }));
                                                 await supabase.from('stamp_logs').insert(inserts);
@@ -403,3 +402,5 @@ export default function ContactsCRM() {
         </div>
     );
 }
+
+export default ContactsCRM;

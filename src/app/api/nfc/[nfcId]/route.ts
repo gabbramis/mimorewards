@@ -9,6 +9,7 @@ export async function GET(
   const supabase = await createClient();
   const { nfcId } = await params;
   const context = await resolveNfcContext(supabase, nfcId);
+  if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
   const customerId = new URL(request.url).searchParams.get("customerId");
 
   if (!customerId) {

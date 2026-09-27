@@ -7,7 +7,9 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
-export default function MetricsDashboard() {
+export type MetricsDashboardProps = { businessId?: string; merchantMode?: boolean };
+
+export default function MetricsDashboard({ businessId, merchantMode = false }: MetricsDashboardProps = {}) {
     const [metrics, setMetrics] = useState({
         totalCustomers: 0,
         totalStamps: 0,
@@ -25,7 +27,7 @@ export default function MetricsDashboard() {
     const [activeFilter, setActiveFilter] = useState("Todos");
 
     const supabase = createClient();
-    const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
+    const BUSINESS_ID = businessId || "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
     const fetchMetrics = async () => {
         setIsRefreshing(true);
@@ -179,7 +181,7 @@ export default function MetricsDashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <div className="flex items-center gap-3 mb-1">
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Métricas del Negocio</h1>
+                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{merchantMode ? "Métricas de tu comercio" : "Métricas del Negocio"}</h1>
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 animate-pulse">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             Datos en vivo

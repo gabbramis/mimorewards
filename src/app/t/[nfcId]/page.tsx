@@ -204,32 +204,6 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
     }
   }
 
-  async function addStamp() {
-    if (!customer || isSubmitting) return;
-    setIsSubmitting(true);
-    setError("");
-    setNotice("");
-
-    try {
-      const response = await fetch("/api/stamps/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: customer.uniqueCode, method: "NFC" }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "No pudimos sumar el sello.");
-
-      const nextCustomer = { ...customer, currentStamps: payload.newTotal };
-      setCustomer(nextCustomer);
-      localStorage.setItem(storageKey, JSON.stringify(nextCustomer));
-      setNotice(payload.newTotal >= customer.targetStamps ? "¡Recompensa disponible!" : "¡Sello sumado! Gracias por volver.");
-    } catch (stampError) {
-      setError(stampError instanceof Error ? stampError.message : "No pudimos sumar el sello.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   function walletMessage(walletName: string) {
     setNotice(`${walletName} estará disponible cuando activemos tu tarjeta digital.`);
   }
@@ -309,11 +283,6 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
               {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
               <div className="m-nfc-actions">
-                {isReturning && customer.currentStamps < customer.targetStamps && (
-                  <button type="button" className="m-nfc-primary-button" onClick={addStamp} disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 size={18} className="m-nfc-spin" /> : <><Gift size={18} /> Sumar mi sello</>}
-                  </button>
-                )}
                 <button type="button" className="m-nfc-wallet-button m-nfc-wallet-apple" onClick={() => walletMessage("Apple Wallet")}><Wallet size={18} /> Agregar a Apple Wallet</button>
                 <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={() => walletMessage("Google Wallet")}><Wallet size={18} /> Guardar en Google Wallet</button>
               </div>

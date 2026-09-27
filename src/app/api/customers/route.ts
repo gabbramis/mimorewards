@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     }
 
     const context = await resolveNfcContext(supabase, nfcId);
+    if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
     const { data: existingCustomer } = await supabase
       .from("customers")
       .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")

@@ -7,6 +7,7 @@ export type NfcContext = {
   businessId: string;
   businessName: string;
   businessLogo: string;
+  active: boolean;
   rewardTarget: number;
   rewardDescription: string;
 };
@@ -23,18 +24,19 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
     ? nfcId
     : process.env.MIMO_DEFAULT_BUSINESS_ID || DEFAULT_BUSINESS_ID;
 
-  // The nfc_tags table is optional while the NFC inventory is being prepared.
-  // When it exists, it takes precedence over the development fallback above.
-  if (!UUID_PATTERN.test(nfcId) && process.env.MIMO_NFC_DIRECTORY_ENABLED === "true") {
+  let tagActive = true;
+  // A physical token takes precedence over the development fallback.
+  if (!UUID_PATTERN.test(nfcId)) {
     const { data: tag } = await supabase
       .from("nfc_tags")
       .select("business_id, active")
       .eq("nfc_id", nfcId)
       .maybeSingle();
 
-    if (tag?.active !== false && tag?.business_id) {
+    if (tag?.business_id) {
       businessId = tag.business_id;
     }
+    if (tag) tagActive = tag.active !== false;
   }
 
   const { data: business } = await supabase
@@ -48,6 +50,7 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
     businessId,
     businessName: business?.name || "El Gran Café",
     businessLogo: business?.logo_url || "",
+    active: tagActive && business?.active !== false,
     rewardTarget: business?.reward_target || 10,
     rewardDescription: business?.reward_description || "Un café gratis",
   };
