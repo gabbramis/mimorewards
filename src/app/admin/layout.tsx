@@ -75,7 +75,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     </button>
                 </div>
             </aside>
-            <main className="m-admin-main flex-1 overflow-auto">
+            <main className="m-admin-main flex-1 overflow-auto relative">
+                {/* Botón flotante para salir */}
+                <button
+                    onClick={handleLogout}
+                    title="Cerrar sesión"
+                    className="fixed top-6 right-6 sm:top-10 sm:right-15 z-50 flex items-center justify-center bg-slate-900/90 text-white w-[50px] h-[50px] rounded-full shadow-md backdrop-blur-md border border-white/10 hover:bg-[#FF1F2D] transition-colors"
+                >
+                    <LogOut size={18} strokeWidth={2.2} />
+                </button>
+
                 <div className="m-admin-mobile-header">
                     <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
                     <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />

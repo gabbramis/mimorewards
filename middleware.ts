@@ -34,14 +34,7 @@ export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/admin')) {
         if (!user) {
             url.pathname = '/login';
-            return NextResponse.redirect(url);
-        }
-    }
-
-    if (request.nextUrl.pathname === '/login') {
-        if (user) {
-            url.pathname = '/admin/metricas';
-            return NextResponse.redirect(url);
+            return NextResponse.redirect(url, 307);
         }
     }
 
