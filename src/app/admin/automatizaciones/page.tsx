@@ -249,7 +249,11 @@ export default function AutomatizacionesPage() {
                 if (error) throw error;
                 showFeedback('success', 'Automatización actualizada.');
             } else {
+<<<<<<< HEAD
+                const { error } = await supabase.from('automation_rules').insert([{ ...payload, is_active: false }]);
+=======
                 const { error } = await supabase.from('automation_rules').insert([payload]);
+>>>>>>> 20da279a245f49a22624661fcc45fb074778e5b1
                 if (error) throw error;
                 showFeedback('success', 'Automatización creada.');
             }

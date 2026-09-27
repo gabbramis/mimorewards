@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Users, Star, Award, TrendingUp, RefreshCcw, Calendar as CalendarIcon, Clock, Activity,
     Download, ChevronDown, ArrowRight, Search, Gift, Zap
@@ -17,8 +17,8 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
         readyToRedeem: 0,
         retentionRate: 0,
     });
-    const [recentLogs, setRecentLogs] = useState([]);
-    const [chartData, setChartData] = useState([]);
+    const [recentLogs, setRecentLogs] = useState<any[]>([]);
+    const [chartData, setChartData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -26,12 +26,75 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("Todos");
 
+    // Rango de fechas
+    const [dateRange, setDateRange] = useState({
+        preset: '30d',
+        startDate: new Date(new Date().setDate(new Date().getDate() - 30)),
+        endDate: new Date()
+    });
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const datePickerRef = useRef<HTMLDivElement>(null);
+    const [customStart, setCustomStart] = useState("");
+    const [customEnd, setCustomEnd] = useState("");
+
     const supabase = createClient();
     const BUSINESS_ID = businessId || "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+                setIsDatePickerOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handlePreset = (preset: string) => {
+        const end = new Date();
+        let start = new Date();
+        if (preset === 'today') {
+            start.setHours(0, 0, 0, 0);
+        } else if (preset === '7d') {
+            start.setDate(end.getDate() - 7);
+        } else if (preset === '30d') {
+            start.setDate(end.getDate() - 30);
+        }
+
+        setDateRange({ preset, startDate: start, endDate: end });
+        setIsDatePickerOpen(false);
+    };
+
+    const handleApplyCustom = () => {
+        if (!customStart || !customEnd) return;
+        const s = new Date(customStart + "T00:00:00");
+        const e = new Date(customEnd + "T23:59:59");
+        if (s > e) {
+            alert("La fecha inicial no puede ser mayor a la final.");
+            return;
+        }
+        setDateRange({ preset: 'custom', startDate: s, endDate: e });
+        setIsDatePickerOpen(false);
+    };
+
+    const getSelectorLabel = () => {
+        if (dateRange.preset === 'today') return "Hoy";
+        if (dateRange.preset === '7d') return "Últimos 7 días";
+        if (dateRange.preset === '30d') return "Últimos 30 días";
+
+        const fS = dateRange.startDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const fE = dateRange.endDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return `${fS} - ${fE}`;
+    };
 
     const fetchMetrics = async () => {
         setIsRefreshing(true);
         try {
+            const startISO = dateRange.startDate.toISOString();
+            const endDateEOD = new Date(dateRange.endDate);
+            endDateEOD.setHours(23, 59, 59, 999);
+            const endISO = endDateEOD.toISOString();
+
             const { count: totalCustomersCount, data: allCustomers } = await supabase
                 .from('customers')
                 .select('current_stamps, total_visits', { count: 'exact' })
@@ -52,26 +115,20 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                 ? Math.round((recurrentCustomers / totalCustomers) * 100)
                 : 0;
 
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
             const { count: totalStampsCount } = await supabase
                 .from('stamp_logs')
                 .select('*', { count: 'exact', head: true })
                 .eq('business_id', BUSINESS_ID)
+                .gte('created_at', startISO)
+                .lte('created_at', endISO)
                 .neq('method', 'REDEEM');
 
-            const { count: monthVisitsCount } = await supabase
-                .from('stamp_logs')
-                .select('*', { count: 'exact', head: true })
-                .eq('business_id', BUSINESS_ID)
-                .gte('created_at', thirtyDaysAgo.toISOString())
-                .neq('method', 'REDEEM');
+            const monthVisitsCount = totalStampsCount || 0;
 
             setMetrics({
                 totalCustomers,
                 totalStamps: totalStampsCount || 0,
-                monthVisits: monthVisitsCount || 0,
+                monthVisits: monthVisitsCount,
                 readyToRedeem,
                 retentionRate
             });
@@ -83,25 +140,29 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                   customers ( first_name, last_name, unique_code )
                 `)
                 .eq('business_id', BUSINESS_ID)
+                .gte('created_at', startISO)
+                .lte('created_at', endISO)
                 .order('created_at', { ascending: false })
                 .limit(40);
 
             setRecentLogs(logsData || []);
 
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-            sevenDaysAgo.setHours(0, 0, 0, 0);
+            const graphEnd = new Date(dateRange.endDate);
+            const graphStart = new Date(graphEnd);
+            graphStart.setDate(graphEnd.getDate() - 6);
+            graphStart.setHours(0, 0, 0, 0);
 
-            const { data: weekLogs } = await supabase
+            const { data: graphLogs } = await supabase
                 .from('stamp_logs')
                 .select('created_at, method')
                 .eq('business_id', BUSINESS_ID)
-                .gte('created_at', sevenDaysAgo.toISOString())
+                .gte('created_at', graphStart.toISOString())
+                .lte('created_at', endISO)
                 .neq('method', 'REDEEM');
 
-            const daysMap = {};
+            const daysMap: Record<string, { label: string, value: number }> = {};
             for (let i = 6; i >= 0; i--) {
-                const d = new Date();
+                const d = new Date(graphEnd);
                 d.setDate(d.getDate() - i);
                 const yyyy = d.getFullYear();
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -113,8 +174,8 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                 };
             }
 
-            if (weekLogs) {
-                weekLogs.forEach(log => {
+            if (graphLogs) {
+                graphLogs.forEach(log => {
                     const logDate = new Date(log.created_at);
                     const yyyy = logDate.getFullYear();
                     const mm = String(logDate.getMonth() + 1).padStart(2, '0');
@@ -148,9 +209,8 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMetrics();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [dateRange.startDate, dateRange.endDate]);
 
-    // Tablas filtradas
     const filteredLogs = recentLogs.filter(log => {
         const matchesSearch = log.customers
             ? `${log.customers.first_name} ${log.customers.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
@@ -159,7 +219,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
         let matchesFilter = true;
         if (activeFilter === "Sellos") matchesFilter = log.method !== 'REDEEM';
         if (activeFilter === "Canjes") matchesFilter = log.method === 'REDEEM';
-        // Mock 'Nuevos'
         if (activeFilter === "Nuevos") matchesFilter = false;
 
         return matchesSearch && matchesFilter;
@@ -168,7 +227,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
     const maxChartValue = chartData.length > 0 ? Math.max(...chartData.map(d => d.value)) : 0;
     const highestBar = maxChartValue > 0 ? maxChartValue : 1;
 
-    // Insights del grafico
     const peakDay = chartData.length > 0 ? [...chartData].sort((a, b) => b.value - a.value)[0] : null;
     const peakPercentage = peakDay && metrics.totalStamps > 0
         ? Math.round((peakDay.value / chartData.reduce((acc, curr) => acc + curr.value, 0)) * 100)
@@ -177,7 +235,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
     return (
         <div className="p-6 md:p-8 max-w-7xl mx-auto font-sans bg-slate-50 min-h-screen space-y-6">
 
-            {/* 1. Header del Módulo */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <div className="flex items-center gap-3 mb-1">
@@ -190,17 +247,47 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                     <p className="text-slate-500 text-sm font-medium">Analiza el rendimiento en tiempo real de tu estrategia de fidelización.</p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition shadow-sm font-medium">
-                        <CalendarIcon size={16} /> Últimos 30 días <ChevronDown size={14} className="ml-1 opacity-50" />
+                <div className="flex items-center gap-3 relative" ref={datePickerRef}>
+                    <button
+                        onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                        className={`flex items-center gap-2 px-3 py-2 bg-white border text-sm rounded-lg hover:bg-slate-50 transition shadow-sm font-medium ${isDatePickerOpen ? 'border-blue-500 ring-2 ring-blue-50 text-blue-700' : 'border-slate-200 text-slate-700'}`}
+                    >
+                        <CalendarIcon size={16} /> {getSelectorLabel()} <ChevronDown size={14} className="ml-1 opacity-50" />
                     </button>
+
+                    {isDatePickerOpen && (
+                        <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 w-72 animate-in fade-in slide-in-from-top-2">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rápidos</h4>
+                            <div className="flex flex-col gap-1 mb-4">
+                                <button onClick={() => handlePreset('today')} className={`text-left px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${dateRange.preset === 'today' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>Hoy</button>
+                                <button onClick={() => handlePreset('7d')} className={`text-left px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${dateRange.preset === '7d' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>Últimos 7 días</button>
+                                <button onClick={() => handlePreset('30d')} className={`text-left px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${dateRange.preset === '30d' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>Últimos 30 días</button>
+                            </div>
+
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 pt-3 border-t border-slate-100">Personalizado</h4>
+                            <div className="flex flex-col gap-3">
+                                <div>
+                                    <label className="text-xs text-slate-500 font-medium mb-1 block">Desde</label>
+                                    <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-500 font-medium mb-1 block">Hasta</label>
+                                    <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                </div>
+                                <button onClick={handleApplyCustom} disabled={!customStart || !customEnd} className="w-full mt-2 bg-slate-900 text-white font-semibold text-sm py-2 rounded-lg hover:bg-slate-800 disabled:opacity-50 transition shadow-sm">
+                                    Aplicar rango
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <button
                         onClick={fetchMetrics}
                         disabled={isRefreshing}
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition shadow-sm font-medium disabled:opacity-50"
                     >
                         <RefreshCcw size={16} className={isRefreshing ? "animate-spin text-blue-600" : ""} />
-                        Refrescar
+                        <span className="hidden sm:inline">Refrescar</span>
                     </button>
                     <button className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 transition shadow-sm font-medium hidden sm:flex">
                         <Download size={16} /> Exportar CSV
@@ -208,7 +295,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                 </div>
             </div>
 
-            {/* Smart Alert Banner */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between text-white shadow-md relative overflow-hidden">
                 <div className="absolute right-0 top-0 opacity-10 pointer-events-none w-64 h-64 -translate-y-16 translate-x-12">
                     <Zap size={256} />
@@ -233,7 +319,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                 </div>
             ) : (
                 <>
-                    {/* 2. Fila de KPIs Superiores (5 Tarjetas) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-blue-200 transition">
                             <div className="flex justify-between items-start mb-2">
@@ -257,15 +342,15 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                             <div className="mt-2">
                                 <h3 className="text-2xl font-black text-slate-900">{metrics.totalStamps}</h3>
                                 <div className="flex items-center gap-1.5 mt-1">
-                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">~ 14/día</span>
-                                    <span className="text-[10px] text-slate-400 font-medium">promedio est.</span>
+                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">Filtro aplicado</span>
+                                    <span className="text-[10px] text-slate-400 font-medium">en el periodo</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-emerald-200 transition">
                             <div className="flex justify-between items-start mb-2">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Visitas (30D)</p>
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Visitas (Periodo)</p>
                                 <div className="bg-emerald-50 text-emerald-600 p-1.5 rounded-lg"><CalendarIcon size={16} /></div>
                             </div>
                             <div className="mt-2">
@@ -283,7 +368,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                 <div className="bg-amber-50 text-amber-600 p-1.5 rounded-lg"><Gift size={16} /></div>
                             </div>
                             <div className="mt-2">
-                                {/* Usando un mock de canjes históricos basado en la tasa de retención simulada para demostrar UI */}
                                 <h3 className="text-2xl font-black text-slate-900">42</h3>
                                 <div className="flex items-center gap-1.5 mt-1" title="Favorito: Café Latte Especial">
                                     <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">☕ Café Latte</span>
@@ -306,21 +390,17 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                         </div>
                     </div>
 
-                    {/* 3. Fila Central de Rendimiento (2 Columnas) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                        {/* Izquierda: Gráfico de Afluencia */}
                         <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-900 tracking-tight">Afluencia y Movimiento</h2>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">Volumen de sellos otorgados (últimos 7 días)</p>
+                                    <p className="text-xs text-slate-500 font-medium mt-0.5">Volumen de sellos de los 7 días finales del rango</p>
                                 </div>
                                 <div className="bg-slate-50 border border-slate-100 p-1.5 rounded-lg text-slate-400"><Activity size={18} /></div>
                             </div>
 
                             <div className="flex-1 flex items-end justify-between gap-1 sm:gap-3 h-52 mt-auto border-b border-slate-100 w-full pb-2 relative">
-                                {/* Grid lines background */}
                                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-30">
                                     <div className="w-full border-t border-slate-200 border-dashed"></div>
                                     <div className="w-full border-t border-slate-200 border-dashed"></div>
@@ -330,7 +410,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                 {chartData.map((d, index) => {
                                     const isZero = d.value === 0;
                                     const percentage = isZero ? 4 : Math.max((d.value / highestBar) * 100, 10);
-                                    // Highlight peak day
                                     const isPeak = d.value > 0 && d.value === peakDay?.value;
 
                                     return (
@@ -354,18 +433,16 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                 })}
                             </div>
 
-                            {/* Insight Footer */}
                             <div className="mt-5 bg-gradient-to-r from-slate-50 to-indigo-50/30 rounded-lg p-3 border border-slate-100 flex items-center gap-3">
                                 <div className="text-indigo-600 bg-white p-1 rounded-md shadow-sm">
                                     <Star size={14} />
                                 </div>
                                 <p className="text-xs text-slate-600 font-medium">
-                                    Día pico: <strong className="text-slate-900">{peakDay?.label}</strong> concentra el <strong className="text-indigo-700">{peakPercentage}%</strong> del flujo semanal.
+                                    Día pico: <strong className="text-slate-900">{peakDay?.label}</strong> concentra el <strong className="text-indigo-700">{peakPercentage}%</strong> del flujo mostrado.
                                 </p>
                             </div>
                         </div>
 
-                        {/* Derecha: Fidelidad y Cohortes */}
                         <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
@@ -376,7 +453,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                             </div>
 
                             <div className="flex-1 flex flex-col justify-center gap-6">
-                                {/* Mock Level 1 */}
                                 <div>
                                     <div className="flex justify-between items-end mb-2">
                                         <div>
@@ -395,7 +471,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                     </p>
                                 </div>
 
-                                {/* Mock Level 2 */}
                                 <div>
                                     <div className="flex justify-between items-end mb-2">
                                         <div>
@@ -411,7 +486,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                     <p className="text-[10px] text-slate-500 mt-1.5 font-medium">Aprox. {Math.round(metrics.totalCustomers * 0.35)} clientes con hábito en formación</p>
                                 </div>
 
-                                {/* Mock VIP */}
                                 <div>
                                     <div className="flex justify-between items-end mb-2">
                                         <div>
@@ -441,9 +515,7 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                         </div>
                     </div>
 
-                    {/* 4. Tabla Inferior: Flujo de Actividad */}
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-
                         <div className="p-5 border-b border-slate-100 bg-white">
                             <h2 className="text-lg font-bold text-slate-900 tracking-tight mb-4 flex items-center gap-2">
                                 <Clock size={20} className="text-slate-400" />
@@ -451,15 +523,14 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                             </h2>
 
                             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                                {/* Píldoras de Filtro */}
                                 <div className="flex bg-slate-100/80 rounded-xl p-1 w-full sm:w-auto">
                                     {['Todos', 'Sellos', 'Canjes', 'Nuevos'].map(f => (
                                         <button
                                             key={f}
                                             onClick={() => setActiveFilter(f)}
                                             className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${activeFilter === f
-                                                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                                                    : 'text-slate-500 hover:text-slate-700'
+                                                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                                                : 'text-slate-500 hover:text-slate-700'
                                                 }`}
                                         >
                                             {f}
@@ -467,7 +538,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                     ))}
                                 </div>
 
-                                {/* Buscador */}
                                 <div className="relative w-full sm:w-64">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Search size={16} className="text-slate-400" />
@@ -555,8 +625,6 @@ export default function MetricsDashboard({ businessId, merchantMode = false }: M
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* Paginador footer mock */}
                         <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center text-sm font-semibold text-slate-500">
                             <div>Mostrando {filteredLogs.length} registros</div>
                             <div className="flex gap-2">
