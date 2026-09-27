@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ customer_id: string }> },
 ) {
   const { customer_id: customerId } = await params;
-  const supabase = createAdminClient();
+  const supabase: any = createAdminClient();
   const { data: customer } = await supabase
     .from("customers")
     .select("id, business_id")

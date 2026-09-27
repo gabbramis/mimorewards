@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight, ShieldCheck } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight, ShieldCheck, LogOut } from "lucide-react";
+import { createClient } from '@/lib/supabase/client';
 
 const internalNavItems = [
     ["/admin/negocios", "Negocios", Store],
@@ -18,7 +19,14 @@ const internalNavItems = [
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const supabase = createClient();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/login');
+    };
     const navItems = mode === "merchant" && businessId
         ? [[`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard], [`/comercio/${businessId}/clientes`, "Clientes", Users]] as const
         : internalNavItems;
@@ -65,7 +73,16 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
                     </div>
                 </div>
             </aside>
-            <main className="m-admin-main flex-1 overflow-auto">
+            <main className="m-admin-main flex-1 overflow-auto relative">
+                {/* Botón flotante para salir */}
+                <button
+                    onClick={handleLogout}
+                    title="Cerrar sesión"
+                    className="fixed top-6 right-6 sm:top-10 sm:right-15 z-50 flex items-center justify-center bg-slate-900/90 text-white w-[50px] h-[50px] rounded-full shadow-md backdrop-blur-md border border-white/10 hover:bg-[#FF1F2D] transition-colors"
+                >
+                    <LogOut size={18} strokeWidth={2.2} />
+                </button>
+
                 <div className="m-admin-mobile-header">
                     <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
                     <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />
