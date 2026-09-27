@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ nfcId: string }> },
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { nfcId } = await params;
   const context = await resolveNfcContext(supabase, nfcId);
   if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });

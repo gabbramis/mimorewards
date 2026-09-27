@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2 } from "lucide-react";
+import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2, Link2 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
@@ -13,12 +13,16 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
     const [isLoading, setIsLoading] = useState(true);
     const [stampSuccessId, setStampSuccessId] = useState(null);
     const [toastMessage, setToastMessage] = useState(null);
+    const [testLinkLoadingId, setTestLinkLoadingId] = useState(null);
+    const [redeemLoadingId, setRedeemLoadingId] = useState(null);
+    const [testLinks, setTestLinks] = useState({});
 
     // Edit Mode states
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
 
     const supabase = createClient();
+    const getTargetStamps = (customer) => customer.businesses?.reward_target || 10;
 
     const showToast = (msg) => {
         setToastMessage(msg);
@@ -31,7 +35,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
             // OPTIMIZATION: Only select required fields instead of *
             let customersQuery = supabase
                 .from('customers')
-                .select('id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at')
+                .select('id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at, businesses(reward_target)')
                 .order('created_at', { ascending: false });
             if (businessId) customersQuery = customersQuery.eq('business_id', businessId);
             const { data, error } = await customersQuery;
@@ -47,15 +51,16 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
 
     useEffect(() => {
         // Hydrate the customer table once the client has mounted.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCustomers();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleManualStamp = async (id, currentStamps) => {
+    const handleManualStamp = async (id, currentStamps, targetStamps) => {
         // Optimistic UI update
         setCustomers(customers.map(c => {
             if (c.id === id) {
-                return { ...c, current_stamps: Math.min(10, currentStamps + 1) };
+                return { ...c, current_stamps: Math.min(targetStamps, currentStamps + 1) };
             }
             return c;
         }));
@@ -67,22 +72,69 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ identifier: id, method: 'MANUAL' })
             });
+            const payload = await res.json();
             if (!res.ok) {
-                console.error("API error while updating");
-                alert("Hubo un error al guardar el sello. Los datos se revertirán.");
-                fetchCustomers(); // revert optimistic on error
+                await fetchCustomers();
+                if (payload.reason === 'reward_pending') {
+                    showToast('La recompensa ya está disponible para canjear.');
+                } else {
+                    showToast(payload.error || 'No se pudo guardar el sello.');
+                }
+                setStampSuccessId(null);
+                return;
             }
-            // OPTIMIZATION: Removed fetchCustomers(); on success, 
-            // the UI is already updated optimistically!
+            await fetchCustomers();
+            showToast(payload.message || 'Sello sumado correctamente.');
         } catch (err) {
             console.error(err);
-            alert("Hubo un error de conexión.");
-            fetchCustomers();
+            await fetchCustomers();
+            setStampSuccessId(null);
+            showToast("Hubo un error de conexión.");
         }
 
         setTimeout(() => {
             setStampSuccessId(null);
         }, 2000);
+    };
+
+    const handleRedeem = async (id) => {
+        if (!window.confirm('¿Confirmás el canje de la recompensa?')) return;
+        setRedeemLoadingId(id);
+        try {
+            const response = await fetch('/api/stamps/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier: id }),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || 'No se pudo canjear la recompensa.');
+            setCustomers(current => current.map(customer => customer.id === id ? { ...customer, current_stamps: payload.currentStamps ?? 0 } : customer));
+            showToast(payload.message || 'Recompensa canjeada correctamente.');
+        } catch (redeemError) {
+            showToast(redeemError instanceof Error ? redeemError.message : 'No se pudo canjear la recompensa.');
+        } finally {
+            setRedeemLoadingId(null);
+        }
+    };
+
+    const handleTestTapLink = async (customerId) => {
+        setTestLinkLoadingId(customerId);
+        try {
+            const response = await fetch('/api/admin/test-tap-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerId }),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || 'No se pudo crear el link.');
+            setTestLinks(current => ({ ...current, [customerId]: payload.url }));
+            await navigator.clipboard?.writeText(payload.url);
+            showToast('Link de prueba copiado. Vence en 10 minutos.');
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : 'No se pudo crear el link.');
+        } finally {
+            setTestLinkLoadingId(null);
+        }
     };
 
     // OPTIMIZATION: Memoize filtering logic to avoid re-calculating on simple re-renders
@@ -171,9 +223,9 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-3">
                                             <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${(c.current_stamps / 10) * 100}%` }}></div>
+                                        <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${Math.min(100, (c.current_stamps / getTargetStamps(c)) * 100)}%` }}></div>
                                             </div>
-                                            <span className="text-xs font-bold text-gray-700 w-8">{c.current_stamps}/10</span>
+                                    <span className="text-xs font-bold text-gray-700 w-8">{c.current_stamps}/{getTargetStamps(c)}</span>
                                         </div>
                                         <div className="text-xs text-gray-400 mt-1 font-medium">{c.total_visits || 0} visitas totales</div>
                                     </td>
@@ -195,13 +247,31 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                                     <CheckCircle2 size={16} /> ¡Agregado!
                                                 </span>
                                             ) : (
-                                                <button
-                                                    onClick={() => handleManualStamp(c.id, c.current_stamps)}
-                                                    disabled={c.current_stamps >= 10}
-                                                    className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                                                >
-                                                    +1 Sello Manual
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleTestTapLink(c.id)}
+                                                        disabled={testLinkLoadingId === c.id}
+                                                        className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                                                        title="Genera un enlace temporal que usa el flujo NFC real"
+                                                    >
+                                                        <Link2 size={14} /> {testLinkLoadingId === c.id ? 'Creando…' : 'Link prueba'}
+                                                    </button>
+                                                    {testLinks[c.id] && <a href={testLinks[c.id]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">Abrir</a>}
+                                                    {c.current_stamps >= getTargetStamps(c) && <button
+                                                        onClick={() => handleRedeem(c.id)}
+                                                        disabled={redeemLoadingId === c.id}
+                                                        className="bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                                                    >
+                                                        {redeemLoadingId === c.id ? 'Canjeando…' : 'Canjear'}
+                                                    </button>}
+                                                    <button
+                                                        onClick={() => handleManualStamp(c.id, c.current_stamps, getTargetStamps(c))}
+                                                        disabled={c.current_stamps >= getTargetStamps(c)}
+                                                        className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-3 py-2 rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                                                    >
+                                                        +1 Manual
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </td>

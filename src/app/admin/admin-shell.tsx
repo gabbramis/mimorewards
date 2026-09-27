@@ -4,18 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight, ShieldCheck } from "lucide-react";
 
 const internalNavItems = [
     ["/admin/negocios", "Negocios", Store],
+    ["/admin/accesos", "Accesos", ShieldCheck],
     ["/admin/metricas", "Métricas", LayoutDashboard],
     ["/admin/contactos", "Clientes", Users],
-    ["/admin/conversaciones", "Conversaciones", MessageSquare],
-    ["/admin/automatizaciones", "Automatizaciones", Megaphone],
-    ["/admin/ajustes", "Ajustes", Settings],
+    //["/admin/conversaciones", "Conversaciones", MessageSquare],
+    //["/admin/automatizaciones", "Automatizaciones", Megaphone],
+    //["/admin/ajustes", "Ajustes", Settings],
 ] as const;
 
-export default function AdminShell({ children, mode = "internal", businessId }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string }) {
+export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navItems = mode === "merchant" && businessId
@@ -58,7 +59,7 @@ export default function AdminShell({ children, mode = "internal", businessId }: 
                             L
                         </div>
                         <div>
-                            <p className="text-sm font-semibold">{mode === "merchant" ? "Tu comercio" : "Equipo mimo"}</p>
+                            <p className="text-sm font-semibold">{mode === "merchant" ? (businessName || "Tu comercio") : "Equipo mimo"}</p>
                             <p className="text-xs font-medium">{mode === "merchant" ? "Programa activo" : "Administración"}</p>
                         </div>
                     </div>
@@ -68,7 +69,7 @@ export default function AdminShell({ children, mode = "internal", businessId }: 
                 <div className="m-admin-mobile-header">
                     <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
                     <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />
-                    <span>{mode === "merchant" ? "Comercio" : "Panel"}</span>
+                    <span>{mode === "merchant" ? (businessName || "Comercio") : "Panel"}</span>
                 </div>
                 {children}
             </main>
