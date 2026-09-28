@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
-import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -13,6 +13,15 @@ export default function LoginPage() {
     const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
+
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('mimo_saved_email');
+        if (savedEmail) {
+            setEmail(savedEmail);
+            setRememberMe(true);
+        }
+    }, []);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +51,11 @@ export default function LoginPage() {
             }
 
             if (data?.user) {
+                if (rememberMe) {
+                    localStorage.setItem('mimo_saved_email', email);
+                } else {
+                    localStorage.removeItem('mimo_saved_email');
+                }
                 router.push('/admin/metricas');
                 router.refresh();
             }
@@ -52,125 +66,120 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative min-h-screen w-full bg-gradient-to-br from-[#990B13] via-[#C4121D] to-[#590409] flex flex-col justify-between p-6 sm:p-10 text-white selection:bg-[#FF1F2D] selection:text-white">
+        <div className="relative min-h-screen w-full bg-[#FFF6EE] flex flex-col justify-between p-6 sm:p-10 font-sans text-[#1F1F1F] selection:bg-[#FF1F2D] selection:text-white">
             {/* Botón superior Volver */}
             <div className="w-full max-w-7xl mx-auto">
                 <Link
                     href="/"
-                    className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-white/80 hover:text-white transition-colors"
+                    className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-[#8F8F8F] hover:text-[#1F1F1F] transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     Volver al inicio
                 </Link>
             </div>
 
-            {/* Tarjeta Central en Contraste Oscuro */}
-            <div className="w-full max-w-[420px] mx-auto my-auto">
-                <div className="bg-[#0D131F]/95 backdrop-blur-md rounded-[26px] p-8 sm:p-10 shadow-2xl border border-white/10">
+            {/* Tarjeta Central */}
+            <div className="w-full max-w-[400px] mx-auto my-auto">
+                <div className="bg-white rounded-3xl p-8 sm:p-10 shadow-xl border border-[#FFD9DC]">
 
                     {/* Logo y Encabezado */}
                     <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center mb-3">
+                        <div className="inline-flex items-center justify-center mb-4">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/images/mimo-logo.png" alt="Mimo Rewards" className="h-30 w-auto object-contain drop-shadow-md" />
+                            <img src="/images/mimo-logo.png" alt="Mimo Rewards" className="h-[4.5rem] w-auto object-contain" />
                         </div>
-                        <p className="text-xs text-slate-400 font-medium tracking-wide">
-                            Panel de Administración
-                        </p>
+                        <h1 className="text-xl font-bold tracking-tight text-[#1F1F1F] font-poppins">
+                            Iniciar sesión en tu panel
+                        </h1>
                     </div>
 
                     {/* Mensaje de Error */}
                     {errorMsg && (
-                        <div className="mb-5 p-3.5 bg-red-950/60 border border-red-500/50 rounded-xl flex items-center gap-2.5 text-xs font-medium text-red-200">
-                            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        <div className="mb-6 p-3.5 bg-[#FFF6EE] border border-red-300 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-[#FF1F2D]">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
                             <span>{errorMsg}</span>
                         </div>
                     )}
 
                     {/* Formulario */}
-                    <form onSubmit={handleLogin} className="space-y-4">
+                    <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
                         <div>
-                            <label className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-1.5">
+                            <label className="block text-xs font-semibold tracking-wide text-[#1F1F1F] mb-1.5 ml-1">
                                 Correo Electrónico
                             </label>
                             <input
                                 type="email"
                                 required
-                                autoComplete="off"
+                                autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="test@comercio.com"
-                                className="w-full px-4 py-3 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF1F2D] transition-all"
+                                className="w-full px-4 py-3.5 rounded-2xl bg-[#F1F1F1] text-[#1F1F1F] placeholder:text-[#8F8F8F] text-sm font-medium border border-[#E5E5E5] focus:outline-none focus:bg-white focus:border-[#FF1F2D] focus:ring-1 focus:ring-[#FF1F2D] transition-all shadow-sm"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-1.5">
+                            <label className="block text-xs font-semibold tracking-wide text-[#1F1F1F] mb-1.5 ml-1">
                                 Contraseña
                             </label>
-                            <input
-                                type="password"
-                                required
-                                autoComplete="off"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full px-4 py-3 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF1F2D] transition-all"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    autoComplete="current-password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full pl-4 pr-11 py-3.5 rounded-2xl bg-[#F1F1F1] text-[#1F1F1F] placeholder:text-[#8F8F8F] text-sm font-medium border border-[#E5E5E5] focus:outline-none focus:bg-white focus:border-[#FF1F2D] focus:ring-1 focus:ring-[#FF1F2D] transition-all shadow-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(prev => !prev)}
+                                    className="absolute inset-y-0 right-3 flex items-center justify-center p-1.5 text-[#8F8F8F] hover:text-[#1F1F1F] transition-colors focus:outline-none"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs pt-1 text-slate-300">
-                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <div className="flex items-center justify-between text-xs pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer select-none py-1 text-[#1F1F1F] font-medium">
                                 <input
                                     type="checkbox"
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="w-4 h-4 rounded bg-slate-800 border-slate-600 text-[#FF1F2D] focus:ring-0 cursor-pointer"
+                                    className="w-4 h-4 rounded border-zinc-300 text-[#FF1F2D] focus:ring-[#FF1F2D] accent-[#FF1F2D]"
                                 />
-                                Recordarme
+                                <span className="text-xs text-[#1F1F1F]/70">Recordar mi correo</span>
                             </label>
-                            <span className="text-slate-400 hover:text-white cursor-pointer transition-colors">
-                                ¿Olvidaste tu contraseña?
+                            <span className="text-[#8F8F8F] hover:text-[#FF1F2D] font-semibold cursor-pointer transition-colors">
+                                ¿Olvidaste tu clave?
                             </span>
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full mt-2 py-3 px-6 rounded-xl bg-[#FF1F2D] hover:bg-[#E01825] active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-lg shadow-black/30 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+                            className="w-full mt-4 py-3.5 px-4 rounded-2xl bg-[#FF1F2D] hover:bg-[#E01825] active:scale-[0.99] text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                         >
                             {loading ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    Verificando...
+                                    Ingresando...
                                 </>
                             ) : (
-                                'Iniciar Sesión'
+                                'Ingresar al comercio'
                             )}
                         </button>
                     </form>
+                </div>
 
-                    {/* Separador */}
-                    <div className="relative my-6 text-center">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-700/80"></div>
-                        </div>
-                        <span className="relative bg-[#0D131F] px-3 text-[11px] text-slate-500">
-                            o
-                        </span>
-                    </div>
-
-                    {/* Footer de la Tarjeta */}
-                    <div className="text-center text-xs text-slate-400">
-                        ¿No tienes una cuenta?{' '}
-                        <span className="font-semibold text-[#FF1F2D] hover:underline cursor-pointer">
-                            Contactar Soporte Mimo
-                        </span>
-                    </div>
+                <div className="text-center text-[11px] font-medium text-[#8F8F8F] mt-8">
+                    Mimo Rewards · Acceso exclusivo para comercios adheridos
                 </div>
             </div>
 
-            {/* Espaciador inferior para centrado óptico perfecto */}
+            {/* Espaciador inferior */}
             <div className="h-6"></div>
         </div>
     );

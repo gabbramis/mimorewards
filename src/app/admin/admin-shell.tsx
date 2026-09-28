@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Store, Menu, X, ChevronRight, ShieldCheck, LogOut } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 const internalNavItems = [
@@ -12,9 +12,7 @@ const internalNavItems = [
     ["/admin/accesos", "Accesos", ShieldCheck],
     ["/admin/metricas", "Métricas", LayoutDashboard],
     ["/admin/contactos", "Clientes", Users],
-    //["/admin/conversaciones", "Conversaciones", MessageSquare],
-    //["/admin/automatizaciones", "Automatizaciones", Megaphone],
-    //["/admin/ajustes", "Ajustes", Settings],
+    ["/admin/configuracion", "Configuración", Sliders],
 ] as const;
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
@@ -28,7 +26,11 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
         router.push('/login');
     };
     const navItems = mode === "merchant" && businessId
-        ? [[`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard], [`/comercio/${businessId}/clientes`, "Clientes", Users]] as const
+        ? [
+            [`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard],
+            [`/comercio/${businessId}/clientes`, "Clientes", Users],
+            [`/comercio/${businessId}/configuracion`, "Configuración", Sliders]
+        ] as const
         : internalNavItems;
 
     const getLinkClass = (path: string) => {
