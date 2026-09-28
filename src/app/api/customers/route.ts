@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
+import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
 
 type CustomerInput = {
   nfcId?: string;
@@ -18,35 +19,37 @@ function makeUniqueCode() {
   return `CLI-${Math.floor(10000 + Math.random() * 90000)}`;
 }
 
-async function creditStamp(supabase: any, customer: any, context: any) {
-  const currentStamps = Number(customer.current_stamps || 0);
-  const totalVisits = Number(customer.total_visits || 0);
-  const newTotal = Math.min(currentStamps + 1, context.rewardTarget);
-  const now = new Date().toISOString();
-
-  const { error: updateError } = await supabase
-    .from("customers")
-    .update({ current_stamps: newTotal, total_visits: totalVisits + 1, last_visit_at: now })
-    .eq("id", customer.id);
-
-  if (updateError) throw updateError;
-
-  await supabase.from("stamp_logs").insert({
-    customer_id: customer.id,
-    business_id: context.businessId,
-    method: "NFC",
+async function creditStamp(supabase: any, customer: any, context: any, idempotencyKey: string) {
+  const { data, error } = await supabase.rpc("record_loyalty_stamp", {
+    p_customer_id: customer.id,
+    p_business_id: context.businessId,
+    p_method: "NFC",
+    p_idempotency_key: idempotencyKey,
+    p_cooldown_minutes: 180,
+    p_enforce_cooldown: true,
   });
-  await supabase
-    .from("loyalty_cards")
-    .update({ current_stamps: newTotal })
-    .eq("customer_id", customer.id)
-    .eq("business_id", context.businessId);
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result) throw new Error("No se pudo confirmar el sello.");
+  return result;
+}
 
-  return newTotal;
+function responseWithCustomerCookie(payload: unknown, customerId: string, businessId: string, status = 200) {
+  const response = NextResponse.json(payload, { status });
+  response.cookies.set({
+    name: customerCookieName(businessId),
+    value: createCustomerSession(customerId),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return response;
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  const supabase: any = createAdminClient();
 
   try {
     const input = (await request.json()) as CustomerInput;
@@ -62,23 +65,26 @@ export async function POST(request: Request) {
 
     const context = await resolveNfcContext(supabase, nfcId);
     if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
-    const { data: existingCustomer } = await supabase
+
+    const { data: existingCustomer, error: existingError } = await supabase
       .from("customers")
       .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
       .eq("business_id", context.businessId)
       .eq("phone", phone)
       .maybeSingle();
 
+    if (existingError) throw existingError;
+
     if (existingCustomer) {
-      const newTotal = await creditStamp(supabase, existingCustomer, context);
-      const customer = toCustomerView({ ...existingCustomer, current_stamps: newTotal }, context);
-      return NextResponse.json({
+      const stamp = await creditStamp(supabase, existingCustomer, context, crypto.randomUUID());
+      const customer = toCustomerView({ ...existingCustomer, current_stamps: stamp.current_stamps }, context);
+      return responseWithCustomerCookie({
         customer,
         context,
         isNewCustomer: false,
-        stampAdded: true,
-        message: "Te reconocimos y sumamos tu sello.",
-      });
+        stampAdded: stamp.accepted,
+        message: stamp.reason === "cooldown" ? "Ya registraste tu visita recientemente." : "Te reconocimos y sumamos tu sello.",
+      }, customer.id, context.businessId);
     }
 
     const { data: createdCustomer, error: customerError } = await supabase
@@ -100,24 +106,23 @@ export async function POST(request: Request) {
       throw customerError || new Error("No se pudo crear el cliente.");
     }
 
-    // The table can be added when wallet provisioning is enabled. Registration
-    // remains usable while that integration is still being prepared.
-    await supabase.from("loyalty_cards").insert({
+    const { error: cardError } = await supabase.from("loyalty_cards").insert({
       customer_id: createdCustomer.id,
       business_id: context.businessId,
       current_stamps: 0,
     });
+    if (cardError) throw cardError;
 
-    const newTotal = await creditStamp(supabase, createdCustomer, context);
-    const customer = toCustomerView({ ...createdCustomer, current_stamps: newTotal }, context);
+    const stamp = await creditStamp(supabase, createdCustomer, context, crypto.randomUUID());
+    const customer = toCustomerView({ ...createdCustomer, current_stamps: stamp.current_stamps }, context);
 
-    return NextResponse.json({
+    return responseWithCustomerCookie({
       customer,
       context,
       isNewCustomer: true,
-      stampAdded: true,
+      stampAdded: stamp.accepted,
       message: "¡Listo! Tu primer sello ya está adentro.",
-    }, { status: 201 });
+    }, customer.id, context.businessId, 201);
   } catch (error: any) {
     console.error("Customer registration error:", error);
     return NextResponse.json({ error: error?.message || "No pudimos completar el registro." }, { status: 500 });

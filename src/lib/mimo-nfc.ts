@@ -1,7 +1,3 @@
-export const DEFAULT_BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export type NfcContext = {
   nfcId: string;
   businessId: string;
@@ -12,6 +8,22 @@ export type NfcContext = {
   rewardDescription: string;
 };
 
+export async function findNfcTag(supabase: any, rawNfcId: string) {
+  const value = rawNfcId.trim();
+  const candidates = Array.from(new Set([value, value.toLowerCase(), value.toUpperCase()]));
+
+  for (const candidate of candidates) {
+    const { data: tag } = await supabase
+      .from("nfc_tags")
+      .select("nfc_id, business_id, active")
+      .eq("nfc_id", candidate)
+      .maybeSingle();
+    if (tag) return tag;
+  }
+
+  return null;
+}
+
 export async function resolveNfcContext(supabase: any, rawNfcId: string): Promise<NfcContext> {
   let nfcId = rawNfcId || "";
   try {
@@ -19,24 +31,25 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
   } catch {
     // Keep the raw token so a malformed URL can still show the fallback flow.
   }
-  nfcId = nfcId.trim().toUpperCase();
-  let businessId = UUID_PATTERN.test(nfcId)
-    ? nfcId
-    : process.env.MIMO_DEFAULT_BUSINESS_ID || DEFAULT_BUSINESS_ID;
+  nfcId = nfcId.trim();
 
-  let tagActive = true;
-  // A physical token takes precedence over the development fallback.
-  if (!UUID_PATTERN.test(nfcId)) {
-    const { data: tag } = await supabase
-      .from("nfc_tags")
-      .select("business_id, active")
-      .eq("nfc_id", nfcId)
-      .maybeSingle();
+  // Every public /t/:nfcId URL must correspond to a provisioned tag. A
+  // business UUID or slug by itself is never enough to open registration.
+  const tag = await findNfcTag(supabase, nfcId);
 
-    if (tag?.business_id) {
-      businessId = tag.business_id;
-    }
-    if (tag) tagActive = tag.active !== false;
+  const businessId = tag?.business_id || "";
+  const tagActive = tag?.active !== false;
+
+  if (!businessId) {
+    return {
+      nfcId,
+      businessId: "",
+      businessName: "",
+      businessLogo: "",
+      active: false,
+      rewardTarget: 10,
+      rewardDescription: "",
+    };
   }
 
   const { data: business } = await supabase
@@ -48,9 +61,9 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
   return {
     nfcId,
     businessId,
-    businessName: business?.name || "El Gran Café",
+    businessName: business?.name || nfcId || "Tu negocio",
     businessLogo: business?.logo_url || "",
-    active: tagActive && business?.active !== false,
+    active: Boolean(business) && tagActive && business?.active !== false,
     rewardTarget: business?.reward_target || 10,
     rewardDescription: business?.reward_description || "Un café gratis",
   };

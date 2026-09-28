@@ -52,10 +52,10 @@ type FormDataState = {
 const initialContext: NfcContext = {
   nfcId: "ABC123",
   businessId: "",
-  businessName: "El Gran Café",
+  businessName: "",
   businessLogo: "",
   rewardTarget: 10,
-  rewardDescription: "Un café gratis",
+  rewardDescription: "",
 };
 
 const emptyForm: FormDataState = {
@@ -122,7 +122,7 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
   const [context, setContext] = useState<NfcContext>({ ...initialContext, nfcId });
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState<FormDataState>(emptyForm);
-  const [phase, setPhase] = useState<"loading" | "register" | "card">("loading");
+  const [phase, setPhase] = useState<"loading" | "register" | "card" | "unavailable">("loading");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [error, setError] = useState("");
@@ -139,13 +139,6 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
       localStorage.removeItem(storageKey);
     }
 
-    if (savedCustomer) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCustomer(savedCustomer);
-      setIsReturning(true);
-      setPhase("card");
-    }
-
     fetch(`/api/nfc/${encodeURIComponent(nfcId)}${savedCustomer?.id ? `?customerId=${savedCustomer.id}` : ""}`)
       .then(async (response) => {
         if (!response.ok) throw new Error("No pudimos identificar este soporte.");
@@ -153,18 +146,30 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
       })
       .then((payload) => {
         if (cancelled) return;
-        if (payload.context) setContext(payload.context);
+        if (!payload.context?.businessId || !payload.context?.businessName) {
+          throw new Error("No pudimos identificar el negocio de este link.");
+        }
+
+        setContext(payload.context);
         if (payload.customer) {
           setCustomer(payload.customer);
           setIsReturning(true);
           setPhase("card");
           localStorage.setItem(storageKey, JSON.stringify(payload.customer));
-        } else if (!savedCustomer) {
+        } else {
+          if (savedCustomer) localStorage.removeItem(storageKey);
           setPhase("register");
         }
       })
       .catch(() => {
-        if (!cancelled && !savedCustomer) setPhase("register");
+        if (cancelled) return;
+        if (savedCustomer) {
+          localStorage.removeItem(storageKey);
+          setCustomer(null);
+          setIsReturning(false);
+        }
+        setError("Este link no pertenece a un negocio activo.");
+        setPhase("unavailable");
       });
 
     return () => {
@@ -209,9 +214,11 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
   }
 
   const title = isReturning ? "¡Qué bueno verte de nuevo!" : "¡Bienvenida a mimo!";
+  const isUnavailable = phase === "unavailable";
+  const isLoading = phase === "loading";
 
   return (
-    <main className="m-nfc-page">
+    <main className="m-nfc-page m-nfc-mobile-only">
       <header className="m-nfc-header">
         <Link href="/" className="m-nfc-brand" aria-label="mimo rewards, inicio">
           {context.businessLogo ? (
@@ -220,21 +227,32 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
             <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
           )}
         </Link>
-        <span className="m-nfc-token"><Wifi size={14} /> NFC · {nfcId}</span>
+        <span className="m-nfc-token"><Wifi size={14} /> {isUnavailable ? "LINK NO DISPONIBLE" : `NFC · ${nfcId}`}</span>
       </header>
 
       <div className="m-nfc-layout">
         <section className="m-nfc-intro" aria-label="Invitación al programa">
-          <span className="m-nfc-kicker"><Wifi size={14} /> NFC DETECTADO · {context.businessName}</span>
-          <h1>Creá tu cuenta.<br /><span>Guardá tus sellos.</span></h1>
-          <p>Una tarjeta digital para que tus beneficios estén siempre a mano. Te registrás una vez y después solo acercás tu celular.</p>
+          <span className="m-nfc-kicker"><Wifi size={14} /> {isUnavailable ? "LINK NO DISPONIBLE" : isLoading ? "VERIFICANDO LINK" : `NFC DETECTADO · ${context.businessName}`}</span>
+          <h1>{isUnavailable ? <>Este link no está<br /><span>activo.</span></> : isLoading ? <>Verificando tu<br /><span>programa.</span></> : <>Creá tu cuenta.<br /><span>Guardá tus sellos.</span></>}</h1>
+          <p>{isUnavailable ? "Este QR o NFC no está vinculado a un comercio activo." : isLoading ? "Estamos comprobando que el link pertenezca a un programa de beneficios." : "Una tarjeta digital para que tus beneficios estén siempre a mano. Te registrás una vez y después solo acercás tu celular."}</p>
 
-           <div className="m-nfc-trust"><ShieldCheck size={16} /> Sin app para descargar · Gratis para sumarte</div>
+           {!isUnavailable && !isLoading && <div className="m-nfc-trust"><ShieldCheck size={16} /> Sin app para descargar · Gratis para sumarte</div>}
          </section>
 
         <section className="m-nfc-panel" aria-live="polite">
           {phase === "loading" && (
             <div className="m-nfc-loading"><Loader2 size={28} className="m-nfc-spin" /><span>Preparando tu tarjeta…</span></div>
+          )}
+
+          {phase === "unavailable" && (
+            <div className="m-nfc-unavailable">
+              <span className="m-nfc-success-mark"><Wifi size={20} /></span>
+              <div className="m-nfc-panel-heading">
+                <span className="m-nfc-step">LINK NO DISPONIBLE</span>
+                <h2>Este QR o NFC no está activo.</h2>
+                <p>Pedile al comercio que te comparta un link válido para sumarte a su programa de beneficios.</p>
+              </div>
+            </div>
           )}
 
           {phase === "register" && (
@@ -292,8 +310,10 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
         </section>
       </div>
       <footer className="m-nfc-footer">
-        <Image src="/images/mimo-wordmark.png" width={80} height={30} alt="mimo rewards" />
-        <span>Powered by mimo rewards</span>
+        <div className="m-nfc-powered">
+          <span>Powered by</span>
+          <Image src="/images/mimo-wordmark.png" width={64} height={25} alt="mimo rewards" />
+        </div>
       </footer>
     </main>
   );

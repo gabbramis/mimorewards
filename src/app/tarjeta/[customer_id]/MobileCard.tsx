@@ -1,38 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Gift, Heart, Wallet, Check } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { Check, Gift, Heart, Wallet, Wifi } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
-export default function MobileCard({ initialCustomer, business }: { initialCustomer: any, business: any }) {
+function Stamps({ current, target }: { current: number; target: number }) {
+    return (
+        <div className="m-nfc-stamps" aria-label={`${current} de ${target} sellos`}>
+            {Array.from({ length: target }, (_, index) => (
+                <span key={index} className={index < current ? "is-filled" : ""}>
+                    {index < current ? <Heart size={15} fill="currentColor" /> : <span />}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+export default function MobileCard({ initialCustomer, business, notice }: { initialCustomer: any, business: any, notice?: string | null }) {
     const [currentStamps, setCurrentStamps] = useState(initialCustomer.current_stamps || 0);
     const [isAnimating, setIsAnimating] = useState(false);
     const supabase = createClient();
     const targetStamps = business.reward_target || 10;
 
     useEffect(() => {
-        // Escuchar cambios en los sellos (stamp_logs) para este cliente particular
+        void fetch(`/api/customer-session/${encodeURIComponent(initialCustomer.id)}`);
+    }, [initialCustomer.id]);
+
+    useEffect(() => {
         const channel = supabase
             .channel(`public:stamp_logs:customer_id=eq.${initialCustomer.id}`)
             .on(
                 'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'stamp_logs',
-                    filter: `customer_id=eq.${initialCustomer.id}`
-                },
+                { event: 'INSERT', schema: 'public', table: 'stamp_logs', filter: `customer_id=eq.${initialCustomer.id}` },
                 (payload) => {
-                    // Nuevo sello detectado!
-                    // Verificamos si es REDEEM o SELLO normal
                     if (payload.new.method === 'REDEEM') {
                         setCurrentStamps(0);
                     } else {
-                        setCurrentStamps((prev: number) => {
-                            const next = prev + 1;
-                            return next > targetStamps ? targetStamps : next;
-                        });
-                        // Triggerea pequeña animación
+                        setCurrentStamps((prev: number) => Math.min(prev + 1, targetStamps));
                         setIsAnimating(true);
                         setTimeout(() => setIsAnimating(false), 800);
                     }
@@ -40,114 +44,60 @@ export default function MobileCard({ initialCustomer, business }: { initialCusto
             )
             .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [initialCustomer.id, supabase, targetStamps]);
 
     const handleWalletClick = () => {
         alert("Función de pase digital en sincronización. ¡Próximamente disponible!");
     };
 
-    // Generar el array de círculos
-    const stampsArray = Array.from({ length: targetStamps }, (_, i) => i + 1);
-
     return (
-        <div className="min-h-screen bg-[#FFF6EE] flex flex-col justify-between p-5 font-sans mx-auto max-w-sm w-full">
-            <div className="flex-1 flex flex-col">
-                {/* Header Superior */}
-                <div className="flex items-center gap-3 mb-8 pt-4 justify-center flex-col text-center">
-                    {business.logo_url ? (
-                        <div className="w-12 h-12 rounded-full overflow-hidden shadow-sm border border-[#FFD9DC]">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={business.logo_url} alt={business.name} className="w-full h-full object-cover" />
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-1.5 font-bold text-xl tracking-tight text-[#FF1F2D]">
-                            <span>{business.name}</span>
-                        </div>
-                    )}
-                    <h1 className="text-2xl font-bold text-[#1F1F1F] tracking-tight mt-1 font-heading">
-                        ¡Hola, {initialCustomer.first_name}! 👋
-                    </h1>
-                </div>
-
-                {/* Tarjeta de Fidelización */}
-                <div className={`bg-white rounded-[32px] p-6 shadow-sm border border-[#FFD9DC]/60 relative overflow-hidden transition-transform duration-300 ${isAnimating ? 'scale-[1.02]' : 'scale-100'}`}>
-                    {/* Decoración superior */}
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#FFD9DC]/30 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#FFD9DC]/20 rounded-full blur-2xl pointer-events-none"></div>
-
-                    <div className="relative z-10 flex justify-between items-center mb-6">
-                        <span className="text-sm font-semibold text-[#1F1F1F] uppercase tracking-wider">Tus Sellos</span>
-                        <div className="text-lg font-black text-[#FF1F2D] flex items-center gap-1 bg-[#FFF6EE] px-3 py-1 rounded-full border border-[#FFD9DC]/50 shadow-xs">
-                            <span className={isAnimating ? 'animate-bounce text-[#FF1F2D]' : 'text-[#FF1F2D]'}>{currentStamps}</span>
-                            <span className="text-[#FF1F2D]/50 text-sm">/ {targetStamps}</span>
-                        </div>
-                    </div>
-
-                    {/* Grilla de Sellos */}
-                    <div className="grid grid-cols-5 gap-3 relative z-10">
-                        {stampsArray.map((stampNumber) => {
-                            const isFilled = currentStamps >= stampNumber;
-                            const isNewlyFilled = isFilled && currentStamps === stampNumber && isAnimating;
-
-                            if (isFilled) {
-                                return (
-                                    <div
-                                        key={stampNumber}
-                                        className={`w-full aspect-square bg-[#FF1F2D] rounded-full flex items-center justify-center shadow-md transition-all duration-500 transform ${isNewlyFilled ? 'scale-110 shadow-[#FF1F2D]/40' : 'scale-100'}`}
-                                    >
-                                        <Heart size={20} className="text-white fill-current" />
-                                    </div>
-                                );
-                            } else {
-                                return (
-                                    <div
-                                        key={stampNumber}
-                                        className="w-full aspect-square border-2 border-[#E5E7EB] bg-[#F9FAFB] rounded-full flex items-center justify-center opacity-80"
-                                    >
-                                        <span className="text-xs font-bold text-[#E5E7EB]">{stampNumber}</span>
-                                    </div>
-                                );
-                            }
-                        })}
-                    </div>
-
-                    {/* Caja de Próximo Premio */}
-                    <div className="bg-[#FFF6EE] rounded-2xl p-4 flex items-center gap-3.5 border border-[#FFD9DC]/50 mt-8 relative z-10">
-                        <div className="bg-white p-2 rounded-xl shadow-xs border border-[#FFD9DC]/30">
-                            <Gift size={20} className="text-[#FF1F2D]" />
-                        </div>
-                        <div>
-                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">Recompensa</p>
-                            <p className="text-sm font-bold text-[#1F1F1F] leading-tight">
-                                {business.reward_description || 'Premio de lealtad'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Botón Apple Wallet */}
-                <button
-                    onClick={handleWalletClick}
-                    className="bg-[#1F1F1F] hover:bg-black text-white rounded-full py-4 px-6 font-semibold text-sm flex items-center justify-center gap-2.5 w-full mt-6 shadow-md transition-all shadow-[#1F1F1F]/20"
-                >
-                    <Wallet size={18} />
-                    Agregar a Apple Wallet
-                </button>
-            </div>
-
-            {/* Footer de Marca */}
-            <div className="mt-8 mb-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 font-bold text-sm tracking-tight text-[#FF1F2D]/80 mb-1">
-                    <span>mimo</span>
-                    <Heart size={12} fill="currentColor" strokeWidth={0} />
+        <main className="m-nfc-page m-nfc-mobile-only">
+            <header className="m-nfc-header">
+                <span className="m-nfc-brand" aria-label={business.name}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={business.logo_url || "/images/mimo-wordmark.png"} alt={business.name} />
                 </span>
-                <p className="text-xs font-medium text-[#71717A]">
-                    Detrás de cada número, hay alguien que eligió volver.
-                </p>
+                <span className="m-nfc-token"><Wifi size={14} /> TARJETA DIGITAL</span>
+            </header>
+
+            <div className="m-nfc-layout">
+                <section className="m-nfc-panel" aria-live="polite">
+                    <div className="m-nfc-card-view">
+                        <div className="m-nfc-panel-heading">
+                            <span className="m-nfc-step">TARJETA DE BENEFICIOS</span>
+                            <h2>¡Hola, {initialCustomer.first_name}! 👋</h2>
+                            <p>Seguí sumando sellos en {business.name} y desbloqueá tu próxima recompensa.</p>
+                        </div>
+
+                        <div className={`m-nfc-loyalty-card ${isAnimating ? 'm-nfc-loyalty-card-is-animating' : ''}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img className="m-nfc-card-logo" src={business.logo_url || "/images/mimo-wordmark.png"} alt={business.name} />
+                            <div className="m-nfc-card-business">{business.name}</div>
+                            <div className="m-nfc-card-balance"><strong>{currentStamps}<small>/{targetStamps} sellos</small></strong><span>1 compra = 1 sello</span></div>
+                            <Stamps current={currentStamps} target={targetStamps} />
+                            <div className="m-nfc-card-reward"><Gift size={19} /><span>{currentStamps >= targetStamps ? "Recompensa disponible" : "Tu próximo mimo"}<strong>{business.reward_description || 'Premio de lealtad'}</strong></span></div>
+                            <div className="m-nfc-card-footer"><span>Tarjeta de beneficios</span><span>{initialCustomer.unique_code}</span></div>
+                        </div>
+
+                        {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
+
+                        <div className="m-nfc-actions">
+                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-apple" onClick={handleWalletClick}><Wallet size={18} /> Agregar a Apple Wallet</button>
+                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleWalletClick}><Wallet size={18} /> Guardar en Google Wallet</button>
+                        </div>
+                        <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>
+                    </div>
+                </section>
             </div>
-        </div>
+
+            <footer className="m-nfc-footer">
+                <div className="m-nfc-powered">
+                    <span>Powered by</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/images/mimo-wordmark.png" width="64" height="25" alt="mimo rewards" />
+                </div>
+            </footer>
+        </main>
     );
 }

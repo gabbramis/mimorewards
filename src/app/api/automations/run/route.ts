@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isSuperadmin } from '@/lib/authz';
 
 export async function POST(request) {
     const supabase = await createClient();
     const BUSINESS_ID = "ea6ae0d6-c8db-4b15-a09d-9726f93b7119";
 
     try {
+        if (!await isSuperadmin()) {
+            return NextResponse.json({ success: false, error: "No tenés permisos para ejecutar automatizaciones." }, { status: 403 });
+        }
         // 1. Fetch active rules for the business
         const { data: rules, error: rulesErr } = await supabase
             .from('automation_rules')
