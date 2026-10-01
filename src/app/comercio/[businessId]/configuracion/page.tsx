@@ -2,13 +2,51 @@
 
 import React, { useState, useEffect, use, useCallback } from "react";
 import { createClient } from '@/lib/supabase/client';
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Store, Wallet, Clock, Bell, ShieldAlert, ChevronDown, Ticket, Trophy, BellRing, MessageCircle } from "lucide-react";
 import { ConfigFormState, LocalConfigFormState, DayHourState } from "./components/types";
 import { ConfigHeader } from "./components/ConfigHeader";
 import { PasswordModal } from "./components/PasswordModal";
 import { BusinessHero } from "./components/BusinessHero";
-import { NotificationsCard } from "./components/NotificationsCard";
-import { StampingRulesCard } from "./components/StampingRulesCard";
+import { RewardSettings } from "./components/RewardSettings";
+import { ScheduleSettings } from "./components/ScheduleSettings";
+import { NotificationSettings } from "./components/NotificationSettings";
+
+function AccordionSection({
+    title, subtitle, icon, isOpen, onToggle, headerBadge, children
+}: {
+    id?: string; title: string; subtitle: string; icon: React.ReactNode; isOpen: boolean; onToggle: () => void; headerBadge?: React.ReactNode; children: React.ReactNode;
+}) {
+    return (
+        <div className="bg-white rounded-3xl border border-[#FFD9DC] shadow-sm flex flex-col relative overflow-hidden transition-all duration-300">
+            <div className="flex items-center justify-between cursor-pointer p-6 sm:p-8 w-full group" onClick={onToggle}>
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-[#FFF6EE] border border-[#FFD9DC] flex items-center justify-center shrink-0">
+                        {icon}
+                    </div>
+                    <div className="text-left flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-bold text-[#1F1F1F] group-hover:text-[#FF1F2D] transition-colors">{title}</h3>
+                            {headerBadge}
+                        </div>
+                        <p className="text-xs font-semibold text-[#1F1F1F]/50">{subtitle}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#8F8F8F] hidden sm:block">
+                        {isOpen ? 'Desplegado' : 'Contraído'}
+                    </span>
+                    <ChevronDown className={`w-5 h-5 text-[#8F8F8F] group-hover:text-[#FF1F2D] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                <div className="p-6 sm:p-8 pt-0 border-t border-[#F1F1F1]">
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function ConfiguracionPage({ params }: { params: Promise<{ businessId: string }> }) {
     const { businessId: resolvedBusinessId } = use(params);
@@ -23,7 +61,8 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
         slug: "",
         logo_url: "",
         reward_target: 10,
-        reward_description: ""
+        reward_description: "",
+        primary_color: "#E84538"
     });
 
     // LocalStorage Config States
@@ -40,6 +79,19 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
     // Settings Modal
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [openSections, setOpenSections] = useState<string[]>(['profile']);
+
+    const handleToggleAll = () => {
+        if (openSections.length === 5) {
+            setOpenSections([]);
+        } else {
+            setOpenSections(['profile', 'rewards', 'schedule', 'notifications', 'security']);
+        }
+    };
+
+    const toggleSection = (id: string) => {
+        setOpenSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -51,7 +103,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
             const { data: business } = await supabase
                 .from("businesses")
-                .select("name, logo_url, reward_target, reward_description, slug")
+                .select("name, logo_url, reward_target, reward_description, slug, primary_color")
                 .eq("id", resolvedBusinessId)
                 .single();
 
@@ -62,6 +114,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                     logo_url: business.logo_url || "",
                     reward_target: business.reward_target || 10,
                     reward_description: business.reward_description || "",
+                    primary_color: business.primary_color || "#E84538",
                 });
             }
 
@@ -134,7 +187,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
         }
     };
 
-    const handleSavePrimaryAttrs = async (field: 'name' | 'reward_description', value: string) => {
+    const handleSavePrimaryAttrs = async (field: 'name' | 'reward_description' | 'reward_target' | 'primary_color', value: string | number) => {
         if (!resolvedBusinessId) return;
         setSaving(true);
         try {
@@ -196,32 +249,132 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                     saving={saving}
                     onSave={handleSaveSettings}
                     onOpenSettings={() => setShowSettingsModal(true)}
+                    allExpanded={openSections.length === 5}
+                    onToggleAll={handleToggleAll}
                 />
 
-                <BusinessHero
-                    businessId={resolvedBusinessId}
-                    form={form}
-                    setForm={setForm}
-                    saving={saving}
-                    onSavePrimaryAttrs={handleSavePrimaryAttrs}
-                    onImageUpload={handleImageUpload}
-                    showFeedback={showFeedback}
-                />
+                <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto pb-12">
+                    <AccordionSection
+                        id="profile"
+                        title="Perfil del Local & Conectividad"
+                        subtitle="Identidad, Logo e Integración Web"
+                        icon={<Store className="w-5 h-5 text-[#FF1F2D]" />}
+                        isOpen={openSections.includes('profile')}
+                        onToggle={() => toggleSection('profile')}
+                        headerBadge={
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Terminal Activa</span>
+                            </div>
+                        }
+                    >
+                        <BusinessHero
+                            businessId={resolvedBusinessId}
+                            form={form}
+                            setForm={setForm}
+                            saving={saving}
+                            onSavePrimaryAttrs={handleSavePrimaryAttrs}
+                            onImageUpload={handleImageUpload}
+                            showFeedback={showFeedback}
+                        />
+                    </AccordionSection>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
-                    <NotificationsCard
-                        localForm={localForm}
-                        setLocalForm={setLocalForm}
-                        showFeedback={showFeedback}
-                    />
+                    <AccordionSection
+                        id="rewards"
+                        title="Reglas de Sellado y Recompensas"
+                        subtitle="Mecánica de acumulación de sellos, premio final y pase Apple Wallet."
+                        icon={
+                            <div className="w-10 h-10 rounded-full bg-[#fef9ee] flex items-center justify-center shrink-0 border border-orange-100">
+                                <Ticket className="w-5 h-5 text-orange-800" />
+                            </div>
+                        }
+                        isOpen={openSections.includes('rewards')}
+                        onToggle={() => toggleSection('rewards')}
+                        headerBadge={
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200/60">
+                                <Trophy className="w-3.5 h-3.5 text-red-800" />
+                                <span className="text-[10px] font-bold text-red-900 uppercase tracking-wider hidden sm:inline-block">Meta: {form.reward_target || 10} sellos = {form.reward_description || 'Premio'}</span>
+                            </div>
+                        }
+                    >
+                        <div className="w-full">
+                            <RewardSettings
+                                form={form}
+                                setForm={setForm}
+                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
+                                saving={saving}
+                            />
+                        </div>
+                    </AccordionSection>
 
-                    <StampingRulesCard
-                        localForm={localForm}
-                        setLocalForm={setLocalForm}
-                        hours={hours}
-                        setHours={setHours}
-                    />
+                    <AccordionSection
+                        id="schedule"
+                        title="Horarios de Operación y Bloqueo Anti-Fraude"
+                        subtitle="Control de días activos, prevención de sellos fantasma y reglas cooldown."
+                        icon={
+                            <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0 border border-gray-200">
+                                <Clock className="w-5 h-5 text-gray-700" />
+                            </div>
+                        }
+                        isOpen={openSections.includes('schedule')}
+                        onToggle={() => toggleSection('schedule')}
+                        headerBadge={
+                            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${form.strict_schedule_enabled ?? true ? 'bg-green-50 border-green-200/60' : 'bg-red-50 border-red-200/60'}`}>
+                                <ShieldAlert className={`w-3.5 h-3.5 ${form.strict_schedule_enabled ?? true ? 'text-green-700' : 'text-red-700'}`} />
+                                <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:inline-block ${form.strict_schedule_enabled ?? true ? 'text-green-800' : 'text-red-800'}`}>
+                                    {form.strict_schedule_enabled ?? true ? 'Protección Activa' : 'Protección Inactiva'}
+                                </span>
+                            </div>
+                        }
+                    >
+                        <div className="w-full">
+                            <ScheduleSettings
+                                form={form}
+                                setForm={setForm}
+                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
+                                saving={saving}
+                            />
+                        </div>
+                    </AccordionSection>
+
+                    <AccordionSection
+                        id="notifications"
+                        title="Notificaciones Operativas y Alertas Críticas"
+                        subtitle="Alertas push de canjes en caja, reportes semanales y detección de anomalías."
+                        icon={
+                            <div className="w-10 h-10 rounded-full bg-[#fef9ee] flex items-center justify-center shrink-0 border border-orange-100">
+                                <BellRing className="w-5 h-5 text-orange-800" />
+                            </div>
+                        }
+                        isOpen={openSections.includes('notifications')}
+                        onToggle={() => toggleSection('notifications')}
+                        headerBadge={
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-200/60">
+                                <MessageCircle className="w-3.5 h-3.5 text-green-700" />
+                                <span className="text-[10px] font-bold text-green-800 uppercase tracking-wider hidden sm:inline-block">WhatsApp API Conectada</span>
+                            </div>
+                        }
+                    >
+                        <div className="w-full">
+                            <NotificationSettings
+                                form={form}
+                                setForm={setForm}
+                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
+                                saving={saving}
+                                showFeedback={showFeedback}
+                            />
+                        </div>
+                    </AccordionSection>
+
+                    <AccordionSection id="security" title="Seguridad de Caja, PIN de Mostrador y Permisos" subtitle="Validación y Autorizaciones" icon={<ShieldAlert className="w-5 h-5 text-[#FF1F2D]" />} isOpen={openSections.includes('security')} onToggle={() => toggleSection('security')}>
+                        <div className="text-[#1F1F1F]/50 text-sm font-semibold py-12 text-center bg-[#F1F1F1] rounded-2xl border border-dashed border-[#E5E5E5]">[ Esqueleto En Construcción ]</div>
+                    </AccordionSection>
                 </div>
+            </div>
+
+            {/* Ignorar unused temporario */}
+            <div className="hidden">
+                {JSON.stringify({ form, setForm, localForm, setLocalForm, hours, setHours })}
             </div>
 
             <PasswordModal

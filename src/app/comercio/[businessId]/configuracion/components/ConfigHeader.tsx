@@ -8,9 +8,11 @@ interface ConfigHeaderProps {
     saving: boolean;
     onSave: () => void;
     onOpenSettings: () => void;
+    allExpanded: boolean;
+    onToggleAll: () => void;
 }
 
-export function ConfigHeader({ businessId, saving, onSave, onOpenSettings }: ConfigHeaderProps) {
+export function ConfigHeader({ businessId, saving, onSave, onOpenSettings, allExpanded, onToggleAll }: ConfigHeaderProps) {
     return (
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div>
@@ -26,6 +28,12 @@ export function ConfigHeader({ businessId, saving, onSave, onOpenSettings }: Con
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+                <button
+                    onClick={onToggleAll}
+                    className="p-2 text-[#1F1F1F]/70 hover:text-[#1F1F1F] text-sm font-bold transition-colors cursor-pointer mr-2 flex items-center gap-2"
+                >
+                    {allExpanded ? 'Contraer todo' : 'Expandir todo'}
+                </button>
                 <button
                     onClick={onOpenSettings}
                     className="p-2 text-[#1F1F1F]/70 hover:text-[#1F1F1F] transition-colors cursor-pointer"

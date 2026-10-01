@@ -10,6 +10,7 @@ type Business = {
   logo_url?: string | null;
   reward_target: number;
   reward_description: string;
+  primary_color?: string | null;
   active: boolean;
   nfcId?: string | null;
   nfcUrl?: string | null;
