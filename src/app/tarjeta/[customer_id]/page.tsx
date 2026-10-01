@@ -1,4 +1,6 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { Heart } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import MobileCard from './MobileCard';
 
@@ -28,6 +30,27 @@ export default async function TarjetaPage({ params, searchParams }: { params: Pr
 
     if (!customer || !customer.businesses) {
         notFound();
+    }
+
+    if (stampStatus === "cooldown") {
+        return (
+            <main className="min-h-screen flex items-center justify-center bg-[#FBECE0] p-4 text-[#1F1F1F]">
+                <div className="bg-white rounded-3xl ring-2 ring-[#FF1F2D] ring-offset-4 ring-offset-[#FBECE0] p-8 max-w-sm w-full text-center shadow-lg shadow-black/[0.04] flex flex-col items-center">
+                    <div className="bg-[#FFF6EE] p-4 rounded-full mb-6 mt-2">
+                        <Heart className="w-8 h-8 text-[#FF1F2D]" fill="currentColor" />
+                    </div>
+                    <h1 className="text-2xl font-bold mb-4 tracking-tight">
+                        ¡Qué lindo verte de nuevo en {customer.businesses.name}!
+                    </h1>
+                    <p className="text-[#1F1F1F] opacity-90 mb-8 leading-relaxed font-medium">
+                        Tu visita de hoy ya fue registrada con éxito. Para cuidar tus sellos, hay un tiempo de espera de 3 horas entre cada visita. ¡Te esperamos pronto!
+                    </p>
+                    <Link href={`/tarjeta/${customer.id}`} className="bg-[#FF1F2D] text-white font-bold rounded-2xl py-4 px-6 hover:bg-[#E01724] transition-colors w-full block shadow-sm">
+                        Ver mi tarjeta actual
+                    </Link>
+                </div>
+            </main>
+        );
     }
 
     return <MobileCard initialCustomer={customer} business={customer.businesses} notice={stampNotice(stampStatus)} />;

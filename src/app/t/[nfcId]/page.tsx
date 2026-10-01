@@ -122,7 +122,7 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
   const [context, setContext] = useState<NfcContext>({ ...initialContext, nfcId });
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState<FormDataState>(emptyForm);
-  const [phase, setPhase] = useState<"loading" | "register" | "card" | "unavailable">("loading");
+  const [phase, setPhase] = useState<"loading" | "register" | "recover" | "card" | "unavailable">("loading");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [error, setError] = useState("");
@@ -209,6 +209,34 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
     }
   }
 
+  async function handleRecover(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: formData.phone, nfcId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "No pudimos recuperar tu tarjeta.");
+
+      setCustomer(payload.customer);
+      setContext(payload.context || context);
+      setIsReturning(true);
+      setPhase("card");
+      setNotice(payload.message || "¡Qué bueno verte de nuevo! Ya recuperamos tu tarjeta.");
+      localStorage.setItem(storageKey, JSON.stringify(payload.customer));
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "No pudimos recuperar tu tarjeta.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   function walletMessage(walletName: string) {
     setNotice(`${walletName} estará disponible cuando activemos tu tarjeta digital.`);
   }
@@ -222,7 +250,7 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
       <header className="m-nfc-header">
         <Link href="/" className="m-nfc-brand" aria-label="mimo rewards, inicio">
           {context.businessLogo ? (
-            <Image src={context.businessLogo} width={1220} height={469} alt={context.businessName} priority />
+            <img src={context.businessLogo} alt={context.businessName} style={{ objectFit: 'contain' }} onError={(e) => { e.currentTarget.src = "/images/mimo-wordmark.png"; }} />
           ) : (
             <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
           )}
@@ -236,8 +264,8 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
           <h1>{isUnavailable ? <>Este link no está<br /><span>activo.</span></> : isLoading ? <>Verificando tu<br /><span>programa.</span></> : <>Creá tu cuenta.<br /><span>Guardá tus sellos.</span></>}</h1>
           <p>{isUnavailable ? "Este QR o NFC no está vinculado a un comercio activo." : isLoading ? "Estamos comprobando que el link pertenezca a un programa de beneficios." : "Una tarjeta digital para que tus beneficios estén siempre a mano. Te registrás una vez y después solo acercás tu celular."}</p>
 
-           {!isUnavailable && !isLoading && <div className="m-nfc-trust"><ShieldCheck size={16} /> Sin app para descargar · Gratis para sumarte</div>}
-         </section>
+          {!isUnavailable && !isLoading && <div className="m-nfc-trust"><ShieldCheck size={16} /> Sin app para descargar · Gratis para sumarte</div>}
+        </section>
 
         <section className="m-nfc-panel" aria-live="polite">
           {phase === "loading" && (
@@ -276,6 +304,32 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
                 </button>
                 <p className="m-nfc-form-note"><ShieldCheck size={14} /> Usamos tus datos solo para tu tarjeta y tus beneficios.</p>
               </form>
+              <div className="mt-8 text-center pb-4">
+                <button type="button" onClick={() => { setPhase("recover"); setError(""); setNotice(""); }} className="text-[15px] font-medium text-[#1F1F1F] underline decoration-[#FFD9DC] decoration-2 underline-offset-4 hover:text-[#FF1F2D] transition-colors">¿Ya tienes una tarjeta en este local? Inicia sesión con tu celular</button>
+              </div>
+            </>
+          )}
+
+          {phase === "recover" && (
+            <>
+              <div className="m-nfc-panel-heading">
+                <span className="m-nfc-step">RECUPERAR TARJETA</span>
+                <h2>Iniciá sesión</h2>
+                <p>Ingresá tu número de celular para recuperar tu cuenta y seguir sumando en {context.businessName}.</p>
+              </div>
+
+              <form onSubmit={handleRecover} className="m-nfc-form">
+                {error && <div className="m-nfc-alert m-nfc-alert-error" role="alert">{error}</div>}
+
+                <Field label="Celular" name="phone" value={formData.phone} onChange={updateField} icon={Phone} type="tel" placeholder="+598 9X XXX XXX" autoComplete="tel" />
+
+                <button type="submit" className="w-full bg-[#FF1F2D] text-white font-bold rounded-2xl py-3 px-6 mt-4 flex items-center justify-center gap-2 hover:bg-black transition-colors" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 size={19} className="m-nfc-spin" /> : <>Recuperar mi tarjeta <ArrowRight size={18} /></>}
+                </button>
+                <div className="mt-6 text-center">
+                  <button type="button" onClick={() => { setPhase("register"); setError(""); setNotice(""); }} className="text-sm font-medium text-[#777] underline decoration-gray-300 underline-offset-4 hover:text-[#1F1F1F] transition-colors">Prefiero registrarme por primera vez</button>
+                </div>
+              </form>
             </>
           )}
 
@@ -289,7 +343,11 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
               </div>
 
               <div className="m-nfc-loyalty-card">
-                <Image className="m-nfc-card-logo" src={context.businessLogo || "/images/mimo-wordmark.png"} width={180} height={70} alt={context.businessName} />
+                {context.businessLogo ? (
+                  <img className="m-nfc-card-logo" style={{ objectFit: 'contain' }} src={context.businessLogo} alt={context.businessName} onError={(e) => { e.currentTarget.src = "/images/mimo-wordmark.png"; e.currentTarget.style.objectFit = "initial"; }} />
+                ) : (
+                  <Image className="m-nfc-card-logo" src="/images/mimo-wordmark.png" width={180} height={70} alt={context.businessName} />
+                )}
                 <div className="m-nfc-card-business">{customer.businessName}</div>
                 <div className="m-nfc-card-balance"><strong>{customer.currentStamps}<small>/{customer.targetStamps} sellos</small></strong><span>1 compra = 1 sello</span></div>
                 <Stamps current={customer.currentStamps} target={customer.targetStamps} />

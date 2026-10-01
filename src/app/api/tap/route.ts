@@ -57,7 +57,12 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
   }
 
   const result = firstResult(data);
-  const status = result?.accepted ? "success" : result?.reason || "error";
+
+  let status = result?.accepted ? "success" : result?.reason || "error";
+  if (status.includes("cooldown")) {
+    status = "cooldown";
+  }
+
   return { kind: "redirect" as const, destination: `/tarjeta/${encodeURIComponent(customerId)}?stamp=${encodeURIComponent(status)}` };
 }
 
