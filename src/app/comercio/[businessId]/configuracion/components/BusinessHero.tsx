@@ -10,12 +10,12 @@ interface BusinessHeroProps {
     form: ConfigFormState;
     setForm: React.Dispatch<React.SetStateAction<ConfigFormState>>;
     saving: boolean;
-    onSavePrimaryAttrs: (field: 'name' | 'reward_description' | 'reward_target' | 'primary_color', value: string | number) => Promise<void>;
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
     showFeedback: (type: 'success' | 'error', text: string) => void;
+    initialName: string;
 }
 
-export function BusinessHero({ businessId, form, setForm, saving, onSavePrimaryAttrs, onImageUpload, showFeedback }: BusinessHeroProps) {
+export function BusinessHero({ businessId, form, setForm, saving, onImageUpload, showFeedback, initialName }: BusinessHeroProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isEditingName, setIsEditingName] = useState(false);
     const [isEditingReward, setIsEditingReward] = useState(false);
@@ -85,8 +85,11 @@ export function BusinessHero({ businessId, form, setForm, saving, onSavePrimaryA
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={form.logo_url} alt="Logo" className="w-[88px] h-[88px] rounded-2xl object-cover border border-[#F1F1F1] shadow-sm bg-white" />
                             ) : (
-                                <div className="w-[88px] h-[88px] rounded-2xl bg-[#F1F1F1] border border-[#E5E5E5] flex items-center justify-center">
-                                    <Store className="w-8 h-8 text-[#8F8F8F]" />
+                                <div
+                                    className="w-[88px] h-[88px] rounded-2xl text-white flex items-center justify-center font-bold text-4xl shadow-sm"
+                                    style={{ backgroundColor: form.primary_color || "#FF1F2D" }}
+                                >
+                                    {form.name ? form.name.charAt(0).toUpperCase() : "?"}
                                 </div>
                             )}
                             <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={onImageUpload} />
@@ -109,13 +112,16 @@ export function BusinessHero({ businessId, form, setForm, saving, onSavePrimaryA
                                         className="px-3 py-1.5 rounded-xl bg-[#F1F1F1] text-[#1F1F1F] font-bold border border-[#E5E5E5] focus:outline-none focus:bg-white focus:border-[#FF1F2D] focus:ring-1 focus:ring-[#FF1F2D] text-lg w-full max-w-[200px]"
                                         autoFocus
                                     />
-                                    <button onClick={() => { onSavePrimaryAttrs('name', form.name); setIsEditingName(false); }} disabled={saving} className="bg-[#FF1F2D] text-white p-2 rounded-xl border-none cursor-pointer">
+                                    <button onClick={() => { setIsEditingName(false); }} disabled={saving} className="bg-[#FF1F2D] text-white p-2 rounded-xl border-none cursor-pointer">
                                         <Check className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => { setForm({ ...form, name: initialName }); setIsEditingName(false); }} disabled={saving} className="bg-gray-200 text-gray-700 p-2 rounded-xl border-none cursor-pointer hover:bg-gray-300 flex items-center justify-center">
+                                        <span className="w-4 h-4 text-xs font-black flex items-center justify-center leading-none">✕</span>
                                     </button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h2 className="text-2xl font-bold text-[#1F1F1F] tracking-tight">{form.name || "Tu Local"}</h2>
+                                    <h2 className="text-2xl font-bold text-[#1F1F1F] tracking-tight">{form.name}</h2>
                                     <button onClick={() => setIsEditingName(true)} className="text-[#8F8F8F] hover:text-[#FF1F2D] transition-colors p-1 cursor-pointer bg-transparent border-none">
                                         <Pencil className="w-4 h-4" />
                                     </button>

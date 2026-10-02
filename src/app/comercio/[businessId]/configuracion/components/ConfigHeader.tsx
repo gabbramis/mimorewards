@@ -6,13 +6,14 @@ import { Settings, Check, Loader2 } from "lucide-react";
 interface ConfigHeaderProps {
     businessId: string;
     saving: boolean;
+    isDirty: boolean;
     onSave: () => void;
     onOpenSettings: () => void;
     allExpanded: boolean;
     onToggleAll: () => void;
 }
 
-export function ConfigHeader({ businessId, saving, onSave, onOpenSettings, allExpanded, onToggleAll }: ConfigHeaderProps) {
+export function ConfigHeader({ businessId, saving, isDirty, onSave, onOpenSettings, allExpanded, onToggleAll }: ConfigHeaderProps) {
     return (
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div>
@@ -43,11 +44,20 @@ export function ConfigHeader({ businessId, saving, onSave, onOpenSettings, allEx
                 </button>
                 <button
                     onClick={onSave}
-                    disabled={saving}
-                    className="bg-[#FF1F2D] hover:bg-[#E01825] text-white px-6 py-2.5 rounded-2xl shadow-sm text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                    disabled={saving || !isDirty}
+                    className={`px-6 py-2.5 rounded-2xl shadow-sm text-sm font-bold flex items-center gap-2 transition-all active:scale-95 ${!isDirty
+                            ? 'bg-gray-200 text-gray-500 opacity-60 cursor-not-allowed shadow-none border border-transparent'
+                            : 'bg-[#FF1F2D] hover:bg-[#E01825] text-white cursor-pointer'
+                        }`}
                 >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Guardar Cambios
+                    {saving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isDirty ? (
+                        <span className="w-2 h-2 rounded-full bg-white/90 animate-pulse hidden sm:block" />
+                    ) : (
+                        <Check className="w-4 h-4" />
+                    )}
+                    {saving ? 'Guardando...' : isDirty ? '● Cambios pendientes' : 'Guardar Cambios'}
                 </button>
             </div>
         </div>

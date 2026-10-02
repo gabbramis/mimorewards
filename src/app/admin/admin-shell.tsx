@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
+import { useBusiness } from "@/contexts/BusinessContext";
 
 const internalNavItems = [
     ["/admin/negocios", "Negocios", Store],
@@ -20,6 +21,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
     const router = useRouter();
     const supabase = createClient();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { businessName: ctxName, logoUrl, primaryColor } = useBusiness();
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -65,12 +67,19 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
                 </nav>
                 <div className="m-admin-account p-5">
                     <div className="flex items-center gap-3">
-                        <div className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                            L
-                        </div>
-                        <div>
-                            <p className="text-sm font-semibold">{mode === "merchant" ? (businessName || "Tu comercio") : "Equipo mimo"}</p>
-                            <p className="text-xs font-medium">{mode === "merchant" ? "Programa activo" : "Administración"}</p>
+                        {mode === "merchant" && logoUrl ? (
+                            <img src={logoUrl} alt="Logo del comercio" className="m-admin-avatar w-10 h-10 rounded-full object-cover shadow-sm bg-white border border-[#E5E5E5]" />
+                        ) : (
+                            <div
+                                className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm"
+                                style={mode === "merchant" ? { backgroundColor: primaryColor || "#FF1F2D" } : undefined}
+                            >
+                                {mode === "merchant" ? ((ctxName || businessName) ? (ctxName || businessName)!.charAt(0).toUpperCase() : "?") : "E"}
+                            </div>
+                        )}
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-semibold truncate leading-tight">{mode === "merchant" ? (ctxName || businessName || "Sin Nombre") : "Equipo mimo"}</p>
+                            <p className="text-xs font-medium mt-1">{mode === "merchant" ? "Programa activo" : "Administración"}</p>
                         </div>
                     </div>
                 </div>

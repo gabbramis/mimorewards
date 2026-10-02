@@ -5,11 +5,10 @@ import { Smartphone, Gift, Check, Coffee, Store, QrCode } from 'lucide-react';
 interface RewardSettingsProps {
     form: ConfigFormState;
     setForm: (form: ConfigFormState) => void;
-    onSavePrimaryAttrs: (field: string, value: string | number) => void;
     saving: boolean;
 }
 
-export function RewardSettings({ form, setForm, onSavePrimaryAttrs, saving }: RewardSettingsProps) {
+export function RewardSettings({ form, setForm, saving }: RewardSettingsProps) {
     const [localRewardTarget, setLocalRewardTarget] = useState(form.reward_target || 10);
     const [localRewardDesc, setLocalRewardDesc] = useState(form.reward_description || '');
 
@@ -35,7 +34,6 @@ export function RewardSettings({ form, setForm, onSavePrimaryAttrs, saving }: Re
                                 onClick={() => {
                                     setLocalRewardTarget(num);
                                     setForm({ ...form, reward_target: num });
-                                    onSavePrimaryAttrs('reward_target', num);
                                 }}
                                 disabled={saving}
                                 className={`py-3 px-4 rounded-xl flex items-center justify-center font-bold text-sm transition-colors border ${localRewardTarget === num ? 'bg-[#b91c1c] text-white border-[#b91c1c]' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100'}`}
@@ -57,7 +55,6 @@ export function RewardSettings({ form, setForm, onSavePrimaryAttrs, saving }: Re
                             onBlur={() => {
                                 if (localRewardDesc !== form.reward_description) {
                                     setForm({ ...form, reward_description: localRewardDesc });
-                                    onSavePrimaryAttrs('reward_description', localRewardDesc);
                                 }
                             }}
                             disabled={saving}

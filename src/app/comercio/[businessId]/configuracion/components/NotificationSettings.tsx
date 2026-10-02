@@ -5,12 +5,11 @@ import { Megaphone, TrendingUp, AlertTriangle, UserPlus, Phone, Play } from 'luc
 interface NotificationSettingsProps {
     form: ConfigFormState;
     setForm: (form: ConfigFormState) => void;
-    onSavePrimaryAttrs: (field: string, value: any) => void;
     saving: boolean;
     showFeedback: (type: 'success' | 'error', text: string) => void;
 }
 
-export function NotificationSettings({ form, setForm, onSavePrimaryAttrs, saving, showFeedback }: NotificationSettingsProps) {
+export function NotificationSettings({ form, setForm, saving, showFeedback }: NotificationSettingsProps) {
     const [phone, setPhone] = useState(form.alert_phone || '');
 
     // extra logic states
@@ -22,14 +21,12 @@ export function NotificationSettings({ form, setForm, onSavePrimaryAttrs, saving
     const handleSavePhone = (val: string) => {
         if (val !== form.alert_phone) {
             setForm({ ...form, alert_phone: val });
-            onSavePrimaryAttrs('alert_phone', val);
         }
     };
 
     const handleToggle = (field: keyof ConfigFormState, value: boolean, setter: (val: boolean) => void) => {
         setter(value);
         setForm({ ...form, [field]: value });
-        onSavePrimaryAttrs(field, value);
     };
 
     const handleTestEnvio = () => {

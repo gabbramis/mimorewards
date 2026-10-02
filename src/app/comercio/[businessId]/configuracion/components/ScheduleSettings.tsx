@@ -5,7 +5,6 @@ import { Lock, Timer, Info, Clock, Check, Copy, ShieldAlert } from 'lucide-react
 interface ScheduleSettingsProps {
     form: ConfigFormState;
     setForm: (form: ConfigFormState) => void;
-    onSavePrimaryAttrs: (field: string, value: any) => void;
     saving: boolean;
 }
 
@@ -19,7 +18,7 @@ const defaultSchedule: DayHourState[] = [
     { day: "Domingo", isOpen: false, openTime: "08:00", closeTime: "14:00" }
 ];
 
-export function ScheduleSettings({ form, setForm, onSavePrimaryAttrs, saving }: ScheduleSettingsProps) {
+export function ScheduleSettings({ form, setForm, saving }: ScheduleSettingsProps) {
     const [strictSchedule, setStrictSchedule] = useState(form.strict_schedule_enabled ?? true);
 
     // Manage cooldown
@@ -34,12 +33,10 @@ export function ScheduleSettings({ form, setForm, onSavePrimaryAttrs, saving }: 
     const handleSaveStrict = (val: boolean) => {
         setStrictSchedule(val);
         setForm({ ...form, strict_schedule_enabled: val });
-        onSavePrimaryAttrs('strict_schedule_enabled', val);
     };
 
     const handleSaveCooldown = (val: number) => {
         setForm({ ...form, cooldown_hours: val });
-        onSavePrimaryAttrs('cooldown_hours', val);
     };
 
     const handleCooldownChange = (mode: string) => {
@@ -68,7 +65,6 @@ export function ScheduleSettings({ form, setForm, onSavePrimaryAttrs, saving }: 
         newSchedule[index] = { ...newSchedule[index], ...changes };
         setSchedule(newSchedule);
         setForm({ ...form, operating_hours: newSchedule });
-        onSavePrimaryAttrs('operating_hours', newSchedule);
     };
 
     const handleCopyMonday = () => {
@@ -81,7 +77,6 @@ export function ScheduleSettings({ form, setForm, onSavePrimaryAttrs, saving }: 
         });
         setSchedule(newSchedule);
         setForm({ ...form, operating_hours: newSchedule });
-        onSavePrimaryAttrs('operating_hours', newSchedule);
     };
 
     return (
@@ -174,7 +169,7 @@ export function ScheduleSettings({ form, setForm, onSavePrimaryAttrs, saving }: 
                                         onClick={() => handleScheduleDayChange(index, { isOpen: !dayItem.isOpen })}
                                         disabled={saving || isStrictDisabled}
                                         className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors border ${isStrictDisabled ? 'bg-red-100 border-red-200 cursor-not-allowed' :
-                                                dayItem.isOpen ? 'bg-red-600 border-red-600' : 'bg-white border-gray-300'
+                                            dayItem.isOpen ? 'bg-red-600 border-red-600' : 'bg-white border-gray-300'
                                             }`}
                                     >
                                         {dayItem.isOpen && <Check className={`w-3.5 h-3.5 stroke-[3.5] ${isStrictDisabled ? 'text-red-300' : 'text-white'}`} />}

@@ -10,6 +10,7 @@ import { BusinessHero } from "./components/BusinessHero";
 import { RewardSettings } from "./components/RewardSettings";
 import { ScheduleSettings } from "./components/ScheduleSettings";
 import { NotificationSettings } from "./components/NotificationSettings";
+import { useBusiness } from "@/contexts/BusinessContext";
 
 function AccordionSection({
     title, subtitle, icon, isOpen, onToggle, headerBadge, children
@@ -51,11 +52,13 @@ function AccordionSection({
 export default function ConfiguracionPage({ params }: { params: Promise<{ businessId: string }> }) {
     const { businessId: resolvedBusinessId } = use(params);
     const supabase = createClient();
+    const { setBusinessName, setLogoUrl, setPrimaryColor } = useBusiness();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
     // DB Config States
+    const [initialForm, setInitialForm] = useState<ConfigFormState | null>(null);
     const [form, setForm] = useState<ConfigFormState>({
         name: "",
         slug: "",
@@ -66,6 +69,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
     });
 
     // LocalStorage Config States
+    const [initialLocalForm, setInitialLocalForm] = useState<LocalConfigFormState | null>(null);
     const [localForm, setLocalForm] = useState<LocalConfigFormState>({
         notification_phone: "",
         alert_on_completion: false,
@@ -75,11 +79,35 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
     // Días de la semana para horarios
     const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const [initialHours, setInitialHours] = useState<DayHourState[] | null>(null);
     const [hours, setHours] = useState<DayHourState[]>(DAYS.map(day => ({ day, isOpen: true, openTime: "09:00", closeTime: "18:00" })));
+
+    // Draft State verification
+    const isDirty = React.useMemo(() => {
+        if (!initialForm || !initialLocalForm || !initialHours) return false;
+        return (
+            JSON.stringify(form) !== JSON.stringify(initialForm) ||
+            JSON.stringify(localForm) !== JSON.stringify(initialLocalForm) ||
+            JSON.stringify(hours) !== JSON.stringify(initialHours)
+        );
+    }, [form, initialForm, localForm, initialLocalForm, hours, initialHours]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
 
     // Settings Modal
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [openSections, setOpenSections] = useState<string[]>(['profile']);
+
+
 
     const handleToggleAll = () => {
         if (openSections.length === 5) {
@@ -103,32 +131,47 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
             const { data: business } = await supabase
                 .from("businesses")
-                .select("name, logo_url, reward_target, reward_description, slug, primary_color")
+                .select("name, logo_url, reward_target, reward_description, slug")
                 .eq("id", resolvedBusinessId)
                 .single();
 
             if (business) {
-                setForm({
+                const fetchedForm = {
                     name: business.name || "",
                     slug: business.slug || "",
                     logo_url: business.logo_url || "",
                     reward_target: business.reward_target || 10,
                     reward_description: business.reward_description || "",
                     primary_color: business.primary_color || "#E84538",
-                });
+                };
+                setForm(fetchedForm);
+                setInitialForm(fetchedForm);
+                setBusinessName(fetchedForm.name);
+                setLogoUrl(fetchedForm.logo_url);
+                setPrimaryColor(fetchedForm.primary_color);
             }
 
             if (typeof window !== "undefined") {
                 const savedConf = localStorage.getItem(`mimo_config_${resolvedBusinessId}`);
                 if (savedConf) {
                     const parsed = JSON.parse(savedConf);
-                    setLocalForm({
+                    const loadedLocalForm = {
                         notification_phone: parsed.notification_phone || "",
                         alert_on_completion: parsed.alert_on_completion || false,
                         weekly_summary: parsed.weekly_summary || false,
                         nfc_protection: parsed.nfc_protection || false
-                    });
-                    if (parsed.hours) setHours(parsed.hours);
+                    };
+                    setLocalForm(loadedLocalForm);
+                    setInitialLocalForm(loadedLocalForm);
+                    if (parsed.hours) {
+                        setHours(parsed.hours);
+                        setInitialHours(parsed.hours);
+                    } else {
+                        setInitialHours(hours);
+                    }
+                } else {
+                    setInitialLocalForm(localForm);
+                    setInitialHours(hours);
                 }
             }
         } catch (err) {
@@ -171,15 +214,8 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
             const logoUrl = publicUrlData.publicUrl;
 
-            const { error: updateError } = await supabase
-                .from("businesses")
-                .update({ logo_url: logoUrl })
-                .eq("id", resolvedBusinessId);
-
-            if (updateError) throw updateError;
-
             setForm(prev => ({ ...prev, logo_url: logoUrl }));
-            showFeedback('success', 'Logo actualizado con éxito.');
+            showFeedback('success', 'Logo subido. Recuerda guardar los cambios.');
         } catch (error) {
             showFeedback('error', 'Error al subir la imagen.');
         } finally {
@@ -187,24 +223,6 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
         }
     };
 
-    const handleSavePrimaryAttrs = async (field: 'name' | 'reward_description' | 'reward_target' | 'primary_color', value: string | number) => {
-        if (!resolvedBusinessId) return;
-        setSaving(true);
-        try {
-            const payload = { [field]: value };
-            const { error } = await supabase
-                .from("businesses")
-                .update(payload)
-                .eq("id", resolvedBusinessId);
-
-            if (error) throw error;
-            showFeedback('success', 'Actualizado correctamente.');
-        } catch (error) {
-            showFeedback('error', 'Error al actualizar.');
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const handleSaveSettings = async () => {
         if (!resolvedBusinessId) return;
@@ -216,7 +234,29 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                     hours
                 }));
             }
-            showFeedback('success', 'Configuración guardada.');
+
+            const { error } = await supabase
+                .from("businesses")
+                .update({
+                    name: form.name,
+                    logo_url: form.logo_url,
+                    reward_target: form.reward_target,
+                    reward_description: form.reward_description,
+                    slug: form.slug,
+                    // primary_color omitted since it doesn't exist yet
+                })
+                .eq("id", resolvedBusinessId);
+
+            if (error) throw error;
+
+            setInitialForm(form);
+            setInitialLocalForm(localForm);
+            setInitialHours(hours);
+
+            setBusinessName(form.name);
+            setLogoUrl(form.logo_url);
+
+            showFeedback('success', 'Cambios guardados correctamente.');
         } catch (e) {
             showFeedback('error', 'Fallo al guardar. Intenta nuevamente.');
         } finally {
@@ -247,6 +287,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                 <ConfigHeader
                     businessId={resolvedBusinessId}
                     saving={saving}
+                    isDirty={isDirty}
                     onSave={handleSaveSettings}
                     onOpenSettings={() => setShowSettingsModal(true)}
                     allExpanded={openSections.length === 5}
@@ -273,9 +314,9 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                             form={form}
                             setForm={setForm}
                             saving={saving}
-                            onSavePrimaryAttrs={handleSavePrimaryAttrs}
                             onImageUpload={handleImageUpload}
                             showFeedback={showFeedback}
+                            initialName={initialForm?.name || ""}
                         />
                     </AccordionSection>
 
@@ -301,7 +342,6 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                             <RewardSettings
                                 form={form}
                                 setForm={setForm}
-                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
                                 saving={saving}
                             />
                         </div>
@@ -331,7 +371,6 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                             <ScheduleSettings
                                 form={form}
                                 setForm={setForm}
-                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
                                 saving={saving}
                             />
                         </div>
@@ -359,7 +398,6 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                             <NotificationSettings
                                 form={form}
                                 setForm={setForm}
-                                onSavePrimaryAttrs={handleSavePrimaryAttrs}
                                 saving={saving}
                                 showFeedback={showFeedback}
                             />
