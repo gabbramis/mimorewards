@@ -50,6 +50,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: messages[result?.reason] || "No se pudo sumar el sello.", reason: result?.reason }, { status: 409 });
     }
 
+    // Sync with Google Wallet in background
+    try {
+      const { updateLoyaltyPoints } = await import('@/lib/wallet/googleWallet');
+      updateLoyaltyPoints(customer.id, result.current_stamps).catch(err => {
+        console.error("Google Wallet Sync Error:", err);
+      });
+    } catch (importErr) {
+      console.error("Google Wallet service missing:", importErr);
+    }
+
     return NextResponse.json({
       success: true,
       newTotal: result.current_stamps,

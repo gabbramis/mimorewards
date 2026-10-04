@@ -16,7 +16,7 @@ function Stamps({ current, target }: { current: number; target: number }) {
     );
 }
 
-export default function MobileCard({ initialCustomer, business, notice }: { initialCustomer: any, business: any, notice?: string | null }) {
+export default function MobileCard({ initialCustomer, business, notice, googleWalletUrl }: { initialCustomer: any, business: any, notice?: string | null, googleWalletUrl?: string }) {
     const [currentStamps, setCurrentStamps] = useState(initialCustomer.current_stamps || 0);
     const [isAnimating, setIsAnimating] = useState(false);
     const supabase = createClient();
@@ -47,8 +47,16 @@ export default function MobileCard({ initialCustomer, business, notice }: { init
         return () => { supabase.removeChannel(channel); };
     }, [initialCustomer.id, supabase, targetStamps]);
 
-    const handleWalletClick = () => {
-        alert("Función de pase digital en sincronización. ¡Próximamente disponible!");
+    const handleAppleWalletClick = () => {
+        alert("Función de Apple Wallet próximamente disponible.");
+    };
+
+    const handleGoogleWalletClick = () => {
+        if (googleWalletUrl) {
+            window.open(googleWalletUrl, '_blank');
+        } else {
+            alert("No se pudo generar el pase de Google Wallet en este momento.");
+        }
     };
 
     return (
@@ -83,8 +91,8 @@ export default function MobileCard({ initialCustomer, business, notice }: { init
                         {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
                         <div className="m-nfc-actions">
-                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-apple" onClick={handleWalletClick}><Wallet size={18} /> Agregar a Apple Wallet</button>
-                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleWalletClick}><Wallet size={18} /> Guardar en Google Wallet</button>
+                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-apple" onClick={handleAppleWalletClick}><Wallet size={18} /> Agregar a Apple Wallet</button>
+                            <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleGoogleWalletClick}><Wallet size={18} /> Guardar en Google Wallet</button>
                         </div>
                         <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>
                     </div>

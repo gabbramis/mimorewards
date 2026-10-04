@@ -15,7 +15,9 @@
     "@supabase/supabase-js": "^2.117.2",
     "@types/qrcode": "^1.5.6",
     "framer-motion": "^13.4.4",
+    "googleapis": "^183.0.0",
     "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
     "qrcode": "^1.5.4",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "26.6.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "^19.3.0",
