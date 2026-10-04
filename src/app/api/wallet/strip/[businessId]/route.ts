@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { generateStripImage } from "@/lib/wallet/generateStrip";
 import { createClient } from "@/lib/supabase/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ businessId: string }> }
