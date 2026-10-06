@@ -60,6 +60,15 @@ export default function IntroScrollStory() {
       scene.style.setProperty("--wash-radius", `${washRadius}px`);
       schedule();
     };
+    // Skip style writes whose value didn't change to avoid recalcs every frame.
+    const varCache = new Map<string, string>();
+    const setVar = (name: string, value: string) => {
+      if (varCache.get(name) === value || !scene) return;
+      varCache.set(name, value);
+      scene.style.setProperty(name, value);
+    };
+    let lastCardTransform = "";
+    let lastCardOpacity = "";
     const update = () => {
       frame = 0;
       if (!geometry || media.matches) return;
@@ -75,22 +84,24 @@ export default function IntroScrollStory() {
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
-      card.style.transform = `translate3d(${mix(geometry.fromX, geometry.toX + phoneShiftX, travel)}px, ${mix(geometry.fromY, geometry.toY + phoneShiftY, travel)}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
-      card.style.opacity = String(1 - sceneExit);
-      scene.style.setProperty("--hero-opacity", String(1 - heroExit));
-      scene.style.setProperty("--hero-y", `${-42 * heroExit}px`);
-      scene.style.setProperty("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
-      scene.style.setProperty("--phone-y", `${phoneShiftY}px`);
-      scene.style.setProperty("--phone-x", `${phoneShiftX}px`);
-      scene.style.setProperty("--middle-opacity", String(middleCopy));
-      scene.style.setProperty("--final-opacity", String(finalCopy));
-      scene.style.setProperty("--graphic-shift", `${-22 * p}px`);
-      scene.style.setProperty("--wash-scale", String(mix(geometry.seedScale, geometry.coverScale, wash)));
-      scene.style.setProperty("--scene-exit", String(sceneExit));
-      scene.style.setProperty("--heart-layer", sceneExit > .05 ? "11" : "1");
-      scene.style.setProperty("--next-opacity", String(nextCopy));
-      scene.style.setProperty("--next-y", `${24 * (1 - nextCopy)}px`);
-      scene.style.setProperty("--cue-opacity", String(1 - ease(range(p, 0, .12))));
+      const cardTransform = `translate3d(${mix(geometry.fromX, geometry.toX + phoneShiftX, travel)}px, ${mix(geometry.fromY, geometry.toY + phoneShiftY, travel)}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
+      if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
+      const cardOpacity = String(1 - sceneExit);
+      if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
+      setVar("--hero-opacity", String(1 - heroExit));
+      setVar("--hero-y", `${-42 * heroExit}px`);
+      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
+      setVar("--phone-y", `${phoneShiftY}px`);
+      setVar("--phone-x", `${phoneShiftX}px`);
+      setVar("--middle-opacity", String(middleCopy));
+      setVar("--final-opacity", String(finalCopy));
+      setVar("--graphic-shift", `${-22 * p}px`);
+      setVar("--wash-scale", String(mix(geometry.seedScale, geometry.coverScale, wash)));
+      setVar("--scene-exit", String(sceneExit));
+      setVar("--heart-layer", sceneExit > .05 ? "11" : "1");
+      setVar("--next-opacity", String(nextCopy));
+      setVar("--next-y", `${24 * (1 - nextCopy)}px`);
+      setVar("--cue-opacity", String(1 - ease(range(p, 0, .12))));
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
     const observer = new ResizeObserver(measure);
@@ -98,7 +109,13 @@ export default function IntroScrollStory() {
     observer.observe(start);
     observer.observe(device);
     window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", measure);
+    // Debounce: on mobile the URL bar fires resize continuously mid-scroll.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const onResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(measure, 160);
+    };
+    window.addEventListener("resize", onResize);
     const onMotionChange = () => { setReady(!media.matches); measure(); };
     media.addEventListener("change", onMotionChange);
     measure();
@@ -106,9 +123,10 @@ export default function IntroScrollStory() {
     return () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(initial);
+      if (resizeTimer) clearTimeout(resizeTimer);
       observer.disconnect();
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", onResize);
       media.removeEventListener("change", onMotionChange);
     };
   }, []);
