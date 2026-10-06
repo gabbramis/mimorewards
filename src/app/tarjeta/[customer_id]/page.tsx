@@ -53,5 +53,27 @@ export default async function TarjetaPage({ params, searchParams }: { params: Pr
         );
     }
 
-    return <MobileCard initialCustomer={customer} business={customer.businesses} notice={stampNotice(stampStatus)} />;
+    let googleWalletUrl = undefined;
+    try {
+        const { generateSavePassUrl, createOrUpdateLoyaltyClass } = await import('@/lib/wallet/googleWallet');
+
+        await createOrUpdateLoyaltyClass(
+            customer.business_id,
+            customer.businesses.name,
+            '#10B981',
+            customer.businesses.logo_url
+        );
+
+        googleWalletUrl = generateSavePassUrl(
+            customer.id,
+            `${customer.first_name} ${customer.last_name}`,
+            customer.current_stamps,
+            customer.businesses.reward_target || 10,
+            customer.business_id
+        );
+    } catch (e) {
+        console.error("Google Wallet Link Error:", e);
+    }
+
+    return <MobileCard initialCustomer={customer} business={customer.businesses} notice={stampNotice(stampStatus)} googleWalletUrl={googleWalletUrl} />;
 }

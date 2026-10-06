@@ -1,0 +1,38 @@
+{
+  "byId": [
+    {
+      "id": "3d541815-e26c-4079-bbbc-809cee06b60c",
+      "unique_code": "68B2A9EA-9",
+      "business_id": "f0d95e25-4622-4650-891f-ed9f93c013f8",
+      "first_name": "Franco",
+      "last_name": "Dev",
+      "phone": "1122334455",
+      "birthdate": "1995-10-01",
+      "current_stamps": 2,
+      "total_visits": 1,
+      "last_visit_at": "2026-10-04T04:23:24.143445+00:00",
+      "apple_push_token": null,
+      "google_object_id": null,
+      "created_at": "2026-10-04T04:23:24.143445+00:00",
+      "email": null
+    }
+  ],
+  "byCode": [
+    {
+      "id": "8a2253ba-79d9-4619-9fbb-99ea7205890f",
+      "unique_code": "CLI-54972",
+      "business_id": "fa0483b9-30d9-4d4a-becf-90c9b9492a3d",
+      "first_name": "Franco",
+      "last_name": "Echichurre",
+      "phone": "+59895063978",
+      "birthdate": "2026-09-04",
+      "current_stamps": 2,
+      "total_visits": 2,
+      "last_visit_at": "2026-10-04T04:38:35.754286+00:00",
+      "apple_push_token": null,
+      "google_object_id": null,
+      "created_at": "2026-09-29T04:21:18.4353+00:00",
+      "email": null
+    }
+  ]
+}

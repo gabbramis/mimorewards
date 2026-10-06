@@ -42,14 +42,19 @@ export default function CashierTerminal() {
         try {
             const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
             const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
+
+            // Allow searching by exact UUID, or partial unique_code, partial phone, or first/last name
+            const searchToken = cleanQuery.split(' ')[0]; // Take first word for name search if it's "Franco Dev"
+
             const orQuery = isUUID
-                ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
-                : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
+                ? `id.eq.${cleanQuery},unique_code.eq.${cleanQuery}`
+                : `unique_code.ilike.%${cleanQuery}%,phone.ilike.%${cleanQuery}%,first_name.ilike.%${searchToken}%,last_name.ilike.%${searchToken}%`;
 
             const { data, error } = await supabase
                 .from('customers')
                 .select('id, first_name, last_name, phone, current_stamps, unique_code')
                 .or(orQuery)
+                .limit(1)
                 .maybeSingle();
 
             if (error) {
@@ -80,9 +85,19 @@ export default function CashierTerminal() {
     }
 
     const extractIdentifier = (text) => {
-        // If it's a URL structure or contains the unique code:
+        // If it's a specific QR structure like CLI-12345 (legacy), or just letting the free text pass
         const match = text.match(/CLI-\d+/i);
         if (match) return match[0];
+
+        // Ensure URLs are stripped down to the last segment if they scanned the card URL
+        try {
+            if (text.includes('http')) {
+                const url = new URL(text);
+                const parts = url.pathname.split('/');
+                return parts[parts.length - 1]; // returns customer_id from /tarjeta/customer_id
+            }
+        } catch (e) { }
+
         return text;
     };
 
