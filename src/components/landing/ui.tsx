@@ -26,6 +26,6 @@ export function Stamps({ count = 4 }: { count?: number }) {
   return <div className="m-stamps" aria-label={`${count} de 10 sellos`}>{Array.from({ length: 10 }, (_, i) => <span key={i} className={i < count ? "m-stamped" : ""}>{i < count ? <Heart size={17} fill="currentColor" /> : i === 9 ? <Gift size={17} /> : <span className="m-stamp-dot" />}</span>)}</div>;
 }
 
-export function LoyaltyCard({ count = 4, mini = false }: { count?: number; mini?: boolean }) {
+export function DemoLoyaltyCard({ count = 4, mini = false }: { count?: number; mini?: boolean }) {
   return <div className={`m-loyalty-card ${mini ? "m-loyalty-mini" : ""}`}><div className="m-card-top"><div><span className="m-cafe-name"><Coffee size={17} /> café de la esquina</span><span className="m-card-caption">Tu pausa de siempre, con un mimo.</span></div><Heart size={24} fill="currentColor" /></div><div className="m-card-balance"><strong>{count}<span>/10 sellos</span></strong><span>1 compra = 1 sello</span></div><Stamps count={count} /><div className="m-card-reward"><Gift size={17} /><span>{count === 10 ? "¡Recompensa disponible!" : "Tu próximo mimo"}<strong>Un café gratis</strong></span><ArrowUpRight size={17} /></div><div className="m-card-bottom"><span>Hecho con <Heart size={9} fill="currentColor" /> por mimo</span><span>TARJETA DE BENEFICIOS</span></div></div>;
 }

@@ -1,0 +1,137 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Hero from "./Hero";
+import { BrandHeart } from "./StoryArt";
+import { CTA } from "./ui";
+import LoyaltyCard from "./LoyaltyCard";
+import PhoneWallet from "./PhoneWallet";
+import MimoGraphicElements from "./MimoGraphicElements";
+
+const clamp = (value: number) => Math.max(0, Math.min(1, value));
+const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start));
+const ease = (value: number) => value * value * (3 - 2 * value);
+const mix = (start: number, end: number, value: number) => start + (end - start) * value;
+
+export default function IntroScrollStory() {
+  const root = useRef<HTMLElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const heroSlot = useRef<HTMLDivElement>(null);
+  const phone = useRef<HTMLDivElement>(null);
+  const dock = useRef<HTMLDivElement>(null);
+  const movingCard = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const story = root.current;
+    const scene = stage.current;
+    const start = heroSlot.current;
+    const device = phone.current;
+    const destination = dock.current;
+    const card = movingCard.current;
+    if (!story || !scene || !start || !device || !destination || !card) return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0;
+    let geometry: { rootY: number; distance: number; fromX: number; fromY: number; fromScale: number; toX: number; toY: number; toScale: number; seedScale: number; coverScale: number } | null = null;
+
+    const measure = () => {
+      const rootBox = story.getBoundingClientRect();
+      const stageBox = scene.getBoundingClientRect();
+      const startBox = start.getBoundingClientRect();
+      // offset positions exclude the phone's animated transform, so the dock is stable.
+      const frame = device.querySelector<HTMLElement>(".m-wallet-phone");
+      const inset = frame ? frame.clientLeft + parseFloat(getComputedStyle(frame).paddingLeft) : 0;
+      const toX = device.offsetLeft + inset + destination.offsetLeft;
+      const toY = device.offsetTop + inset + destination.offsetTop;
+      const washRadius = Math.max(stageBox.width, stageBox.height);
+      geometry = {
+        rootY: rootBox.top + window.scrollY,
+        distance: Math.max(1, story.offsetHeight - scene.offsetHeight),
+        fromX: startBox.left - stageBox.left,
+        fromY: startBox.top - stageBox.top,
+        fromScale: startBox.width / 400,
+        toX, toY, toScale: destination.offsetWidth / 400,
+        // The red form starts on the lower tube; it reaches the farthest corner
+        // exactly at the end of the wipe, regardless of the viewport's proportions.
+        seedScale: 22 / washRadius,
+        coverScale: Math.hypot(stageBox.width * .82, stageBox.height * .92) / washRadius + .002,
+      };
+      // Rasterize at its final size to keep the expanding curved edge crisp.
+      scene.style.setProperty("--wash-radius", `${washRadius}px`);
+      schedule();
+    };
+    const update = () => {
+      frame = 0;
+      if (!geometry || media.matches) return;
+      const p = clamp((window.scrollY - geometry.rootY) / geometry.distance);
+      const heroExit = ease(range(p, .015, .29));
+      const phoneEnter = ease(range(p, .10, .28));
+      const travel = ease(range(p, .04, .28));
+      const middleCopy = ease(range(p, .29, .39)) * (1 - ease(range(p, .52, .62)));
+      const finalCopy = ease(range(p, .63, .72)) * (1 - ease(range(p, .80, .88)));
+      const sceneExit = ease(range(p, .80, .91));
+      const wash = ease(range(p, .80, .98));
+      const nextCopy = ease(range(p, .89, .95));
+      const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
+      const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
+      const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
+      card.style.transform = `translate3d(${mix(geometry.fromX, geometry.toX + phoneShiftX, travel)}px, ${mix(geometry.fromY, geometry.toY + phoneShiftY, travel)}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
+      card.style.setProperty("--card-shadow", String(1 - travel * .84));
+      card.style.opacity = String(1 - sceneExit);
+      scene.style.setProperty("--hero-opacity", String(1 - heroExit));
+      scene.style.setProperty("--hero-y", `${-42 * heroExit}px`);
+      scene.style.setProperty("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
+      scene.style.setProperty("--phone-y", `${phoneShiftY}px`);
+      scene.style.setProperty("--phone-x", `${phoneShiftX}px`);
+      scene.style.setProperty("--middle-opacity", String(middleCopy));
+      scene.style.setProperty("--final-opacity", String(finalCopy));
+      scene.style.setProperty("--graphic-shift", `${-22 * p}px`);
+      scene.style.setProperty("--wash-scale", String(mix(geometry.seedScale, geometry.coverScale, wash)));
+      scene.style.setProperty("--scene-exit", String(sceneExit));
+      scene.style.setProperty("--heart-layer", sceneExit > .05 ? "11" : "1");
+      scene.style.setProperty("--next-opacity", String(nextCopy));
+      scene.style.setProperty("--next-y", `${24 * (1 - nextCopy)}px`);
+      scene.style.setProperty("--cue-opacity", String(1 - ease(range(p, 0, .12))));
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const observer = new ResizeObserver(measure);
+    observer.observe(scene);
+    observer.observe(start);
+    observer.observe(device);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", measure);
+    const onMotionChange = () => { setReady(!media.matches); measure(); };
+    media.addEventListener("change", onMotionChange);
+    measure();
+    const initial = requestAnimationFrame(() => { update(); setReady(!media.matches); });
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(initial);
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", measure);
+      media.removeEventListener("change", onMotionChange);
+    };
+  }, []);
+
+  return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="De la tarjeta mimo a Wallet">
+    <div ref={stage} className="m-story-stage">
+      <MimoGraphicElements />
+      <div className="m-story-hero"><Hero /></div>
+      <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
+      <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Una tarjeta digital que tus clientes llevan directo en su celular.</p></div>
+      <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
+      <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet></div>
+      <div ref={movingCard} className="m-story-moving-card"><LoyaltyCard stamps={4} maxStamps={10} /></div>
+      <div className="m-story-red-wash" aria-hidden="true" />
+      <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>EL PRÓXIMO MIMO EMPIEZA ACÁ</span><h2>Hacé que<br />vuelvan.</h2><p>Conocé a tus clientes. Dales un motivo para elegirte otra vez.</p><div className="m-next-actions"><CTA>Quiero mimo en mi negocio</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Apple Wallet y Google Wallet</span></div></div>
+      <div className="m-story-exit-wave" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path className="m-wave-front" d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>
+    </div>
+    <span id="como-funciona" className="m-story-legacy-anchor" />
+    <span id="nfc" className="m-story-legacy-anchor" />
+  </section>;
+}
+
+
+
+

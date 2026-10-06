@@ -1,6 +1,8 @@
 import { Inter, Poppins } from "next/font/google";
 import Landing from "@/components/landing/landing";
 import "./landing.css";
+import "./intro-story.css";
+import "./landing-story.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-landing-body", display: "swap" });
 const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-landing-heading", display: "swap" });

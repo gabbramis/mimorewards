@@ -28,7 +28,7 @@ body {
 /* NFC welcome flow ------------------------------------------------------- */
 .m-nfc-page {
   --mimo-red: #ff1f2d;
-  --mimo-cream: #fff6ee;
+  --mimo-cream: #f9efe5;
   --mimo-pink: #ffd9dc;
   --mimo-ink: #1f1f1f;
   --mimo-muted: #716d6a;
@@ -245,7 +245,7 @@ body {
 
 .m-nfc-benefit-row span {
   align-items: center;
-  background: #fff6ee;
+  background: #f9efe5;
   border: 1px solid #f0e3da;
   border-radius: 999px;
   color: #6d635d;
@@ -555,7 +555,7 @@ body {
 
 .m-nfc-card-reward {
   align-items: center;
-  background: rgba(255, 246, 238, 0.94);
+  background: rgba(249, 239, 229, 0.94);
   border-radius: 12px;
   color: var(--mimo-ink);
   display: flex;

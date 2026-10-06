@@ -4,6 +4,16 @@ La página pública está en `src/app/page.tsx`. Los componentes reutilizables e
 
 El proyecto usa TypeScript con `tsconfig.json`; las páginas y componentes usan `.ts`/`.tsx`, las rutas API usan `.ts` y `jsconfig.json` ya no se utiliza.
 
+## Story del cliente
+
+`IntroScrollStory.tsx` presenta una única escena de scroll: hero, viaje de la tarjeta, encastre en Wallet y transición roja hacia la sección para comercios. Reutiliza `LoyaltyCard.tsx` y el wordmark existente; `PhoneWallet.tsx` y `MimoGraphicElements.tsx` completan la composición. Los estilos están en `src/app/intro-story.css`.
+
+En mobile el teléfono ocupa hasta 39vw y entra desde abajo a la derecha. La tarjeta se acopla después de aproximadamente 1,3 pantallas de scroll mediante un único progreso normalizado. Con `prefers-reduced-motion`, hero y Wallet se muestran de forma estática. El ancla `#como-funciona` abre el estado final; `#nfc` se conserva como compatibilidad.
+
+La composición mantiene el crema de marca, con corazones grandes recortados en los bordes y parallax sutil. “Siempre con ellos.” incluye una explicación breve. Durante la salida, tarjeta y teléfono se retiran mientras se expande una forma roja; “Hacé que vuelvan.” aparece antes de que el rojo cubra el viewport, enlazando con el contenido para comercios sin una pantalla vacía.
+
+Después de la story, la landing presenta el dashboard, una sola sección de datos, segmentación y ejemplos de mensajes, el kit, rubros compactos, tres beneficios, acceso anticipado y FAQ.
+
 ## Contacto
 
 Agregar `NEXT_PUBLIC_MIMO_CONTACT_EMAIL` en `.env.local` o en el entorno de despliegue. El formulario valida los datos y prepara un correo con nombre, comercio, WhatsApp y email. La persona debe enviarlo desde su aplicación de correo. No hay almacenamiento de consultas ni envío automático.
@@ -43,3 +53,4 @@ Prompt final usado para el recurso de identidad:
 npm run lint
 npm run build
 ```
+
