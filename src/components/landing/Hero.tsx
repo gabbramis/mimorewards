@@ -3,7 +3,6 @@ import { CTA } from "./ui";
 
 export default function Hero() {
   return <div className="m-story-hero-copy">
-    <span className="m-story-kicker">MIMO REWARDS <span aria-hidden="true">✳</span> CADA VISITA CUENTA</span>
     <h1>Dales una razón<br />para <em>volver.</em></h1>
     <p>Una tarjeta que acompaña a tus clientes. Un pequeño motivo para elegirte otra vez.</p>
     <div className="m-story-actions"><CTA>Quiero mimo en mi negocio</CTA></div>

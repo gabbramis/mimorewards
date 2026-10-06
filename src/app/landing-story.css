@@ -169,7 +169,7 @@
 .m-kit-story-heart { position: absolute; width: 310px; color: #ffd4d6; right: -180px; top: 0; transform: rotate(-18deg); }
 /* Existing contact behavior, integrated directly into the brand surface. */
 .m-access-composition { position: relative; isolation: isolate; overflow: hidden; background: var(--m-red); }
-.m-access-art { position: absolute; width: 400px; left: -155px; bottom: -120px; color: #ff6371; transform: rotate(-19deg); }
+.m-access-art { position: absolute; width: 400px; left: -155px; bottom: -30px; color: #ff6371; transform: rotate(-19deg); }
 .m-after-hero .m-access { background: transparent; padding-block: 90px; color: var(--m-cream); }
 .m-after-hero .m-access-grid { gap: 110px; align-items: start; }
 .m-after-hero .m-access h2 { font-size: clamp(42px, 4.2vw, 60px); line-height: 1.08; letter-spacing: -.06em; text-shadow: none; }

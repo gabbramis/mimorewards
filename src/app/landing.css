@@ -1,6 +1,7 @@
 /* Every visual rule is scoped to the public landing. Merchant panels keep their styles. */
 html:has(.m-landing) { scroll-behavior: smooth; scroll-padding-top: 100px; }
 .m-landing { --m-red: #ff1f2d; --m-red-ink: #d81725; --m-cream: #f9efe5; --m-pink: #ffd9dc; --m-ink: #1f1f1f; --m-muted: #69645f; background: var(--m-cream); color: var(--m-ink); font-family: var(--font-landing-body), Arial, sans-serif; font-size: 15px; line-height: 1.6; overflow: clip; }
+html:has(.m-landing), html:has(.m-landing) body { background: #f9efe5; }
 .m-landing *, .m-landing *::before, .m-landing *::after { box-sizing: border-box; }
 .m-landing h1, .m-landing h2, .m-landing h3, .m-landing p { margin: 0; }
 .m-landing h1, .m-landing h2, .m-landing h3 { font-family: var(--font-landing-heading), sans-serif; }
