@@ -73,17 +73,17 @@ export default function IntroScrollStory() {
       frame = 0;
       if (!geometry || media.matches) return;
       const p = clamp((window.scrollY - geometry.rootY) / geometry.distance);
-      const heroExit = ease(range(p, .01, .15));
-      const phoneEnter = ease(range(p, .06, .15));
-      const travel = ease(range(p, .02, .15));
-      const middleCopy = ease(range(p, .16, .22)) * (1 - ease(range(p, .38, .44)));
-      const finalCopy = ease(range(p, .46, .52)) * (1 - ease(range(p, .68, .74)));
-      const sceneExit = ease(range(p, .76, .86));
-      const wash = ease(range(p, .76, .94));
-      const nextCopy = ease(range(p, .86, .92));
+      const heroExit = ease(range(p, .015, .29));
+      const phoneEnter = ease(range(p, .10, .28));
+      const travel = ease(range(p, .04, .28));
+      const middleCopy = ease(range(p, .25, .32)) * (1 - ease(range(p, .45, .52)));
+      const finalCopy = ease(range(p, .52, .59)) * (1 - ease(range(p, .72, .79)));
+      const sceneExit = ease(range(p, .74, .84));
+      const wash = ease(range(p, .74, .90));
+      const nextCopy = ease(range(p, .79, .86));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
-      const encast = 1 - .03 * Math.sin(Math.PI * range(p, .13, .15));
+      const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
       const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
       if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
       const cardOpacity = String(1 - sceneExit);

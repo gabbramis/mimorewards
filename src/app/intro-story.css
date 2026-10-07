@@ -1,7 +1,7 @@
 /* One compact scroll scene. All moving pieces use the same normalized progress. */
 .m-landing .m-story-header { position: sticky; top: 0; z-index: 50; margin-bottom: -86px; background: #f9efe5f2; border-bottom: 1px solid #eadbd0; backdrop-filter: blur(14px); }
 .m-story-header .m-mobile-nav { background: #f9efe5; }
-.m-intro-story { position: relative; height: 600svh; background: var(--m-cream); isolation: isolate; }
+.m-intro-story { position: relative; height: 360svh; background: var(--m-cream); isolation: isolate; }
 .m-story-stage { --hero-opacity: 1; --hero-y: 0px; --phone-opacity: 0; --phone-y: 85px; --phone-x: 26px; --middle-opacity: 0; --final-opacity: 0; --graphic-shift: 0px; --wash-scale: .22; --scene-exit: 0; --next-opacity: 0; --next-y: 24px; --cue-opacity: 1; position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; background: var(--m-cream); color: #26211e; }
 .m-story-graphics { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .m-graphic-heart, .m-graphic-tube { position: absolute; color: var(--m-red); }
@@ -81,7 +81,7 @@
 .m-story-exit-wave svg { display: block; width: 100%; height: 100%; }
 .m-wave-back { fill: #ff8d95; }
 .m-wave-front { fill: var(--m-cream); }
-.m-story-legacy-anchor { position: absolute; top: 320svh; left: 0; width: 1px; height: 1px; }
+.m-story-legacy-anchor { position: absolute; top: 191svh; left: 0; width: 1px; height: 1px; }
 /* The next existing section receives the color produced by the expanding tube. */
 .m-landing .m-merchant { background: #ff1f2d; }
 .m-landing .m-merchant-heading > p { color: #ffe4e0; }
