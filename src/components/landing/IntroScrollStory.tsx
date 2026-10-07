@@ -77,10 +77,10 @@ export default function IntroScrollStory() {
       const phoneEnter = ease(range(p, .10, .28));
       const travel = ease(range(p, .04, .28));
       const middleCopy = ease(range(p, .25, .33)) * (1 - ease(range(p, .50, .58)));
-      const finalCopy = ease(range(p, .60, .68)) * (1 - ease(range(p, .80, .87)));
-      const sceneExit = ease(range(p, .82, .92));
-      const wash = ease(range(p, .82, .98));
-      const nextCopy = ease(range(p, .90, .96));
+      const finalCopy = ease(range(p, .56, .62)) * (1 - ease(range(p, .70, .76)));
+      const sceneExit = ease(range(p, .72, .82));
+      const wash = ease(range(p, .72, .92));
+      const nextCopy = ease(range(p, .80, .87));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
