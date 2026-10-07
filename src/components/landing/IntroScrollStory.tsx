@@ -104,18 +104,19 @@ export default function IntroScrollStory() {
       setVar("--cue-opacity", String(1 - ease(range(p, 0, .12))));
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const observer = new ResizeObserver(measure);
+    // Debounce geometry reads: on mobile the URL bar fires resize/observer
+    // continuously mid-scroll and each measure forces layout.
+    let measureTimer: ReturnType<typeof setTimeout> | null = null;
+    const requestMeasure = () => {
+      if (measureTimer) clearTimeout(measureTimer);
+      measureTimer = setTimeout(measure, 180);
+    };
+    const observer = new ResizeObserver(requestMeasure);
     observer.observe(scene);
     observer.observe(start);
     observer.observe(device);
     window.addEventListener("scroll", schedule, { passive: true });
-    // Debounce: on mobile the URL bar fires resize continuously mid-scroll.
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    const onResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(measure, 160);
-    };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", requestMeasure);
     const onMotionChange = () => { setReady(!media.matches); measure(); };
     media.addEventListener("change", onMotionChange);
     measure();
@@ -123,10 +124,10 @@ export default function IntroScrollStory() {
     return () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(initial);
-      if (resizeTimer) clearTimeout(resizeTimer);
+      if (measureTimer) clearTimeout(measureTimer);
       observer.disconnect();
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", requestMeasure);
       media.removeEventListener("change", onMotionChange);
     };
   }, []);
