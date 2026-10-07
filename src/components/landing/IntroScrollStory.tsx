@@ -69,34 +69,25 @@ export default function IntroScrollStory() {
     };
     let lastCardTransform = "";
     let lastCardOpacity = "";
-    let lastFallbackOpacity = "";
-    let lastDockOpacity = "";
-    const dockCard = destination.firstElementChild as HTMLElement | null;
     const update = () => {
       frame = 0;
       if (!geometry || media.matches) return;
       const p = clamp((window.scrollY - geometry.rootY) / geometry.distance);
-      const heroExit = ease(range(p, .015, .24));
-      const phoneEnter = ease(range(p, .08, .24));
-      const travel = ease(range(p, .04, .24));
-      const middleCopy = ease(range(p, .24, .29)) * (1 - ease(range(p, .54, .59)));
-      const finalCopy = ease(range(p, .59, .64)) * (1 - ease(range(p, .82, .87)));
+      const heroExit = ease(range(p, .015, .29));
+      const phoneEnter = ease(range(p, .10, .28));
+      const travel = ease(range(p, .04, .28));
+      const middleCopy = ease(range(p, .25, .33)) * (1 - ease(range(p, .50, .58)));
+      const finalCopy = ease(range(p, .60, .68)) * (1 - ease(range(p, .80, .87)));
       const sceneExit = ease(range(p, .82, .92));
       const wash = ease(range(p, .82, .98));
       const nextCopy = ease(range(p, .90, .96));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
-      const encast = 1 - .03 * Math.sin(Math.PI * range(p, .215, .255));
+      const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
       const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
       if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
-      const ghostOpacity = String(ease(range(travel, .01, .06)) * (1 - ease(range(travel, .93, .985))) * (1 - sceneExit));
-      if (ghostOpacity !== lastCardOpacity) { card.style.opacity = ghostOpacity; lastCardOpacity = ghostOpacity; }
-      const fallbackOpacity = String(1 - ease(range(travel, .01, .06)));
-      if (fallbackOpacity !== lastFallbackOpacity) { start.style.opacity = fallbackOpacity; lastFallbackOpacity = fallbackOpacity; }
-      if (dockCard) {
-        const dockOpacity = String(ease(range(travel, .90, .985)));
-        if (dockOpacity !== lastDockOpacity) { dockCard.style.opacity = dockOpacity; lastDockOpacity = dockOpacity; }
-      }
+      const cardOpacity = String(1 - sceneExit);
+      if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
       setVar("--hero-opacity", String(1 - heroExit));
       setVar("--hero-y", `${-42 * heroExit}px`);
       setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
@@ -149,7 +140,7 @@ export default function IntroScrollStory() {
       <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Una tarjeta digital que tus clientes llevan directo en su celular.</p></div>
       <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet></div>
-      <div ref={movingCard} className="m-story-moving-card"><div className="m-story-card-ghost" /></div>
+      <div ref={movingCard} className="m-story-moving-card"><LoyaltyCard stamps={4} maxStamps={10} /></div>
       <div className="m-story-red-wash" aria-hidden="true" />
       <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>EL PRÓXIMO MIMO EMPIEZA ACÁ</span><h2>Hacé que<br />vuelvan.</h2><p>Conocé a tus clientes. Dales un motivo para elegirte otra vez.</p><div className="m-next-actions"><CTA>Quiero mimo en mi negocio</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Apple Wallet y Google Wallet</span></div></div>
       <div className="m-story-exit-wave" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path className="m-wave-front" d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>
