@@ -84,7 +84,7 @@ export default function IntroScrollStory() {
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
-      const cardTransform = `translate3d(${mix(geometry.fromX, geometry.toX + phoneShiftX, travel)}px, ${mix(geometry.fromY, geometry.toY + phoneShiftY, travel)}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
+      const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
       if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
       const cardOpacity = String(1 - sceneExit);
       if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
