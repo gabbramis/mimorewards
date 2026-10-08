@@ -118,12 +118,12 @@ export default function IntroScrollStory() {
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
       <div className="m-story-hero"><Hero /></div>
-      <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
+      <div ref={heroSlot} className="m-story-hero-slot relative z-10 mt-10 md:mt-0"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
       <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Una tarjeta digital que tus clientes llevan directo en su celular.</p></div>
       <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet></div>
       <div ref={movingCard} className="m-story-moving-card"><LoyaltyCard stamps={4} maxStamps={10} /></div>
-      <div className="m-story-red-wash" aria-hidden="true" />
+      <div className="m-story-red-wash -z-10 pointer-events-none" aria-hidden="true" />
       <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>EL PRÓXIMO MIMO EMPIEZA ACÁ</span><h2>Hacé que<br />vuelvan.</h2><p>Conocé a tus clientes. Dales un motivo para elegirte otra vez.</p><div className="m-next-actions"><CTA>Quiero mimo en mi negocio</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Apple Wallet y Google Wallet</span></div></div>
       <div className="m-story-exit-wave" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path className="m-wave-front" d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>
     </div>
