@@ -1,0 +1,1 @@
+ALTER TABLE customers ALTER COLUMN birthdate DROP NOT NULL;

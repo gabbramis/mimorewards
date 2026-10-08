@@ -91,14 +91,14 @@
   .m-story-stage { --graphic-shift: 0px !important; }
   .m-story-header .m-nav { height: 73px; }
   .m-story-header .m-mobile-nav { position: absolute; top: 73px; left: 0; right: 0; padding-inline: 20px; box-shadow: 0 15px 30px #7f0b1538; }
-  .m-story-hero { left: 7%; top: 18%; width: 84%; transform: translate3d(0, var(--hero-y), 0); }
+  .m-story-hero { left: auto; top: auto; width: 100%; transform: translate3d(0, var(--hero-y), 0); }
   .m-story-kicker { font-size: 8.5px; letter-spacing: .12em; }
   .m-story-hero-copy h1 { max-width: 92%; margin-top: 13px; font-size: clamp(46px, 11.8vw, 68px); line-height: 1.02; }
   .m-story-hero-copy > p { max-width: 340px; margin-top: 15px; font-size: 14px; line-height: 1.5; }
   .m-story-actions { margin-top: 20px; }
   .m-story-actions .m-button { min-height: 46px; padding: 11px 18px; font-size: 12px; }
   .m-story-scroll-cue { margin-top: 22px; font-size: 10px; }
-  .m-story-hero-slot { width: min(76vw, 390px); left: 5%; top: 63%; }
+  .m-story-hero-slot { width: 100%; max-width: 390px; left: auto; top: auto; }
   .m-story-phone { width: min(39vw, 178px); right: -2.5%; bottom: 8%; transform: translate3d(var(--phone-x), var(--phone-y), 0); }
   .m-wallet-phone { padding: 4px; border-width: 1px; border-radius: 29px; box-shadow: 0 13px 24px #4b211c25; }
   .m-wallet-screen { border-radius: 23px; }
