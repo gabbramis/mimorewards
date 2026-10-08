@@ -60,15 +60,6 @@ export default function IntroScrollStory() {
       scene.style.setProperty("--wash-radius", `${washRadius}px`);
       schedule();
     };
-    // Skip style writes whose value didn't change to avoid recalcs every frame.
-    const varCache = new Map<string, string>();
-    const setVar = (name: string, value: string) => {
-      if (varCache.get(name) === value || !scene) return;
-      varCache.set(name, value);
-      scene.style.setProperty(name, value);
-    };
-    let lastCardTransform = "";
-    let lastCardOpacity = "";
     const update = () => {
       frame = 0;
       if (!geometry || media.matches) return;
@@ -76,47 +67,39 @@ export default function IntroScrollStory() {
       const heroExit = ease(range(p, .015, .29));
       const phoneEnter = ease(range(p, .10, .28));
       const travel = ease(range(p, .04, .28));
-      const middleCopy = ease(range(p, .25, .32)) * (1 - ease(range(p, .45, .52)));
-      const finalCopy = ease(range(p, .52, .59)) * (1 - ease(range(p, .72, .79)));
-      const sceneExit = ease(range(p, .74, .84));
-      const wash = ease(range(p, .74, .90));
-      const nextCopy = ease(range(p, .79, .86));
+      const middleCopy = ease(range(p, .29, .39)) * (1 - ease(range(p, .52, .62)));
+      const finalCopy = ease(range(p, .63, .72)) * (1 - ease(range(p, .80, .88)));
+      const sceneExit = ease(range(p, .80, .91));
+      const wash = ease(range(p, .80, .98));
+      const nextCopy = ease(range(p, .89, .95));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .255, .295));
-      const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
-      if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
-      const cardOpacity = String(1 - sceneExit);
-      if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
-      setVar("--hero-opacity", String(1 - heroExit));
-      setVar("--hero-y", `${-42 * heroExit}px`);
-      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
-      setVar("--phone-y", `${phoneShiftY}px`);
-      setVar("--phone-x", `${phoneShiftX}px`);
-      setVar("--middle-opacity", String(middleCopy));
-      setVar("--final-opacity", String(finalCopy));
-      setVar("--graphic-shift", `${-22 * p}px`);
-      setVar("--wash-scale", String(mix(geometry.seedScale, geometry.coverScale, wash)));
-      setVar("--scene-exit", String(sceneExit));
-      setVar("--heart-layer", sceneExit > .05 ? "11" : "1");
-      setVar("--next-opacity", String(nextCopy));
-      setVar("--next-y", `${24 * (1 - nextCopy)}px`);
-      setVar("--cue-opacity", String(1 - ease(range(p, 0, .12))));
+      card.style.transform = `translate3d(${mix(geometry.fromX, geometry.toX + phoneShiftX, travel)}px, ${mix(geometry.fromY, geometry.toY + phoneShiftY, travel)}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast})`;
+      card.style.setProperty("--card-shadow", String(1 - travel * .84));
+      card.style.opacity = String(1 - sceneExit);
+      scene.style.setProperty("--hero-opacity", String(1 - heroExit));
+      scene.style.setProperty("--hero-y", `${-42 * heroExit}px`);
+      scene.style.setProperty("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
+      scene.style.setProperty("--phone-y", `${phoneShiftY}px`);
+      scene.style.setProperty("--phone-x", `${phoneShiftX}px`);
+      scene.style.setProperty("--middle-opacity", String(middleCopy));
+      scene.style.setProperty("--final-opacity", String(finalCopy));
+      scene.style.setProperty("--graphic-shift", `${-22 * p}px`);
+      scene.style.setProperty("--wash-scale", String(mix(geometry.seedScale, geometry.coverScale, wash)));
+      scene.style.setProperty("--scene-exit", String(sceneExit));
+      scene.style.setProperty("--heart-layer", sceneExit > .05 ? "11" : "1");
+      scene.style.setProperty("--next-opacity", String(nextCopy));
+      scene.style.setProperty("--next-y", `${24 * (1 - nextCopy)}px`);
+      scene.style.setProperty("--cue-opacity", String(1 - ease(range(p, 0, .12))));
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
-    // Debounce geometry reads: on mobile the URL bar fires resize/observer
-    // continuously mid-scroll and each measure forces layout.
-    let measureTimer: ReturnType<typeof setTimeout> | null = null;
-    const requestMeasure = () => {
-      if (measureTimer) clearTimeout(measureTimer);
-      measureTimer = setTimeout(measure, 180);
-    };
-    const observer = new ResizeObserver(requestMeasure);
+    const observer = new ResizeObserver(measure);
     observer.observe(scene);
     observer.observe(start);
     observer.observe(device);
     window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", requestMeasure);
+    window.addEventListener("resize", measure);
     const onMotionChange = () => { setReady(!media.matches); measure(); };
     media.addEventListener("change", onMotionChange);
     measure();
@@ -124,10 +107,9 @@ export default function IntroScrollStory() {
     return () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(initial);
-      if (measureTimer) clearTimeout(measureTimer);
       observer.disconnect();
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", requestMeasure);
+      window.removeEventListener("resize", measure);
       media.removeEventListener("change", onMotionChange);
     };
   }, []);
@@ -135,16 +117,8 @@ export default function IntroScrollStory() {
   return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="De la tarjeta mimo a Wallet">
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
-      <section className="relative overflow-hidden pt-12 pb-16 px-4 md:py-24 w-full">
-        <div className="max-w-6xl mx-auto flex flex-col md:grid md:grid-cols-2 items-start gap-10 z-10 relative">
-          <div className="m-story-hero w-full flex flex-col items-start text-left z-10 relative !transform-none !inset-auto !left-auto !top-auto">
-            <Hero />
-          </div>
-          <div ref={heroSlot} className="m-story-hero-slot w-full flex justify-center relative mt-10 md:mt-0 z-10 !inset-auto !left-auto !top-auto">
-            <div className="m-story-fallback w-full max-w-[340px] md:max-w-none mx-auto rotate-[2deg] md:-rotate-[7deg]"><LoyaltyCard stamps={4} maxStamps={10} /></div>
-          </div>
-        </div>
-      </section>
+      <div className="m-story-hero"><Hero /></div>
+      <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
       <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Una tarjeta digital que tus clientes llevan directo en su celular.</p></div>
       <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet></div>
