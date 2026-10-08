@@ -135,13 +135,13 @@ export default function IntroScrollStory() {
   return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="De la tarjeta mimo a Wallet">
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
-      <section className="relative overflow-hidden pt-8 pb-16 px-4 md:py-24 w-full">
-        <div className="max-w-6xl mx-auto flex flex-col md:grid md:grid-cols-2 items-center gap-10 z-10 relative">
-          <div className="m-story-hero w-full flex flex-col items-center text-center md:items-start md:text-left z-10 relative !transform-none !inset-auto !left-auto !top-auto">
+      <section className="relative overflow-hidden pt-12 pb-16 px-4 md:py-24 w-full">
+        <div className="max-w-6xl mx-auto flex flex-col md:grid md:grid-cols-2 items-start gap-10 z-10 relative">
+          <div className="m-story-hero w-full flex flex-col items-start text-left z-10 relative !transform-none !inset-auto !left-auto !top-auto">
             <Hero />
           </div>
-          <div ref={heroSlot} className="m-story-hero-slot w-full flex justify-center relative mt-6 md:mt-0 z-10 !inset-auto !left-auto !top-auto">
-            <div className="m-story-fallback w-full max-w-[340px] md:max-w-none"><LoyaltyCard stamps={4} maxStamps={10} /></div>
+          <div ref={heroSlot} className="m-story-hero-slot w-full flex justify-center relative mt-10 md:mt-0 z-10 !inset-auto !left-auto !top-auto">
+            <div className="m-story-fallback w-full max-w-[340px] md:max-w-none mx-auto rotate-[2deg] md:-rotate-[7deg]"><LoyaltyCard stamps={4} maxStamps={10} /></div>
           </div>
         </div>
       </section>

@@ -192,7 +192,6 @@
 
 .m-story-fallback {
   width: 100%;
-  transform: rotate(-7deg);
   filter: drop-shadow(0 22px 23px #a641282b);
 }
 
