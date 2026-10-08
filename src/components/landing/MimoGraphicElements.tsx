@@ -3,7 +3,7 @@ function MimoHeart({ className }: { className: string }) {
 }
 
 export default function MimoGraphicElements() {
-  return <div className="m-story-graphics" aria-hidden="true">
+  return <div className="m-story-graphics -z-10 pointer-events-none" aria-hidden="true">
     <MimoHeart className="m-graphic-heart-one" />
     <MimoHeart className="m-graphic-heart-two" />
     <MimoHeart className="m-graphic-heart-three" />

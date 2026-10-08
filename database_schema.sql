@@ -17,7 +17,7 @@ CREATE TABLE customers (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     phone TEXT,
-    birthdate DATE NOT NULL,
+    birthdate DATE,
     current_stamps INT DEFAULT 0,
     total_visits INT DEFAULT 0,
     last_visit_at TIMESTAMPTZ DEFAULT now(),
