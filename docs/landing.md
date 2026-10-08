@@ -6,34 +6,34 @@ El proyecto usa TypeScript con `tsconfig.json`; las páginas y componentes usan 
 
 ## Story del cliente
 
-`IntroScrollStory.tsx` presenta una única escena de scroll: hero, viaje de la tarjeta, encastre en Wallet y transición roja hacia la sección para comercios. Reutiliza `LoyaltyCard.tsx` y el wordmark existente; `PhoneWallet.tsx` y `MimoGraphicElements.tsx` completan la composición. Los estilos están en `src/app/intro-story.css`.
+`IntroScrollStory.tsx` presenta el programa de sellos con NFC, la tarjeta digital y la transición roja hacia el resto de la landing. Reutiliza `LoyaltyCard.tsx` y el wordmark existente; `PhoneWallet.tsx` y `MimoGraphicElements.tsx` completan la composición. Los estilos están en `src/app/intro-story.css`. La escena de Wallet es ilustrativa: la disponibilidad de los pases se confirma para el lanzamiento.
 
 En mobile el teléfono ocupa hasta 39vw y entra desde abajo a la derecha. La tarjeta se acopla después de aproximadamente 1,3 pantallas de scroll mediante un único progreso normalizado. Con `prefers-reduced-motion`, hero y Wallet se muestran de forma estática. El ancla `#como-funciona` abre el estado final; `#nfc` se conserva como compatibilidad.
 
 La composición mantiene el crema de marca, con corazones grandes recortados en los bordes y parallax sutil. “Siempre con ellos.” incluye una explicación breve. Durante la salida, tarjeta y teléfono se retiran mientras se expande una forma roja; “Hacé que vuelvan.” aparece antes de que el rojo cubra el viewport, enlazando con el contenido para comercios sin una pantalla vacía.
 
-Después de la story, la landing presenta el dashboard, una sola sección de datos, segmentación y ejemplos de mensajes, el kit, rubros compactos, tres beneficios, acceso anticipado y FAQ.
+Después de la story, `ValueStory.tsx` explica la oferta en tres filas editoriales, sin cards: kit configurado con la marca del local, sellos por NFC y utilidad de los datos. Siguen el recorrido del cliente, las recompensas, el panel ilustrativo, los mensajes en desarrollo, la caja mimo, el plan de USD 25/mes, la invitación a demo y las FAQ. El kit físico se cobra aparte; su precio todavía debe definirse.
 
-## Contacto
+## Demo y contacto
 
-Agregar `NEXT_PUBLIC_MIMO_CONTACT_EMAIL` en `.env.local` o en el entorno de despliegue. El formulario valida los datos y prepara un correo con nombre, comercio, WhatsApp y email. La persona debe enviarlo desde su aplicación de correo. No hay almacenamiento de consultas ni envío automático.
+Los CTA “Agendar una demo” usan `demo-link.ts` para abrir un correo prearmado a `contactomimorewards@gmail.com`. La persona debe enviarlo desde su aplicación de correo; no hay calendario de reservas todavía. `DemoStory.tsx` aclara el mecanismo y anticipa qué se mostrará en la conversación.
 
-Mientras la variable esté vacía, se informa que las solicitudes todavía no están habilitadas y no se envía ningún dato. No se muestra una confirmación falsa. Las variables `NEXT_PUBLIC_` se incorporan al compilar: reiniciar el servidor de desarrollo o recompilar después de completarlas.
+El formulario anterior permanece en `contact.tsx` para una etapa posterior, pero ya no se renderiza en la landing. No se almacenan consultas desde el sitio. El aviso de privacidad describe el contacto por email.
 
 Configurar `NEXT_PUBLIC_MIMO_SITE_URL` con el dominio público final para que los metadatos sociales usen la URL correcta. El valor local por defecto es `http://localhost:3000`.
 
 ## Experiencias de demostración
 
-- La tarjeta empieza con 4/10 sellos. El botón suma sellos hasta habilitar la recompensa de café gratis; luego permite reiniciar la demostración.
+- La animación de recompensas llena los sellos y rota ejemplos como café, helado y merienda. Los premios reales los define cada comercio.
 - Apple Wallet / Google Wallet cambian la vista previa. No emiten pases reales.
 - Los siete filtros de segmentación operan sobre una lista local de clientes ficticios.
 - Las métricas del panel y los mensajes son ejemplos explícitos. No leen ni modifican datos de Supabase.
-- Los accesos a `/caja` y `/admin` se mantienen en la sección para comercios, el menú móvil y el pie.
-- Los avisos de privacidad y términos describen únicamente esta etapa y el formulario de consulta.
+- Los accesos a `/caja` y `/login` se mantienen en el menú móvil y el pie.
+- Los avisos de privacidad y términos describen la etapa de lanzamiento, el plan mensual, el kit separado y la solicitud de demo por correo.
 
 ## Entrada NFC
 
-El flujo de alta y primer sello vive en `/t/[nfcId]`. Un soporte puede abrir, por ejemplo, `/t/ABC123`: la pantalla resuelve el comercio, identifica una tarjeta guardada en el dispositivo o muestra el registro de nombre, apellido, celular y fecha de nacimiento. El alta se procesa en `POST /api/customers`, crea la tarjeta de fidelización cuando la tabla está disponible y acredita el primer sello con método `NFC`.
+El soporte usa `/api/tap?tag=...`. Si el cliente todavía no está registrado, el flujo lo lleva a `/t/[nfcId]`, donde ve el alta de nombre, apellido, celular y fecha de nacimiento. `POST /api/customers` crea la tarjeta y acredita el primer sello. Si ya tiene una sesión válida, `/api/tap` agrega un sello automáticamente con un límite de tres horas entre toques. La compra no se verifica contra la caja: el personal presenta el NFC después de una compra habilitada. El QR de respaldo usa el mismo destino.
 
 Para resolver soportes reales, aplicar [`database_migrations/001_nfc_flow.sql`](../database_migrations/001_nfc_flow.sql) y activar `MIMO_NFC_DIRECTORY_ENABLED=true`. Mientras se prepara ese inventario, `MIMO_DEFAULT_BUSINESS_ID` funciona como fallback para tokens como `ABC123`.
 

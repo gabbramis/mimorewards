@@ -6,6 +6,24 @@
 .m-after-hero .m-eyebrow { margin-bottom: 20px; font-size: 10px; letter-spacing: .15em; }
 .m-after-hero p { text-wrap: pretty; }
 .m-brand-heart { display: block; pointer-events: none; }
+.m-after-hero .m-value-story { background: var(--m-cream); padding-block: 105px 95px; }
+.m-value-heading { display: grid; grid-template-columns: 1.1fr .8fr; align-items: end; gap: 80px; }
+.m-value-heading h2 { max-width: 720px; }
+.m-value-heading > p { max-width: 410px; color: #665951; font-size: 17px; line-height: 1.7; }
+.m-value-chapters { margin-top: 64px; border-top: 1px solid #d9c9bc; }
+.m-value-chapter { display: grid; grid-template-columns: 95px minmax(0, 1.1fr) minmax(0, .95fr); align-items: start; gap: 34px; padding: 34px 0 38px; border-bottom: 1px solid #d9c9bc; }
+.m-value-number { font-family: var(--font-landing-heading); font-size: 45px; font-weight: 600; letter-spacing: -.09em; line-height: 1; color: var(--m-red-ink); }
+.m-value-label { display: block; margin: 2px 0 12px; color: var(--m-red-ink); font-size: 10px; font-weight: 700; letter-spacing: .15em; }
+.m-value-chapter h3 { max-width: 480px; font-family: var(--font-landing-heading); font-size: clamp(23px, 2.3vw, 32px); font-weight: 600; line-height: 1.18; letter-spacing: -.05em; }
+.m-value-chapter > p { max-width: 445px; color: #665951; font-size: 15px; line-height: 1.7; }
+.m-value-example { display: grid; grid-template-columns: 1.15fr 1fr auto; align-items: center; gap: 32px; margin-top: 45px; padding: 30px 0; border-top: 4px solid var(--m-red-ink); border-bottom: 1px solid #d9c9bc; }
+.m-value-example > div:first-child > span { display: block; color: var(--m-red-ink); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.m-value-example strong { display: block; margin-top: 6px; font-family: var(--font-landing-heading), sans-serif; font-size: 23px; letter-spacing: -.04em; }
+.m-value-example p { max-width: 370px; margin-top: 5px; color: #5d504a; font-size: 13px; line-height: 1.6; }
+.m-value-example-detail { display: grid; gap: 7px; }
+.m-value-example-detail > span { display: flex; align-items: start; gap: 8px; color: #443b35; font-size: 12px; }
+.m-value-example-detail svg { color: var(--m-red-ink); margin-top: 2px; }
+.m-value-example .m-text-link { white-space: nowrap; }
 .m-return-story { position: relative; min-height: 500px; padding: 110px 24px 100px; overflow: hidden; color: var(--m-cream); background: var(--m-red); }
 .m-return-copy { position: relative; z-index: 2; width: min(590px, 60%); margin-inline: auto; }
 .m-return-copy h2 { font-size: clamp(42px, 4.3vw, 62px); }
@@ -38,7 +56,7 @@
 .m-join-step { position: relative; z-index: 1; min-width: 0; }
 .m-join-step:nth-of-type(even) { padding-top: 36px; }
 .m-join-object { height: 250px; display: flex; align-items: center; justify-content: center; }
-.m-join-step h3 { display: flex; align-items: center; gap: 11px; margin-top: 25px; font-size: 22px; letter-spacing: -.045em; }
+.m-join-step h3 { display: flex; align-items: center; gap: 11px; margin-top: 25px; font-size: 22px; line-height: 1.12; letter-spacing: -.045em; }
 .m-join-step h3 > span { font-family: var(--font-landing-body); font-size: 11px; letter-spacing: 0; color: var(--m-red); }
 .m-join-step > p { max-width: 210px; color: #746155; margin-top: 9px; font-size: 13px; line-height: 1.65; }
 .m-nfc-stand { position: relative; width: 150px; height: 223px; padding: 15px; border-radius: 18px 18px 6px 6px; background: var(--m-red); color: var(--m-cream); transform: rotate(-7deg); box-shadow: 5px 5px 0 #c51124, 12px 16px 23px #7235261c; }
@@ -86,23 +104,24 @@
 .m-rewards-heading h3 { font-size: 22px; letter-spacing: -.04em; }
 .m-rewards-heading p { max-width: 415px; margin-top: 12px; font-size: 15px; color: #fff0e8; line-height: 1.7; }
 .m-reward-progress { margin-top: 60px; }
-.m-large-stamps { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 13px; }
+.m-reward-demo-label { display: block; margin-bottom: 18px; color: #ffe3df; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.m-large-stamps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; }
 .m-large-stamps > span { aspect-ratio: 1; display: flex; align-items: center; }
 .m-large-stamps svg { width: 100%; height: 100%; }
-.m-final-stamp { color: #ffb4b8; }
-.is-complete .m-final-stamp { color: var(--m-cream); }
+.m-final-stamp { display: grid !important; place-items: center; border: 2px dashed #ffc0c4; border-radius: 50%; color: #ffb4b8; }
+.m-final-stamp svg { width: 65%; height: 65%; }
+.is-complete .m-final-stamp { background: var(--m-cream); border-color: var(--m-cream); color: var(--m-red-ink); box-shadow: 0 0 0 8px #fff2ed30; }
 .m-reward-result { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 28px 32px; border-bottom: 1px solid #ff8b92; }
 .m-reward-result > div > span { display: block; font-size: 9px; letter-spacing: .14em; font-weight: 700; }
 .m-reward-result strong { display: block; margin-top: 6px; font-family: var(--font-landing-heading); font-size: 44px; line-height: 1.2; letter-spacing: -.065em; }
 .m-reward-result button { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px 0 10px 12px; background: transparent; color: var(--m-cream); font-size: 12px; }
-.m-reward-examples { display: flex; justify-content: space-between; gap: 20px; padding-top: 30px; }
-.m-reward-examples > span { display: inline-flex; gap: 9px; align-items: center; font-size: 16px; }
-.m-reward-examples svg { width: 17px; height: 17px; }
-.m-reward-examples strong { font-weight: 600; }
-.m-reward-rule { margin-top: 20px !important; font-size: 11px; color: #ffe2dc; }
 /* Reuse the dashboard's metric and chart components at editorial scale. */
 .m-merchant-editorial { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 75px; }
 .m-merchant-copy > p { color: #6a5b50; font-size: 16px; line-height: 1.75; margin-top: 25px; max-width: 440px; }
+.m-merchant-actions { list-style: none; padding: 0; margin: 30px 0 0; max-width: 450px; border-top: 1px solid #dfd0c3; }
+.m-merchant-actions li { display: grid; grid-template-columns: 80px 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid #dfd0c3; font-size: 12px; line-height: 1.5; }
+.m-merchant-actions strong { color: var(--m-red-ink); font-weight: 700; }
+.m-merchant-actions span { color: #65574d; }
 .m-product-composition { position: relative; height: 510px; min-width: 0; }
 .m-product-heart { position: absolute; width: 230px; color: #ffd1d4; left: -15%; top: 13%; transform: rotate(-14deg); }
 .m-product-main { position: absolute; left: 8%; top: 0; width: 77%; background: #fffdf9; border: 1px solid #eadfd4; border-radius: 18px; padding: 7px; box-shadow: 0 14px 25px #7e50380a; }
@@ -166,7 +185,25 @@
 .m-kit-story-copy ul { list-style: none; padding: 0; margin: 28px 0; display: grid; gap: 12px; }
 .m-kit-story-copy li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .m-kit-story-copy li svg { color: var(--m-red); }
+.m-kit-story-copy .m-kit-terms { margin: -4px 0 18px; max-width: 360px; color: #75685d; font-size: 12px; line-height: 1.5; }
 .m-kit-story-heart { position: absolute; width: 310px; color: #ffd4d6; right: -180px; top: 0; transform: rotate(-18deg); }
+.m-kit-price { max-width: 390px; margin: 26px 0 25px; padding: 20px 0 0; border-top: 3px solid var(--m-red-ink); scroll-margin-top: 110px; }
+.m-kit-price > span { display: block; color: var(--m-red-ink); font-size: 10px; font-weight: 700; letter-spacing: .15em; }
+.m-kit-price > div { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+.m-kit-price strong { font-family: var(--font-landing-heading); font-size: 43px; font-weight: 600; letter-spacing: -.07em; line-height: 1.1; }
+.m-kit-price small { font-size: 15px; color: #584c44; }
+.m-kit-price p { max-width: 360px; margin-top: 8px; color: #68584c; font-size: 12px; line-height: 1.55; }
+.m-after-hero .m-demo-story { background: var(--m-red); color: var(--m-cream); overflow: hidden; }
+.m-demo-inner { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(250px, .65fr); align-items: end; gap: 95px; position: relative; z-index: 1; }
+.m-demo-story h2 { max-width: 770px; }
+.m-demo-story h2 em { color: #ffd1d1; }
+.m-demo-story p { max-width: 610px; margin-top: 26px; color: #fff0e8; font-size: 16px; line-height: 1.7; }
+.m-demo-action { border-top: 1px solid #ffb6b9; padding-top: 18px; }
+.m-demo-action > span { display: block; color: #ffd0cf; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.m-demo-action .m-button { margin-top: 22px; color: var(--m-red-ink); background: var(--m-cream); }
+.m-demo-action .m-button:hover { background: #fff; }
+.m-demo-action small { display: block; margin-top: 17px; color: #ffe2dc; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.m-demo-heart { position: absolute; right: -120px; top: -100px; width: 350px; color: #ff6371; transform: rotate(-18deg); }
 /* Existing contact behavior, integrated directly into the brand surface. */
 .m-access-composition { position: relative; isolation: isolate; overflow: hidden; background: var(--m-red); }
 .m-access-art { position: absolute; width: 400px; left: -155px; bottom: -30px; color: #ff6371; transform: rotate(-19deg); }
@@ -208,6 +245,7 @@
   .m-product-composition .m-metric > span { font-size: 9px; }
   .m-product-customer { width: 215px; }
   .m-kit-story-layout { gap: 40px; }
+  .m-demo-inner { gap: 45px; }
   .m-after-hero .m-access-grid { gap: 60px; }
 }
 @media (max-width: 760px) {
@@ -265,20 +303,17 @@
   .m-rewards-heading p { font-size: 13px; margin-top: 9px; }
   .m-rewards-backdrop { width: 160px; right: -100px; top: 16%; }
   .m-reward-progress { margin-top: 30px; }
-  .m-large-stamps { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px 10px; }
+  .m-large-stamps { gap: 8px; }
   .m-large-stamps > span { aspect-ratio: 1.1; }
   .m-reward-result { gap: 10px; padding-block: 22px; }
   .m-reward-result > div > span { font-size: 7px; letter-spacing: .09em; }
   .m-reward-result strong { font-size: 29px; }
   .m-reward-result button { font-size: 9px; gap: 5px; padding-left: 0; }
   .m-reward-result button svg { width: 14px; }
-  .m-reward-examples { flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 24px; }
-  .m-reward-examples > span { font-size: 12px; gap: 6px; margin-left: 0; }
-  .m-reward-examples svg { width: 13px; height: 13px; }
-  .m-reward-rule { font-size: 10px; margin-top: 24px !important; text-align: center; }
   .m-merchant-editorial { display: block; }
   .m-merchant-copy { max-width: 350px; }
   .m-merchant-copy > p { font-size: 14px; margin-top: 21px; }
+  .m-merchant-actions { margin-top: 24px; }
   .m-product-composition { height: 446px; margin-top: 38px; }
   .m-product-main { width: 83%; left: 0; border-radius: 15px; padding: 3px; }
   .m-product-composition .m-metric { padding: 17px; }
@@ -333,6 +368,11 @@
   .m-kit-story-copy ul { margin-block: 23px; gap: 11px; }
   .m-kit-story-copy li { font-size: 12px; }
   .m-kit-story-heart { width: 170px; right: -75px; top: 310px; }
+  .m-kit-price strong { font-size: 39px; }
+  .m-demo-inner { display: block; }
+  .m-demo-story p { font-size: 14px; }
+  .m-demo-action { margin-top: 40px; }
+  .m-demo-heart { width: 210px; right: -100px; top: 30px; }
   .m-after-hero .m-access { padding-block: 65px; }
   .m-after-hero .m-access-grid { gap: 45px; }
   .m-after-hero .m-access h2 { font-size: clamp(36px, 9.4vw, 44px); }
@@ -371,4 +411,24 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .m-after-hero *, .m-after-hero *::before, .m-after-hero *::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 1050px) {
+  .m-value-heading { gap: 40px; }
+  .m-value-chapter { grid-template-columns: 65px minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  .m-value-example { grid-template-columns: 1fr 1fr; }
+  .m-value-example .m-text-link { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .m-after-hero .m-value-story { padding-block: 75px; }
+  .m-value-heading { display: block; }
+  .m-value-heading > p { margin-top: 20px; font-size: 14px; }
+  .m-value-chapters { margin-top: 35px; }
+  .m-value-chapter { grid-template-columns: 45px minmax(0, 1fr); gap: 12px; padding: 25px 0 27px; }
+  .m-value-number { font-size: 30px; }
+  .m-value-label { font-size: 9px; margin: 0 0 8px; }
+  .m-value-chapter h3 { font-size: 23px; }
+  .m-value-chapter > p { grid-column: 2; font-size: 13px; line-height: 1.6; }
+  .m-value-example { display: block; margin-top: 30px; padding: 22px 0; }
+  .m-value-example-detail { margin-top: 20px; }
+  .m-value-example .m-text-link { margin-top: 15px; white-space: normal; }
 }

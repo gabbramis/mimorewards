@@ -9,6 +9,7 @@ import { CTA } from "./ui";
 import LoyaltyCard from "./LoyaltyCard";
 import PhoneWallet from "./PhoneWallet";
 import MimoGraphicElements from "./MimoGraphicElements";
+import { demoHref } from "./demo-link";
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start));
@@ -121,22 +122,23 @@ export default function IntroScrollStory() {
       // NFC scene: copy + stand enter, phone approaches, tap, phone returns,
       // then a still beat with the copy fixed before handing off.
       const nfcCopy = ease(range(p, .342, .387)) * (1 - ease(range(p, .615, .66)));
-      const standIn = ease(range(p, .342, .414));
-      const standOut = ease(range(p, .522, .567));
-      const approach = ease(range(p, .396, .486)) * (1 - ease(range(p, .504, .54)));
-      const tapZoom = 1 + .045 * Math.sin(Math.PI * range(p, .486, .558));
+      const standIn = ease(range(p, .35, .415));
+      const standOut = ease(range(p, .545, .59));
+      const approach = ease(range(p, .43, .505)) * (1 - ease(range(p, .535, .58)));
+      const tapZoom = 1 + .045 * Math.sin(Math.PI * range(p, .505, .575));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
+      const compactFinal = window.innerWidth <= 380 && window.innerHeight <= 720 ? finalCopy : 0;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .166, .192));
       const nfcShiftX = geometry.nfcDX * approach;
       const nfcShiftY = geometry.nfcDY * approach;
       const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX + nfcShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY + nfcShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast * tapZoom})`;
       if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
-      const cardOpacity = String(1 - sceneExit);
+      const cardOpacity = String((1 - sceneExit) * (1 - compactFinal));
       if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
       setVar("--hero-opacity", String(1 - heroExit));
       setVar("--hero-y", `${-42 * heroExit}px`);
-      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
+      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit) * (1 - compactFinal)));
       setVar("--phone-y", `${phoneShiftY}px`);
       setVar("--phone-x", `${phoneShiftX}px`);
       setVar("--middle-opacity", String(middleCopy));
@@ -157,8 +159,8 @@ export default function IntroScrollStory() {
       // NFC stamps: 4 while docked, quick fill to 9 as the scene starts,
       // 10/10 with pop right at the tap. Derived from progress so scrubbing
       // back and forth stays consistent; state only flips on change.
-      const bucket = p < .36 ? 4 : p < .468 ? 4 + Math.min(5, Math.floor((p - .36) / .0216)) : p < .486 ? 9 : 10;
-      const next = { stamps: bucket, tap: p >= .468 && p < .558, done: p >= .486, party: p >= .66 && p < .90 };
+      const bucket = p < .43 ? 4 : p < .5 ? 4 + Math.min(5, Math.floor((p - .43) / .014)) : p < .515 ? 9 : 10;
+      const next = { stamps: bucket, tap: p >= .5 && p < .575, done: p >= .515, party: p >= .66 && p < .90 };
       const prev = nfcPrev.current;
       if (prev.stamps !== next.stamps || prev.tap !== next.tap || prev.done !== next.done || prev.party !== next.party) {
         nfcPrev.current = next;
@@ -188,15 +190,10 @@ export default function IntroScrollStory() {
       scrollFrame = requestAnimationFrame(animate);
     };
     const scrollToStop = (stop: number) => {
-      if (geometry) scrollToY(geometry.rootY + geometry.distance * stop, stop === .59 ? 1150 : undefined);
+      if (geometry) scrollToY(geometry.rootY + geometry.distance * stop, stop === .59 ? 1800 : undefined);
     };
     const step = (direction: number) => {
       const p = progress();
-      // The red beat is the last pause: the next gesture reveals the following section.
-      if (direction > 0 && p >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012 && geometry) {
-        scrollToY(geometry.rootY + story.offsetHeight, 950);
-        return true;
-      }
       const next = direction > 0
         ? SCENE_STOPS.find(stop => stop > p + .012)
         : [...SCENE_STOPS].reverse().find(stop => stop < p - .012);
@@ -213,6 +210,7 @@ export default function IntroScrollStory() {
       }
       if (!inStory()) return;
       const direction = Math.sign(event.deltaY);
+      if (direction > 0 && progress() >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012) return;
       if ((direction < 0 && progress() <= 0) || (direction > 0 && progress() >= 1)) return;
       event.preventDefault();
       if (performance.now() < wheelCooldownUntil) return;
@@ -227,6 +225,7 @@ export default function IntroScrollStory() {
       const dx = event.touches[0].clientX - touchStart.x;
       const dy = event.touches[0].clientY - touchStart.y;
       if (Math.abs(dy) <= Math.abs(dx) || Math.abs(dy) < 8) return;
+      if (dy < 0 && progress() >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012) return;
       if ((dy > 0 && progress() <= 0) || (dy < 0 && progress() >= 1)) return;
       event.preventDefault();
     };
@@ -243,6 +242,11 @@ export default function IntroScrollStory() {
       schedule();
       if (anchorNavigation) return;
       if (!inStory()) {
+        if (settleTimer) clearTimeout(settleTimer);
+        settleTimer = null;
+        return;
+      }
+      if (progress() >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012) {
         if (settleTimer) clearTimeout(settleTimer);
         settleTimer = null;
         return;
@@ -308,19 +312,19 @@ export default function IntroScrollStory() {
     };
   }, []);
 
-  return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="De la tarjeta mimo a Wallet">
+  return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="Del soporte NFC a la tarjeta digital mimo">
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
       <div className="m-story-hero"><Hero /></div>
       <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
-      <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Guardan su tarjeta en Apple Wallet o Google Wallet y tienen siempre a mano sus sellos, beneficios y progreso hacia la próxima recompensa.</p></div>
-      <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
-      <div className="m-story-message m-story-message-nfc"><span>TOQUE NFC</span><h2>Fácil para ellos.<br /><em>Fácil para vos.</em></h2><p>Acercan el celular y listo. Sin apps para descargar ni pasos complicados.</p></div>
+      <div className="m-story-message m-story-message-middle"><span>TARJETA DIGITAL</span><h2>Sus beneficios,<br />en el celular.</h2><p>Consultan sus sellos, beneficios y progreso desde el celular. Guardan la tarjeta una vez y la tienen lista para la próxima visita.</p></div>
+      <div className="m-story-message m-story-message-final"><span>SIEMPRE DISPONIBLE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Sus sellos, recompensas y progreso quedan guardados en un mismo lugar, sin tener que registrarse cada vez que vuelven.</p></div>
+      <div className="m-story-message m-story-message-nfc"><span>TOQUE NFC</span><h2>Fácil para ellos.<br /><em>Fácil para vos.</em></h2><p>Cada compra puede sumar un sello, sin apps para descargar ni pasos complicados.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock} stamps={nfc.stamps}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet><div className={`m-heart-burst ${nfc.party ? "go" : ""}`} aria-hidden="true">{BURST.map((h, i) => <span key={i} style={{ "--tx": `${h.x}px`, "--ty": `${h.y}px`, "--rr": `${h.r}deg`, "--pd": `${h.d}s`, "--ps": `${h.s}px`, color: h.c } as CSSProperties}><Heart size={h.s} fill="currentColor" strokeWidth={1.5} /></span>)}</div></div>
       <div ref={movingCard} className={`m-story-moving-card ${nfc.done ? "is-complete" : ""}`}><LoyaltyCard stamps={nfc.stamps} maxStamps={10} /></div>
       <div ref={stand} className={`m-story-stand ${nfc.tap ? "is-tapping" : ""}`}><NfcStand /><div className="m-nfc-rings" aria-hidden="true"><span /><span /><span /></div></div>
       <div className="m-story-red-wash" aria-hidden="true" />
-      <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>EL PRÓXIMO MIMO EMPIEZA ACÁ</span><h2>Hacé que<br />vuelvan.</h2><p>Conocé a tus clientes. Dales un motivo para elegirte otra vez.</p><div className="m-next-actions"><CTA>Quiero mimo en mi negocio</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Apple Wallet y Google Wallet</span></div></div>
+      <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>FIDELIZACIÓN PARA TU COMERCIO</span><h2>Hacé que<br />vuelvan.</h2><p>Un kit con soporte NFC, tarjeta digital y un panel para seguir clientes, visitas, sellos y recompensas.</p><div className="m-next-actions"><CTA href={demoHref}>Agendar una demo</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Tarjeta digital para tus clientes</span></div></div>
       <div className="m-story-exit-wave" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path className="m-wave-front" d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>
     </div>
     <span id="como-funciona" className="m-story-legacy-anchor" />
