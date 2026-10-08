@@ -676,6 +676,9 @@
     left: auto;
     top: auto;
     width: 100%;
+    padding-top: 86px;
+    padding-inline: 20px;
+    box-sizing: border-box;
     transform: translate3d(0, var(--hero-y), 0);
   }
 
@@ -715,7 +718,9 @@
 
   .m-story-hero-slot {
     width: 100%;
-    max-width: 390px;
+    max-width: 350px;
+    margin-top: 28px;
+    margin-inline: auto;
     left: auto;
     top: auto;
   }

@@ -118,7 +118,7 @@ export default function IntroScrollStory() {
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
       <div className="m-story-hero"><Hero /></div>
-      <div ref={heroSlot} className="m-story-hero-slot relative z-10 mt-10 md:mt-0"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
+      <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
       <div className="m-story-message m-story-message-middle"><span>EN SU WALLET</span><h2>Siempre<br />con ellos.</h2><p>Una tarjeta digital que tus clientes llevan directo en su celular.</p></div>
       <div className="m-story-message m-story-message-final"><span>UN GESTO QUE PERMANECE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Guardan su tarjeta una vez. La próxima visita ya tiene un motivo.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet></div>
