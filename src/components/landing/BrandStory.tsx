@@ -5,7 +5,7 @@ import { Check, Heart, Wallet, Wifi } from "lucide-react";
 import { Brand, DemoLoyaltyCard, Eyebrow } from "./ui";
 import { BrandHeart } from "./StoryArt";
 
-function NfcStand() {
+export function NfcStand() {
   return <div className="m-nfc-stand" aria-label="Soporte NFC mimo"><Brand light /><strong>ACERCÁ<br />TU CELULAR</strong><span className="m-nfc-touch"><Wifi size={44} /></span><BrandHeart /><span className="m-nfc-base" /></div>;
 }
 

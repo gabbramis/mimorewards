@@ -1,8 +1,8 @@
 /* One compact scroll scene. All moving pieces use the same normalized progress. */
 .m-landing .m-story-header { position: sticky; top: 0; z-index: 50; margin-bottom: -86px; background: #f9efe5f2; border-bottom: 1px solid #eadbd0; backdrop-filter: blur(14px); }
 .m-story-header .m-mobile-nav { background: #f9efe5; }
-.m-intro-story { position: relative; height: 360svh; background: var(--m-cream); isolation: isolate; }
-.m-story-stage { --hero-opacity: 1; --hero-y: 0px; --phone-opacity: 0; --phone-y: 85px; --phone-x: 26px; --middle-opacity: 0; --final-opacity: 0; --graphic-shift: 0px; --wash-scale: .22; --scene-exit: 0; --next-opacity: 0; --next-y: 24px; --cue-opacity: 1; position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; background: var(--m-cream); color: #26211e; }
+.m-intro-story { position: relative; height: 500svh; background: var(--m-cream); isolation: isolate; }
+.m-story-stage { --hero-opacity: 1; --hero-y: 0px; --phone-opacity: 0; --phone-y: 85px; --phone-x: 26px; --middle-opacity: 0; --final-opacity: 0; --nfc-opacity: 0; --stand-opacity: 0; --stand-y: 46px; --nfc-x: 0px; --nfc-y: 0px; --tap-zoom: 1; --graphic-shift: 0px; --wash-scale: .22; --scene-exit: 0; --next-opacity: 0; --next-y: 24px; --cue-opacity: 1; position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; background: var(--m-cream); color: #26211e; }
 .m-story-graphics { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .m-graphic-heart, .m-graphic-tube { position: absolute; color: var(--m-red); }
 .m-graphic-heart-one { z-index: var(--heart-layer, 1); width: clamp(190px, 24vw, 370px); right: -7%; top: 9%; color: color-mix(in srgb, var(--m-red) calc((1 - var(--scene-exit)) * 100%), var(--m-cream)); transform: translate3d(calc(var(--scene-exit) * -18px), var(--graphic-shift), 0) rotate(17deg); }
@@ -42,7 +42,7 @@
 .m-story-card-bottom > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
 .m-story-card-bottom svg { width: 4cqw; height: 4cqw; }
 .m-story-card-bottom > span:last-child { color: var(--m-cream); white-space: nowrap; }
-.m-story-phone { position: absolute; z-index: 3; right: 9%; bottom: -8%; width: clamp(220px, 22vw, 280px); opacity: var(--phone-opacity); transform: translate3d(var(--phone-x), var(--phone-y), 0); will-change: transform, opacity; }
+.m-story-phone { position: absolute; z-index: 3; right: 9%; bottom: -8%; width: clamp(220px, 22vw, 280px); opacity: var(--phone-opacity); transform: translate3d(calc(var(--phone-x, 0px) + var(--nfc-x, 0px)), calc(var(--phone-y, 0px) + var(--nfc-y, 0px)), 0) scale(var(--tap-zoom, 1)); will-change: transform, opacity; }
 .m-wallet-phone { position: relative; width: 100%; aspect-ratio: .51; padding: 7px; border: 2px solid #554c48; border-radius: 42px; background: #262321; box-shadow: 0 17px 32px #4b211c2b; }
 .m-wallet-screen { position: relative; height: 100%; overflow: hidden; border-radius: 33px; background: #fffaf4; }
 .m-wallet-status { position: absolute; z-index: 2; top: 11px; left: 15px; right: 15px; display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; }
@@ -77,11 +77,31 @@
 .m-next-actions { display: flex; margin-top: 30px; pointer-events: auto; }
 .m-story-next-section .m-button { min-height: 52px; padding-inline: 24px; border-radius: 100px; background: var(--m-cream); color: #c5101e; box-shadow: none; font-size: 13px; font-weight: 700; }
 .m-next-proof { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; color: #ffd9dc; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+/* NFC scene: same message pattern, own opacity driver. */
+.m-story-message-nfc { opacity: var(--nfc-opacity, 0); transform: translate3d(0, calc(16px * (1 - var(--nfc-opacity, 0))), 0); }
+.m-story-stand { position: absolute; z-index: 4; left: 53%; top: 60%; opacity: var(--stand-opacity, 0); transform: translateY(var(--stand-y, 46px)); pointer-events: none; }
+.m-nfc-rings { position: absolute; left: 50%; top: 65%; width: 0; height: 0; opacity: 0; transition: opacity .25s; }
+.m-story-stand.is-tapping .m-nfc-rings { opacity: 1; }
+.m-nfc-rings span { position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; border: 3px solid #e51c2b; border-radius: 50%; opacity: 0; }
+.m-story-stand.is-tapping .m-nfc-rings span { animation: mimo-nfc-ring 1.1s ease-out infinite; }
+.m-story-stand.is-tapping .m-nfc-rings span:nth-child(2) { animation-delay: .35s; }
+.m-story-stand.is-tapping .m-nfc-rings span:nth-child(3) { animation-delay: .7s; }
+@keyframes mimo-nfc-ring { 0% { transform: scale(.55); opacity: .9; } 100% { transform: scale(1.5); opacity: 0; } }
+.m-story-stand.is-tapping .m-nfc-stand { animation: mimo-stand-pulse 1.1s ease-in-out infinite; }
+@keyframes mimo-stand-pulse { 0%, 100% { transform: rotate(-7deg) scale(1); } 50% { transform: rotate(-7deg) scale(1.045); } }
+.m-story-moving-card.is-complete .m-story-card-stamps > span:last-child { animation: mimo-stamp-pop .45s ease-out; }
+.m-heart-burst { position: absolute; left: 50%; top: 32%; z-index: 6; pointer-events: none; opacity: 0; }
+.m-heart-burst.go { opacity: 1; }
+.m-heart-burst > span { position: absolute; left: 0; top: 0; opacity: 0; }
+.m-heart-burst.go > span { animation: mimo-heart-pop 1.4s cubic-bezier(.15, .7, .3, 1) forwards; animation-delay: var(--pd, 0s); }
+.m-heart-burst.go > span svg { display: block; }
+@keyframes mimo-heart-pop { 0% { transform: translate(0, 0) rotate(0deg) scale(.3); opacity: 0; } 12% { opacity: 1; } 100% { transform: translate(var(--tx, 0px), var(--ty, -120px)) rotate(var(--rr, 0deg)) scale(1); opacity: 0; } }
+@keyframes mimo-stamp-pop { 0% { transform: scale(.4); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
 .m-story-exit-wave { position: absolute; z-index: 13; left: 0; right: 0; bottom: -1px; height: 90px; opacity: var(--scene-exit, 0); pointer-events: none; }
 .m-story-exit-wave svg { display: block; width: 100%; height: 100%; }
 .m-wave-back { fill: #ff8d95; }
 .m-wave-front { fill: var(--m-cream); }
-.m-story-legacy-anchor { position: absolute; top: 191svh; left: 0; width: 1px; height: 1px; }
+.m-story-legacy-anchor { position: absolute; top: 265svh; left: 0; width: 1px; height: 1px; }
 /* The next existing section receives the color produced by the expanding tube. */
 .m-landing .m-merchant { background: #ff1f2d; }
 .m-landing .m-merchant-heading > p { color: #ffe4e0; }
@@ -99,7 +119,10 @@
   .m-story-actions .m-button { min-height: 46px; padding: 11px 18px; font-size: 12px; }
   .m-story-scroll-cue { margin-top: 22px; font-size: 10px; }
   .m-story-hero-slot { width: min(76vw, 390px); left: 5%; top: 63%; }
-  .m-story-phone { width: min(39vw, 178px); right: -2.5%; bottom: 8%; transform: translate3d(var(--phone-x), var(--phone-y), 0); }
+  .m-story-phone { width: min(39vw, 178px); right: -2.5%; bottom: 8%; transform: translate3d(calc(var(--phone-x, 0px) + var(--nfc-x, 0px)), calc(var(--phone-y, 0px) + var(--nfc-y, 0px)), 0) scale(var(--tap-zoom, 1)); }
+  .m-story-stand { left: 4%; top: auto; bottom: 15%; }
+  .m-story-stand .m-nfc-stand { transform-origin: bottom left; }
+  .m-heart-burst { transform: scale(.72); }
   .m-wallet-phone { padding: 4px; border-width: 1px; border-radius: 29px; box-shadow: 0 13px 24px #4b211c25; }
   .m-wallet-screen { border-radius: 23px; }
   .m-wallet-status { top: 7px; left: 9px; right: 9px; font-size: 6px; }
@@ -143,12 +166,14 @@
 @media (prefers-reduced-motion: reduce) {
   .m-intro-story { height: auto; }
   .m-story-stage { position: relative; height: auto; min-height: 100svh; overflow: hidden; padding: 120px 7% 55px; }
-  .m-story-hero, .m-story-hero-slot, .m-story-phone, .m-story-message-final { position: relative; inset: auto; width: auto; opacity: 1; transform: none; }
+  .m-story-hero, .m-story-hero-slot, .m-story-phone, .m-story-message-final, .m-story-message-nfc, .m-story-stand { position: relative; inset: auto; width: auto; opacity: 1; transform: none; }
+  .m-story-message-nfc { margin-top: 40px; max-width: 520px; }
+  .m-story-stand { margin: 32px 0 0 4%; }
   .m-story-hero { max-width: 620px; }
   .m-story-hero-slot { width: min(80vw, 440px); margin: 36px auto 0; }
   .m-story-phone { width: min(40vw, 190px); margin: 45px 0 0 auto; }
   .m-story-message-final { margin-top: 30px; max-width: 520px; }
-  .m-story-message-middle, .m-story-moving-card, .m-story-red-wash { display: none; }
+  .m-story-message-middle, .m-story-moving-card, .m-story-red-wash, .m-nfc-rings, .m-heart-burst { display: none; }
   .m-story-next-section { position: relative; inset: auto; width: auto; margin: 50px -8.2% -55px; padding: 65px 8.2%; opacity: 1; transform: none; background: var(--m-red); }
   .m-story-legacy-anchor { top: auto; bottom: 380px; }
   .m-story-graphics { opacity: .6; }
