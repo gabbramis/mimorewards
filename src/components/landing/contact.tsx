@@ -28,5 +28,21 @@ export function EarlyAccess({ onPrivacy }: { onPrivacy: () => void }) {
 export function LegalDialog({ type, close }: { type: "privacy" | "terms"; close: () => void }) {
   const ref = useRef<HTMLDialogElement | null>(null);
   useEffect(() => { const dialog = ref.current; dialog.showModal(); return () => dialog.close(); }, []);
-  return <dialog ref={ref} className="m-legal-dialog" onCancel={close} onClick={e => { if (e.target === e.currentTarget) close(); }} aria-labelledby="m-legal-title"><div className="m-legal-inner"><button onClick={close} className="m-dialog-close" aria-label="Cerrar"><X size={22} /></button><Eyebrow>ACCESO ANTICIPADO</Eyebrow><h2 id="m-legal-title">{type === "privacy" ? "Tu privacidad importa" : "Sobre esta etapa de mimo"}</h2>{type === "privacy" ? <><p>El formulario solicita nombre, comercio, WhatsApp y email para preparar una consulta sobre mimo rewards. No guarda esos datos en este sitio.</p><p>Cuando el canal de contacto esté habilitado, la consulta se abrirá en tu aplicación de correo. Solo se enviará si vos enviás ese mensaje. Si el canal todavía no está habilitado, los datos no se envían.</p><p>Al enviar la consulta, autorizás que te contactemos sobre el acceso anticipado. Podés solicitar que dejemos de contactarte respondiendo a ese intercambio. No incluyas datos sensibles.</p><p>Antes de registrar clientes en el producto, cada comercio deberá contar con la información de privacidad y los consentimientos correspondientes.</p></> : <><p>mimo rewards está en etapa de acceso anticipado. Las imágenes, los datos y las tarjetas de esta página son ejemplos de la experiencia propuesta.</p><p>Solicitar información no implica una compra, una reserva ni un compromiso de contratación. La disponibilidad, las condiciones del kit y las funciones habilitadas se confirmarán con cada comercio antes de comenzar.</p><p>Las integraciones con sistemas de venta y las opciones de sellado por QR forman parte de la evolución prevista. Apple Wallet y Google Wallet son marcas de sus respectivos titulares.</p></>}<button className="m-button m-button-primary" onClick={close}>Entendido <Check size={17} /></button></div></dialog>;
+  return <dialog ref={ref} className="m-legal-dialog" onCancel={close} onClick={e => { if (e.target === e.currentTarget) close(); }} aria-labelledby="m-legal-title">
+    <div className="m-legal-inner">
+      <button onClick={close} className="m-dialog-close" aria-label="Cerrar"><X size={22} /></button>
+      <Eyebrow>ETAPA DE LANZAMIENTO</Eyebrow>
+      <h2 id="m-legal-title">{type === "privacy" ? "Tu privacidad importa" : "Sobre esta etapa de mimo"}</h2>
+      {type === "privacy" ? <>
+        <p>Al elegir “Agendar una demo” se abre tu aplicación de correo con un mensaje preparado para contactomimorewards@gmail.com. Esta página no guarda ni envía tus datos por sí sola: el correo se envía únicamente si vos decidís enviarlo.</p>
+        <p>Usaremos los datos que incluyas en ese correo para responderte y coordinar la demo. Podés pedir que dejemos de contactarte respondiendo al intercambio.</p>
+        <p>Antes de registrar clientes en el producto, cada comercio deberá contar con la información de privacidad y los consentimientos correspondientes.</p>
+      </> : <>
+        <p>mimo rewards está preparando sus primeras implementaciones. Las imágenes, las métricas y las tarjetas de esta página son ejemplos de la experiencia propuesta.</p>
+        <p>El plan anunciado es de $1.290 por mes. El kit físico se cobra aparte y su precio, el plazo de entrega y las condiciones del servicio se confirman antes de contratar. Solicitar una demo no implica una compra ni una reserva.</p>
+        <p>El QR abre el mismo recorrido que el NFC cuando el teléfono no puede usarlo. Las campañas, las integraciones y las opciones de Wallet se confirmarán para el lanzamiento.</p>
+      </>}
+      <button className="m-button m-button-primary" onClick={close}>Entendido <Check size={17} /></button>
+    </div>
+  </dialog>;
 }

@@ -14,7 +14,7 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
   return <motion.div className={className} initial={false} whileInView={reduced ? {} : { y: [16, 0] }} viewport={{ once: true, amount: 0.12 }} transition={{ duration: 0.55, ease: "easeOut" }}>{children}</motion.div>;
 }
 
-export function CTA({ children = "Quiero usar mimo", secondary = false, href = "#acceso", className = "" }: { children?: ReactNode; secondary?: boolean; href?: string; className?: string }) {
+export function CTA({ children = "Agendar una demo", secondary = false, href = "#demo", className = "" }: { children?: ReactNode; secondary?: boolean; href?: string; className?: string }) {
   return <a href={href} className={`m-button ${secondary ? "m-button-secondary" : "m-button-primary"} ${className}`}>{children}{secondary ? <ArrowDown size={17} /> : <ArrowUpRight size={18} />}</a>;
 }
 

@@ -16,9 +16,9 @@ export async function POST(request: Request) {
         const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
-                id, 
-                first_name, 
-                last_name, 
+                id,
+                first_name,
+                last_name,
                 business_id,
                 current_stamps
             `)

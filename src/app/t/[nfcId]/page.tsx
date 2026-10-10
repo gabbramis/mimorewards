@@ -237,10 +237,6 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
     }
   }
 
-  function walletMessage(walletName: string) {
-    setNotice(`${walletName} estará disponible cuando activemos tu tarjeta digital.`);
-  }
-
   const title = isReturning ? "¡Qué bueno verte de nuevo!" : "¡Bienvenida a mimo!";
   const isUnavailable = phase === "unavailable";
   const isLoading = phase === "loading";
@@ -359,8 +355,7 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
               {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
               <div className="m-nfc-actions">
-                <button type="button" className="m-nfc-wallet-button m-nfc-wallet-apple" onClick={() => walletMessage("Apple Wallet")}><Wallet size={18} /> Agregar a Apple Wallet</button>
-                <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={() => walletMessage("Google Wallet")}><Wallet size={18} /> Guardar en Google Wallet</button>
+                <Link className="m-nfc-wallet-button m-nfc-wallet-google" href={`/tarjeta/${customer.id}`}><Wallet size={18} /> Ver mi tarjeta y opciones de Wallet</Link>
               </div>
               <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>
             </div>
