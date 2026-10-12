@@ -249,6 +249,34 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
             if (error) throw error;
 
+            // Sincronizar la recompensa del programa con el catálogo que usa
+            // Automatizaciones. No bloquea el guardado: si la tabla rewards
+            // aún no existe (migración 010 pendiente), se ignora.
+            try {
+                const { data: defaultReward } = await supabase
+                    .from("rewards")
+                    .select("id")
+                    .eq("business_id", resolvedBusinessId)
+                    .eq("is_default", true)
+                    .maybeSingle();
+                const rewardName = form.reward_description || "Recompensa";
+                if (defaultReward) {
+                    await supabase.from("rewards").update({
+                        name: rewardName,
+                        stamps_required: form.reward_target,
+                    }).eq("id", defaultReward.id);
+                } else {
+                    await supabase.from("rewards").insert([{
+                        business_id: resolvedBusinessId,
+                        name: rewardName,
+                        stamps_required: form.reward_target,
+                        is_default: true,
+                    }]);
+                }
+            } catch (e) {
+                console.warn("No se pudo sincronizar rewards:", e);
+            }
+
             setInitialForm(form);
             setInitialLocalForm(localForm);
             setInitialHours(hours);

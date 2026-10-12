@@ -378,9 +378,9 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                         setCustomers(prevCustomers.filter(c => c.id !== editingCustomer.id));
                                         setEditingCustomer(null);
 
-                                        // Limpieza preventiva (si no hay CASCADE configurado estricto)
+                                        // Limpieza preventiva (si no hay CASCADE configurado estricto).
+                                        // automation_events se borra solo por su FK ON DELETE CASCADE.
                                         await supabase.from('stamp_logs').delete().eq('customer_id', editingCustomer.id);
-                                        await supabase.from('automation_logs').delete().eq('customer_id', editingCustomer.id);
 
                                         const { error } = await supabase.from('customers').delete().eq('id', editingCustomer.id);
                                         if (error) {

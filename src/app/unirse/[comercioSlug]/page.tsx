@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { appleWalletConfigured } from "@/lib/wallet/appleWallet";
 import OnboardingForm from "./OnboardingForm";
 
 type PageProps = { params: Promise<{ comercioSlug: string }> };
@@ -34,7 +35,7 @@ export default async function UnirsePage({ params }: PageProps) {
             <h1 className="text-3xl font-bold text-center text-[#1F1F1F] tracking-tight">{business.name}</h1>
           </div>
 
-          <OnboardingForm slug={business.slug} businessName={business.name} rewardDescription={business.reward_description} />
+          <OnboardingForm slug={business.slug} businessName={business.name} rewardDescription={business.reward_description} appleWalletReady={appleWalletConfigured()} />
         </div>
 
         <footer className="w-full pb-6 pt-10 text-center">

@@ -1,30 +1,18 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ArrowRight, Loader2, Phone, Smile } from "lucide-react";
 import Image from "next/image";
 
-export default function OnboardingForm({ slug, businessName, rewardDescription }: { slug: string; businessName: string; rewardDescription: string }) {
+export default function OnboardingForm({ slug, businessName, rewardDescription, appleWalletReady }: { slug: string; businessName: string; rewardDescription: string; appleWalletReady: boolean }) {
     const [nombre, setNombre] = useState("");
     const [telefono, setTelefono] = useState("");
     const [fechaNacimiento, setFechaNacimiento] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
-    const [isIOS, setIsIOS] = useState(false);
-    const [isAndroid, setIsAndroid] = useState(false);
     const [customerId, setCustomerId] = useState("");
     const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
-
-    useEffect(() => {
-        // Detectamos OS en el cliente
-        const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
-        if (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) {
-            setIsIOS(true);
-        } else if (/android/i.test(ua)) {
-            setIsAndroid(true);
-        }
-    }, []);
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
@@ -86,16 +74,14 @@ export default function OnboardingForm({ slug, businessName, rewardDescription }
                     <p className="text-[16px] text-gray-500 mb-8 font-medium">Tu primer sello ya está adentro.</p>
 
                     <div className="w-full flex flex-col gap-3.5 mt-2">
-                        {(!isAndroid) && (
-                            <button onClick={() => handleWallet("Apple Wallet")} className="w-full bg-black text-white rounded-2xl py-[16px] px-4 flex items-center justify-center gap-2 hover:bg-gray-900 active:scale-[0.98] transition-all">
+                        {appleWalletReady && (
+                            <a href={`/api/wallet/apple/${encodeURIComponent(customerId)}`} className="w-full bg-black text-white rounded-2xl py-[16px] px-4 flex items-center justify-center gap-2 hover:bg-gray-900 active:scale-[0.98] transition-all text-center">
                                 <span className="font-semibold tracking-wide text-[16px]">Agregar a Apple Wallet</span>
-                            </button>
+                            </a>
                         )}
-                        {(!isIOS) && (
-                            <button onClick={() => handleWallet("Google Wallet")} disabled={isGeneratingWallet} className="w-full bg-white text-[#3c4043] border border-[#dadce0] rounded-2xl py-[16px] px-4 flex items-center justify-center gap-2 hover:bg-[#f8f9fa] active:scale-[0.98] transition-all shadow-sm disabled:opacity-70">
+                        <button onClick={() => handleWallet("Google Wallet")} disabled={isGeneratingWallet} className="w-full bg-white text-[#3c4043] border border-[#dadce0] rounded-2xl py-[16px] px-4 flex items-center justify-center gap-2 hover:bg-[#f8f9fa] active:scale-[0.98] transition-all shadow-sm disabled:opacity-70">
                                 {isGeneratingWallet ? <Loader2 size={20} className="animate-spin" /> : <span className="font-semibold tracking-wide text-[16px]">Guardar en Google Wallet</span>}
-                            </button>
-                        )}
+                        </button>
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-gray-100 w-full text-center">

@@ -16,7 +16,7 @@ function Stamps({ current, target }: { current: number; target: number }) {
     );
 }
 
-export default function MobileCard({ initialCustomer, business, notice, googleWalletUrl }: { initialCustomer: any, business: any, notice?: string | null, googleWalletUrl?: string }) {
+export default function MobileCard({ initialCustomer, business, notice, googleWalletUrl, appleWalletReady }: { initialCustomer: any, business: any, notice?: string | null, googleWalletUrl?: string, appleWalletReady: boolean }) {
     const [currentStamps, setCurrentStamps] = useState(initialCustomer.current_stamps || 0);
     const [isAnimating, setIsAnimating] = useState(false);
     const supabase = createClient();
@@ -87,6 +87,7 @@ export default function MobileCard({ initialCustomer, business, notice, googleWa
                         {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
                         <div className="m-nfc-actions">
+                            {appleWalletReady && <a className="m-nfc-wallet-button" href={`/api/wallet/apple/${encodeURIComponent(initialCustomer.id)}`}><Wallet size={18} /> Agregar a Apple Wallet</a>}
                             {googleWalletUrl && <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleGoogleWalletClick}><Wallet size={18} /> Guardar en Google Wallet</button>}
                         </div>
                         <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>

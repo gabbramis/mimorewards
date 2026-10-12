@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { appleWalletConfigured } from '@/lib/wallet/appleWallet';
 import MobileCard from './MobileCard';
 
 function stampNotice(status: string | null) {
@@ -75,5 +76,5 @@ export default async function TarjetaPage({ params, searchParams }: { params: Pr
         console.error("Google Wallet Link Error:", e);
     }
 
-    return <MobileCard initialCustomer={customer} business={customer.businesses} notice={stampNotice(stampStatus)} googleWalletUrl={googleWalletUrl} />;
+    return <MobileCard initialCustomer={customer} business={customer.businesses} notice={stampNotice(stampStatus)} googleWalletUrl={googleWalletUrl} appleWalletReady={appleWalletConfigured()} />;
 }

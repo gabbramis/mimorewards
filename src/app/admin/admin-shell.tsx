@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, Zap } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from "@/contexts/BusinessContext";
 
@@ -14,6 +14,8 @@ const internalNavItems = [
     ["/admin/metricas", "Métricas", LayoutDashboard],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
+
+
 ] as const;
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
@@ -31,7 +33,8 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
         ? [
             [`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard],
             [`/comercio/${businessId}/clientes`, "Clientes", Users],
-            [`/comercio/${businessId}/configuracion`, "Configuración", Sliders]
+            [`/comercio/${businessId}/automatizaciones`, "Automatizaciones", Zap],
+            [`/comercio/${businessId}/configuracion`, "Configuración", Sliders],
         ] as const
         : internalNavItems;
 
