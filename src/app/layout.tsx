@@ -16,10 +16,6 @@ export const metadata = {
   description: "Sumate al programa de beneficios de tu comercio favorito.",
 };
 
-export const viewport = {
-  themeColor: "#f9efe5",
-};
-
 export default function RootLayout({ children }) {
   return (
     <html

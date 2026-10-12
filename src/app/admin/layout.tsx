@@ -5,7 +5,11 @@ import AdminShell from "./admin-shell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const access = await getCurrentAccess();
-  if (!access.user) redirect("/login");
+
+  if (!access.user) {
+    redirect("/login");
+  }
+
   if (access.role !== "superadmin") {
     const supabase: any = createAdminClient();
     const { data: membership } = await supabase
@@ -16,11 +20,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       .limit(1)
       .maybeSingle();
 
-    if (membership?.business_id) {
-      redirect(`/comercio/${membership.business_id}/metricas`);
+    if (!membership?.business_id) {
+      return (
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold">Acceso Denegado</h1>
+            <p className="mt-2 text-sm text-gray-500">
+              Tu usuario no tiene ningún comercio asociado.
+            </p>
+          </div>
+        </div>
+      );
     }
-
-    redirect("/login");
   }
 
   return <AdminShell>{children}</AdminShell>;

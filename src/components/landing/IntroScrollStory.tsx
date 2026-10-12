@@ -128,17 +128,16 @@ export default function IntroScrollStory() {
       const tapZoom = 1 + .045 * Math.sin(Math.PI * range(p, .505, .575));
       const phoneShiftX = (1 - phoneEnter) * 26 + sceneExit * 34;
       const phoneShiftY = (1 - phoneEnter) * 85 + sceneExit * 72;
-      const compactFinal = window.innerWidth <= 380 && window.innerHeight <= 720 ? finalCopy : 0;
       const encast = 1 - .03 * Math.sin(Math.PI * range(p, .166, .192));
       const nfcShiftX = geometry.nfcDX * approach;
       const nfcShiftY = geometry.nfcDY * approach;
       const cardTransform = `translate3d(${Math.round(mix(geometry.fromX, geometry.toX + phoneShiftX + nfcShiftX, travel))}px, ${Math.round(mix(geometry.fromY, geometry.toY + phoneShiftY + nfcShiftY, travel))}px, 0) rotate(${mix(-7, 0, travel)}deg) scale(${mix(geometry.fromScale, geometry.toScale, travel) * encast * tapZoom})`;
       if (cardTransform !== lastCardTransform) { card.style.transform = cardTransform; lastCardTransform = cardTransform; }
-      const cardOpacity = String((1 - sceneExit) * (1 - compactFinal));
+      const cardOpacity = String(1 - sceneExit);
       if (cardOpacity !== lastCardOpacity) { card.style.opacity = cardOpacity; lastCardOpacity = cardOpacity; }
       setVar("--hero-opacity", String(1 - heroExit));
       setVar("--hero-y", `${-42 * heroExit}px`);
-      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit) * (1 - compactFinal)));
+      setVar("--phone-opacity", String(phoneEnter * (1 - sceneExit)));
       setVar("--phone-y", `${phoneShiftY}px`);
       setVar("--phone-x", `${phoneShiftX}px`);
       setVar("--middle-opacity", String(middleCopy));
@@ -318,7 +317,7 @@ export default function IntroScrollStory() {
       <div className="m-story-hero"><Hero /></div>
       <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
       <div className="m-story-message m-story-message-middle"><span>TARJETA DIGITAL</span><h2>Sus beneficios,<br />en el celular.</h2><p>Consultan sus sellos, beneficios y progreso desde el celular. Guardan la tarjeta una vez y la tienen lista para la próxima visita.</p></div>
-      <div className="m-story-message m-story-message-final"><span>SIEMPRE DISPONIBLE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Sus sellos, recompensas y progreso quedan guardados en un mismo lugar, sin tener que registrarse cada vez que vuelven.</p></div>
+      <div className="m-story-message m-story-message-final"><span>SIEMPRE DISPONIBLE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Sus sellos y recompensas quedan juntos. Vuelven y siguen sumando.</p></div>
       <div className="m-story-message m-story-message-nfc"><span>TOQUE NFC</span><h2>Fácil para ellos.<br /><em>Fácil para vos.</em></h2><p>Cada compra puede sumar un sello, sin apps para descargar ni pasos complicados.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock} stamps={nfc.stamps}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet><div className={`m-heart-burst ${nfc.party ? "go" : ""}`} aria-hidden="true">{BURST.map((h, i) => <span key={i} style={{ "--tx": `${h.x}px`, "--ty": `${h.y}px`, "--rr": `${h.r}deg`, "--pd": `${h.d}s`, "--ps": `${h.s}px`, color: h.c } as CSSProperties}><Heart size={h.s} fill="currentColor" strokeWidth={1.5} /></span>)}</div></div>
       <div ref={movingCard} className={`m-story-moving-card ${nfc.done ? "is-complete" : ""}`}><LoyaltyCard stamps={nfc.stamps} maxStamps={10} /></div>

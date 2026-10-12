@@ -164,6 +164,11 @@
   .m-story-message { top: 74px; }
   .m-story-phone { bottom: 2%; }
 }
+@media (max-width: 520px) {
+  .m-story-message-final { top: 14%; }
+  .m-story-message-final h2 { font-size: clamp(36px, 9.5vw, 48px); }
+  .m-story-message p { max-width: min(50vw, 190px); }
+}
 @media (prefers-reduced-motion: reduce) {
   .m-intro-story { height: auto; }
   .m-story-stage { position: relative; height: auto; min-height: 100svh; overflow: hidden; padding: 120px 7% 55px; }
