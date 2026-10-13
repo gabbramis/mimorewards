@@ -139,17 +139,17 @@
   .m-wallet-under-card strong { font-size: 10px; }
   .m-wallet-home { width: 36px; height: 2px; bottom: 4px; }
   .m-story-scroll-cue { display: none; }
-  .m-story-message { left: 7%; top: 18%; width: 86%; }
+  .m-story-message { left: 7%; top: 21%; width: 86%; }
   .m-story-message h2 { font-size: clamp(42px, 11.5vw, 62px); }
   .m-story-message p { max-width: min(80vw, 330px); margin-top: 16px; font-size: 16px; }
   .m-graphic-heart-one { width: 33vw; top: 12%; right: -10%; }
   .m-graphic-heart-two { width: 44vw; left: -16%; bottom: 2%; }
-  .m-graphic-heart-three { width: 32vw; left: auto; right: -8%; top: 51%; color: var(--m-red); }
+  .m-graphic-heart-three { width: 32vw; left: auto; right: -8%; top: 61%; color: var(--m-red); }
   .m-graphic-heart-four { width: 26vw; left: -10%; bottom: 25%; color: #ffc6c6; }
   .m-graphic-tube-top { width: 320px; left: -12%; top: 32%; transform: translate3d(0, calc(var(--graphic-shift) * .3), 0) rotate(17deg); }
   .m-graphic-tube-bottom { width: 450px; right: -55%; bottom: -4%; transform: translate3d(0, calc(var(--graphic-shift) * .65), 0) rotate(-18deg); }
   .m-graphic-small-heart { width: 13vw; top: 84%; right: 37%; }
-  .m-story-next-section { left: 7%; top: 34%; width: 85%; }
+  .m-story-next-section { left: 7%; top: 35.5%; width: 85%; }
   .m-story-next-section h2 { font-size: clamp(52px, 16vw, 96px); }
   .m-story-next-section p { max-width: 330px; font-size: 16px; margin-top: 20px; line-height: 1.5; }
   .m-next-heart { width: 52vw; right: -14%; opacity: .35; }
@@ -160,21 +160,22 @@
 @media (max-width: 380px), (max-height: 720px) and (max-width: 900px) {
   .m-story-hero-copy h1 { max-width: 100%; font-size: clamp(34px, 10vw, 49px); }
   .m-story-hero-copy > p { font-size: 14px; color: #463a33; }
-  .m-story-actions { gap: 4px; margin-top: 16px; }
-  .m-story-actions .m-button { gap: 8px; padding-inline: 8px; font-size: 11px; }
-  .m-landing .m-story-secondary-link { padding-inline: 6px; font-size: 11px; }
+  .m-story-actions { margin-top: 16px; }
   .m-story-scroll-cue { margin-top: 14px; }
 }
 @media (max-width: 520px) {
-  .m-story-message-final { top: 14%; }
+  .m-story-actions { gap: 4px; }
+  .m-story-actions .m-button { gap: 8px; padding-inline: 8px; font-size: 11px; }
+  .m-landing .m-story-secondary-link { padding-inline: 6px; font-size: 11px; }
+  .m-story-message-final { top: 18%; }
   .m-story-message-final h2 { font-size: clamp(36px, 9.5vw, 48px); }
 }
 @media (max-width: 900px) and (max-height: 720px) {
-  .m-story-message, .m-story-message-final { top: 92px; }
+  .m-story-message, .m-story-message-final { top: 110px; }
   .m-story-message h2, .m-story-message-final h2 { font-size: clamp(32px, 9vw, 42px); }
   .m-story-message p { margin-top: 12px; }
-  .m-story-phone { bottom: 2%; }
-  .m-story-next-section { top: 90px; }
+  .m-story-phone { bottom: 0; }
+  .m-story-next-section { top: clamp(120px, calc(50svh - 148px), 212px); }
   .m-story-next-section p { margin-top: 14px; }
   .m-next-actions { margin-top: 18px; }
   .m-story-next-section .m-button { min-height: 46px; }
