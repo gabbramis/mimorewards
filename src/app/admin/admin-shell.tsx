@@ -3,27 +3,40 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, Zap } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from "@/contexts/BusinessContext";
 
 const internalNavItems = [
+    ["/admin", "Dashboard", LayoutDashboard],
     ["/admin/negocios", "Negocios", Store],
+    ["/admin/crear-comercio", "Crear Comercio", PlusCircle],
     ["/admin/accesos", "Accesos", ShieldCheck],
-    ["/admin/metricas", "Métricas", LayoutDashboard],
+    ["/admin/metricas", "Métricas", BarChart3],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
 
 
 ] as const;
 
+const CREATOR_EMAIL = "creator@mimorewards.com";
+const CREATOR_ONLY_PATHS = ["/admin/crear-comercio", "/admin/accesos"];
+
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isCreator, setIsCreator] = useState(false);
     const { businessName: ctxName, logoUrl, primaryColor } = useBusiness();
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setIsCreator(data.user?.email?.toLowerCase() === CREATOR_EMAIL);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -36,10 +49,12 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
             [`/comercio/${businessId}/automatizaciones`, "Automatizaciones", Zap],
             [`/comercio/${businessId}/configuracion`, "Configuración", Sliders],
         ] as const
-        : internalNavItems;
+        : internalNavItems.filter(([href]) => isCreator || !(CREATOR_ONLY_PATHS as readonly string[]).includes(href));
 
     const getLinkClass = (path: string) => {
-        const isActive = pathname === path || pathname?.startsWith(path + '/');
+        const isActive = path === "/admin"
+            ? pathname === "/admin"
+            : (pathname === path || pathname?.startsWith(path + '/'));
         const baseClass = "m-admin-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
         if (isActive) {
             return `${baseClass} is-active font-medium`;
@@ -52,7 +67,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
             {sidebarOpen && <button className="m-admin-backdrop" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)} />}
             <aside className={`m-admin-sidebar flex flex-col ${sidebarOpen ? "is-open" : ""}`}>
                 <div className="m-admin-brand-row flex items-center justify-between">
-                    <Link href={mode === "merchant" && businessId ? `/comercio/${businessId}/metricas` : "/admin/metricas"} className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
+                    <Link href={mode === "merchant" && businessId ? `/comercio/${businessId}/metricas` : "/admin"} className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
                         <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
                         <span>{mode === "merchant" ? "Espacio de tu comercio" : "Panel interno de mimo"}</span>
                     </Link>

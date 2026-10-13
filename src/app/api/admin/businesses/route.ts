@@ -45,21 +45,38 @@ async function ensureBusinessTag(supabase: any, business: any) {
   if (tagError) throw tagError;
   if (existingTag) return existingTag;
 
-  const desiredNfcId = slugify(business.slug || business.name);
-  const { data: conflictingTag } = await supabase.from("nfc_tags").select("nfc_id").eq("nfc_id", desiredNfcId).maybeSingle();
-  const nfcId = conflictingTag ? `${desiredNfcId}-${crypto.randomUUID().replaceAll("-", "").slice(0, 4)}` : desiredNfcId;
-  const { data: createdTag, error: createError } = await supabase
-    .from("nfc_tags")
-    .insert({
-      nfc_id: nfcId,
-      business_id: business.id,
-      label: `Soporte principal · ${business.name}`,
-      active: true,
-    })
-    .select("nfc_id, active")
-    .single();
-  if (createError || !createdTag) throw createError || new Error("No se pudo crear el NFC del negocio.");
-  return createdTag;
+  const baseNfcId = slugify(business.slug || business.name);
+  const shortId = () => crypto.randomUUID().replaceAll("-", "").slice(0, 4);
+
+  // Intenta con el id base y, ante un conflicto de unicidad (23505, p. ej. por
+  // requests concurrentes), reintenta con un sufijo aleatorio.
+  let lastError: any = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const nfcId = attempt === 0 ? baseNfcId : `${baseNfcId}-${shortId()}`;
+    const { data: createdTag, error: createError } = await supabase
+      .from("nfc_tags")
+      .insert({
+        nfc_id: nfcId,
+        business_id: business.id,
+        label: `Soporte principal · ${business.name}`,
+        active: true,
+      })
+      .select("nfc_id, active")
+      .single();
+    if (!createError && createdTag) return createdTag;
+    lastError = createError;
+    if (createError?.code !== "23505") break;
+
+    // Si otro request ya creó el tag de este negocio, usarlo.
+    const { data: raceTag } = await supabase
+      .from("nfc_tags")
+      .select("nfc_id, active")
+      .eq("business_id", business.id)
+      .limit(1)
+      .maybeSingle();
+    if (raceTag) return raceTag;
+  }
+  throw lastError || new Error("No se pudo crear el NFC del negocio.");
 }
 
 export async function GET(request: Request) {
@@ -81,7 +98,8 @@ export async function GET(request: Request) {
         const { data: updated } = await supabase.from("businesses").update({ slug }).eq("id", current.id).select("id, slug, name, logo_url, reward_target, reward_description, active").single();
         if (updated) current = updated;
       }
-      const tag = current.nfc_tags?.[0] || await ensureBusinessTag(supabase, current);
+      // Solo lectura: NO se crean tags al listar. Se crean al guardar el negocio (POST/PUT).
+      const tag = current.nfc_tags?.[0] || null;
       return withLinks(request, current, tag);
     }));
     return NextResponse.json({ businesses });
