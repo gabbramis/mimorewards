@@ -60,9 +60,11 @@ export default function IntroScrollStory() {
     let anchorTimer: ReturnType<typeof setTimeout> | null = null;
     let anchorNavigation = false;
     let touchStart: { x: number; y: number } | null = null;
+    let lastProgress: number | null = null;
     let geometry: { rootY: number; distance: number; fromX: number; fromY: number; fromScale: number; toX: number; toY: number; toScale: number; seedScale: number; coverScale: number; nfcDX: number; nfcDY: number } | null = null;
 
     const measure = () => {
+      lastProgress = null;
       const rootBox = story.getBoundingClientRect();
       const stageBox = scene.getBoundingClientRect();
       const startBox = start.getBoundingClientRect();
@@ -111,6 +113,9 @@ export default function IntroScrollStory() {
       frame = 0;
       if (!geometry || media.matches) return;
       const p = clamp((window.scrollY - geometry.rootY) / geometry.distance);
+      // Once outside the story, scrolling the landing needs no scene updates.
+      if (p === lastProgress) return;
+      lastProgress = p;
       const heroExit = ease(range(p, .010, .188));
       const phoneEnter = ease(range(p, .065, .182));
       const travel = ease(range(p, .026, .182));
@@ -278,6 +283,8 @@ export default function IntroScrollStory() {
     observer.observe(scene);
     observer.observe(start);
     observer.observe(device);
+    const heroCopy = scene.querySelector(".m-story-hero-copy");
+    if (heroCopy) observer.observe(heroCopy);
     if (stand.current) observer.observe(stand.current);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -314,16 +321,18 @@ export default function IntroScrollStory() {
   return <section ref={root} className={`m-intro-story ${ready ? "is-animated" : ""}`} aria-label="Del soporte NFC a la tarjeta digital mimo">
     <div ref={stage} className="m-story-stage">
       <MimoGraphicElements />
-      <div className="m-story-hero"><Hero /></div>
-      <div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div>
-      <div className="m-story-message m-story-message-middle"><span>TARJETA DIGITAL</span><h2>Sus beneficios,<br />en el celular.</h2><p>Consultan sus sellos, beneficios y progreso desde el celular. Guardan la tarjeta una vez y la tienen lista para la próxima visita.</p></div>
-      <div className="m-story-message m-story-message-final"><span>SIEMPRE DISPONIBLE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Sus sellos y recompensas quedan juntos. Vuelven y siguen sumando.</p></div>
-      <div className="m-story-message m-story-message-nfc"><span>TOQUE NFC</span><h2>Fácil para ellos.<br /><em>Fácil para vos.</em></h2><p>Cada compra puede sumar un sello, sin apps para descargar ni pasos complicados.</p></div>
+      <div className="m-story-initial-layout">
+        <div className="m-story-hero"><Hero /></div>
+        <div className="m-story-card-space"><div ref={heroSlot} className="m-story-hero-slot"><div className="m-story-fallback"><LoyaltyCard stamps={4} maxStamps={10} /></div></div></div>
+      </div>
+      <div className="m-story-message m-story-message-middle"><span>TARJETA DIGITAL</span><h2>Sus beneficios,<br />en el celular.</h2><p>Sus sellos y su próxima recompensa, juntos en una tarjeta digital. Sin descargar otra app.</p></div>
+      <div className="m-story-message m-story-message-final"><span>SIEMPRE DISPONIBLE</span><h2>Tu programa de fidelización, <em>siempre a mano.</em></h2><p>Una tarjeta que se queda con ellos. Y un motivo para volver a tu comercio.</p></div>
+      <div className="m-story-message m-story-message-nfc"><span>TOQUE NFC</span><h2>Fácil para ellos.<br /><em>Fácil para vos.</em></h2><p>Con cada compra, un toque suma un sello. Cada sello los acerca a su próximo mimo.</p></div>
       <div ref={phone} className="m-story-phone"><PhoneWallet dockRef={dock} stamps={nfc.stamps}><div className="m-story-dock-placeholder"><LoyaltyCard stamps={4} maxStamps={10} /></div></PhoneWallet><div className={`m-heart-burst ${nfc.party ? "go" : ""}`} aria-hidden="true">{BURST.map((h, i) => <span key={i} style={{ "--tx": `${h.x}px`, "--ty": `${h.y}px`, "--rr": `${h.r}deg`, "--pd": `${h.d}s`, "--ps": `${h.s}px`, color: h.c } as CSSProperties}><Heart size={h.s} fill="currentColor" strokeWidth={1.5} /></span>)}</div></div>
       <div ref={movingCard} className={`m-story-moving-card ${nfc.done ? "is-complete" : ""}`}><LoyaltyCard stamps={nfc.stamps} maxStamps={10} /></div>
       <div ref={stand} className={`m-story-stand ${nfc.tap ? "is-tapping" : ""}`}><NfcStand /><div className="m-nfc-rings" aria-hidden="true"><span /><span /><span /></div></div>
       <div className="m-story-red-wash" aria-hidden="true" />
-      <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>FIDELIZACIÓN PARA TU COMERCIO</span><h2>Hacé que<br />vuelvan.</h2><p>Un kit con soporte NFC, tarjeta digital y un panel para seguir clientes, visitas, sellos y recompensas.</p><div className="m-next-actions"><CTA href={demoHref}>Agendar una demo</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Tarjeta digital para tus clientes</span></div></div>
+      <div className="m-story-next-section"><BrandHeart className="m-next-heart" /><span>FIDELIZACIÓN PARA TU COMERCIO</span><h2>Hacé que<br />vuelvan.</h2><p>Convertí cada compra en una próxima visita, con un programa de sellos hecho para tu comercio.</p><div className="m-next-actions"><CTA href={demoHref}>Agendar una demo</CTA></div><div className="m-next-proof"><span>Sin app para descargar</span><span>Tarjeta digital para tus clientes</span></div></div>
       <div className="m-story-exit-wave" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path className="m-wave-front" d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>
     </div>
     <span id="como-funciona" className="m-story-legacy-anchor" />

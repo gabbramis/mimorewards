@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUpRight, Coffee, Gift, Heart } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function Brand({ light = false }: { light?: boolean }) {
-  return <span className={`m-brand ${light ? "m-brand-light" : ""}`}><Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" /></span>;
+  return <span className={`m-brand ${light ? "m-brand-light" : ""}`}><Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="mimo rewards" /></span>;
 }
 
 export function Reveal({ children, className = "" }: { children: ReactNode; className?: string }) {

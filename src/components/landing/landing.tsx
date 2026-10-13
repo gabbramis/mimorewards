@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Heart, Menu, MessageCircle, Plus, X } from "lucide-react";
 import { Brand, CTA, Eyebrow, Reveal } from "./ui";
@@ -65,6 +65,21 @@ const faq = [
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [legal, setLegal] = useState<"privacy" | "terms" | null>(null);
+  useEffect(() => {
+    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    // A reload starts the story again; direct section links and Back keep working.
+    if (navigation?.type !== "reload") return;
+    const previousRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+    if (location.hash) history.replaceState(history.state, "", location.pathname + location.search);
+    const resetScroll = () => window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    resetScroll();
+    window.addEventListener("pageshow", resetScroll, { once: true });
+    return () => {
+      window.removeEventListener("pageshow", resetScroll);
+      history.scrollRestoration = previousRestoration;
+    };
+  }, []);
   return <div className="m-landing" id="inicio">
     <a className="m-skip-link" href="#contenido">Ir al contenido</a>
 <header className="m-header m-story-header"><div className="m-container m-nav"><a href="#inicio" aria-label="mimo rewards, inicio"><Brand /></a><nav className="m-desktop-nav" aria-label="Navegación principal">{navLinks.map(([label, id]) => <a href={`#${id}`} key={id}>{label}</a>)}</nav><div className="m-nav-actions"><CTA href={demoHref}>Agendar una demo</CTA><button className="m-menu-toggle" aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={menuOpen} aria-controls="m-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></div><nav id="m-mobile-nav" className="m-mobile-nav" hidden={!menuOpen} aria-label="Navegación móvil" onKeyDown={e => { if (e.key === "Escape") { setMenuOpen(false); document.querySelector<HTMLButtonElement>(".m-menu-toggle")?.focus(); } }}>{navLinks.map(([label, id]) => <a href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}>{label}<ArrowUpRight size={16} /></a>)}<Link href="/caja">Terminal Web de Caja</Link><Link href="/login">Panel de Admin (CRM)</Link></nav></header>

@@ -25,7 +25,7 @@ export default function LoyaltyCard({
   return (
     <div className={`m-story-card ${className}`} role="img" aria-label={`Tarjeta de fidelización mimo de ${label}. ${filled} de ${total} sellos. ${unlocked ? "Recompensa disponible" : `Próxima recompensa: ${reward}`}.`}>
       <div className="m-story-card-top">
-        <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="" aria-hidden="true" />
+        <Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="" aria-hidden="true" />
         <span>TARJETA DE BENEFICIOS</span>
       </div>
       <div className="m-story-card-main">
