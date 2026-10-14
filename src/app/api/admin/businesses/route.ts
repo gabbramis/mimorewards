@@ -143,7 +143,16 @@ export async function PUT(request: Request) {
     const name = String(body.name || "").trim();
     if (!body.id || !name) return NextResponse.json({ error: "ID y nombre son obligatorios." }, { status: 400 });
 
-    const { data: existing } = await supabase.from("businesses").select("slug").eq("id", body.id).maybeSingle();
+    const { data: existing, error: existingError } = await supabase.from("businesses").select("slug, reward_target, reward_description").eq("id", body.id).maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return NextResponse.json({ error: 'El negocio no existe.' }, { status: 404 });
+    const nextTarget = Number(body.reward_target) || 10;
+    const nextReward = String(body.reward_description || 'Un beneficio gratis');
+    if (nextTarget !== (existing.reward_target || 10) || nextReward !== (existing.reward_description || 'Un beneficio gratis')) {
+      const { count, error: countError } = await supabase.from('customers').select('id', { count: 'exact', head: true }).eq('business_id', body.id);
+      if (countError) throw countError;
+      if ((count || 0) > 0) return NextResponse.json({ error: 'La meta y el premio de un negocio con clientes requieren una migración separada.' }, { status: 409 });
+    }
     const slug = existing?.slug || await uniqueSlug(supabase, name, body.id);
     const { data: business, error } = await supabase
       .from("businesses")

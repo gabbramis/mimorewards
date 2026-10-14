@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { AlertTriangle, Check, Copy, Edit2, ExternalLink, Loader2, Plus, Power, QrCode, Save, Search, Store, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, Edit2, ExternalLink, Loader2, Plus, Power, QrCode, Search, Store, Trash2, X } from "lucide-react";
 
 type Business = {
   id: string;
@@ -17,16 +17,6 @@ type Business = {
   nfcUrl?: string | null;
 };
 
-type BusinessForm = {
-  name: string;
-  logo_url: string;
-  reward_target: number;
-  reward_description: string;
-  active: boolean;
-};
-
-const emptyForm: BusinessForm = { name: "", logo_url: "", reward_target: 10, reward_description: "", active: true };
-
 function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
@@ -38,14 +28,10 @@ function initials(name: string) {
 export default function NegociosPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<Business | null>(null);
-  const [form, setForm] = useState<BusinessForm>(emptyForm);
   const [copiedId, setCopiedId] = useState("");
   const [qrBusiness, setQrBusiness] = useState<Business | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [error, setError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ type: "toggle" | "delete"; business: Business } | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -96,37 +82,6 @@ export default function NegociosPage() {
 
     return () => { cancelled = true; };
   }, [qrBusiness]);
-
-  function openEdit(business: Business) {
-    setEditing(business);
-    setError("");
-    setForm({ name: business.name, logo_url: business.logo_url || "", reward_target: business.reward_target || 10, reward_description: business.reward_description || "", active: business.active !== false });
-    setShowModal(true);
-  }
-
-  async function saveBusiness() {
-    if (isSaving) return;
-    setIsSaving(true);
-    setError("");
-    try {
-      const response = await fetch("/api/admin/businesses", {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editing ? { ...form, id: editing.id } : form),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        setError(payload.error || "No se pudo guardar el negocio.");
-        return;
-      }
-      await loadBusinesses();
-      setShowModal(false);
-    } catch {
-      setError("No se pudo guardar el negocio. Probá nuevamente.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   async function toggleBusiness(business: Business) {
     const response = await fetch("/api/admin/businesses", {
@@ -213,7 +168,7 @@ export default function NegociosPage() {
         </div>
       </div>
 
-      {error && !showModal && <div className="mb-5 rounded-xl bg-red-50 border border-red-100 text-red-700 px-4 py-3 text-sm font-semibold">{error}</div>}
+      {error && <div className="mb-5 rounded-xl bg-red-50 border border-red-100 text-red-700 px-4 py-3 text-sm font-semibold">{error}</div>}
 
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" size={32} /></div>
@@ -281,27 +236,13 @@ export default function NegociosPage() {
 
                 {/* Acciones */}
                 <div className="flex gap-1 md:justify-end">
-                  <button onClick={() => openEdit(business)} className={iconButton} title="Editar" aria-label="Editar"><Edit2 size={16} /></button>
+                  <Link href={`/admin/negocios/${business.id}`} className={iconButton} title={`Editar ${business.name}`} aria-label={`Editar ${business.name}`}><Edit2 size={16} /></Link>
                   <button onClick={() => setConfirmAction({ type: "toggle", business })} className={iconButton} title={business.active ? "Desactivar" : "Activar"} aria-label={business.active ? "Desactivar" : "Activar"}><Power size={16} /></button>
                   <button onClick={() => setConfirmAction({ type: "delete", business })} className={iconButton} title="Eliminar" aria-label="Eliminar"><Trash2 size={16} /></button>
                 </div>
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
-            <div className="flex justify-between items-center"><h2 className="text-xl font-bold text-gray-900">{editing ? "Editar negocio" : "Nuevo negocio"}</h2><button onClick={() => setShowModal(false)} disabled={isSaving} className="text-gray-400 hover:text-gray-600 disabled:opacity-40 p-1.5 rounded-lg hover:bg-gray-100"><X size={20} /></button></div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Nombre del negocio<input disabled={isSaving} type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="mt-1.5 w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 disabled:opacity-60" placeholder="Ej: El Gran Café" /></label>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">URL del logo<input disabled={isSaving} type="text" value={form.logo_url || ""} onChange={e => setForm({ ...form, logo_url: e.target.value })} className="mt-1.5 w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 disabled:opacity-60" placeholder="Opcional" /></label>
-            <div className="grid grid-cols-2 gap-4"><label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Sello objetivo<input disabled={isSaving} type="number" min={1} value={form.reward_target} onChange={e => setForm({ ...form, reward_target: Number(e.target.value) })} className="mt-1.5 w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 disabled:opacity-60" /></label><label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Recompensa<input disabled={isSaving} type="text" value={form.reward_description} onChange={e => setForm({ ...form, reward_description: e.target.value })} className="mt-1.5 w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 disabled:opacity-60" placeholder="Ej: Un café gratis" /></label></div>
-            {editing && <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><input disabled={isSaving} type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} /> Comercio activo</label>}
-            {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-            <button onClick={saveBusiness} disabled={isSaving} className="w-full bg-[#FF1F2D] text-white py-3 rounded-xl font-bold hover:bg-[#e01826] disabled:opacity-60 transition shadow-sm mt-2 flex items-center justify-center gap-2">{isSaving ? <><Loader2 size={18} className="animate-spin" /> Guardando…</> : <><Save size={18} /> Guardar y cerrar</>}</button>
-          </div>
         </div>
       )}
 

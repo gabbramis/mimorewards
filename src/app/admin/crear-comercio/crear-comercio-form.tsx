@@ -3,11 +3,11 @@
 import { useRef, useState, useTransition, type DragEvent } from "react";
 import { Building2, Camera, Gift, KeyRound, Loader2, Mail, Minus, Plus, Rocket, Store, Trash2, Stamp } from "lucide-react";
 import { registerNewBusiness, type RegisterBusinessResult } from "@/app/actions/business";
+import { BusinessDesign, emptyDesign } from '@/components/admin/BusinessDesign';
 
 const MAX_LOGO_BYTES = 800 * 1024;
-const MIN_STAMPS = 1;
-const MAX_STAMPS = 100;
-const DEFAULT_COLOR = "#FF1F2D";
+const MIN_STAMPS = 4;
+const MAX_STAMPS = 15;
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-[#FF1F2D] focus:ring-2 focus:ring-red-100 disabled:opacity-60";
@@ -26,7 +26,8 @@ export default function CrearComercioForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [stamps, setStamps] = useState(10);
   const [active, setActive] = useState(true);
-  const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR);
+  const [design, setDesign] = useState(emptyDesign);
+  const [rewardDescription, setRewardDescription] = useState('');
 
   function selectLogo(file: File | undefined) {
     setLogoError("");
@@ -68,7 +69,13 @@ export default function CrearComercioForm() {
     if (logoFile) formData.set("logo", logoFile);
     formData.set("rewardTarget", String(stamps));
     formData.set("active", String(active));
-    formData.set("primaryColor", primaryColor);
+    formData.set("primaryColor", design.primaryColor);
+    formData.set("cardTextColor", design.textColor);
+    formData.set("cardAccentColor", design.accentColor);
+    formData.set("stampSource", design.source || '');
+    formData.set("stampCatalogId", design.catalogId || '');
+    formData.set("stampEffect", JSON.stringify(design.effect));
+    if (design.customFile) formData.set("stampFile", design.customFile);
 
     startTransition(async () => {
       try {
@@ -79,7 +86,8 @@ export default function CrearComercioForm() {
           removeLogo();
           setStamps(10);
           setActive(true);
-          setPrimaryColor(DEFAULT_COLOR);
+          setDesign(emptyDesign);
+          setRewardDescription('');
         }
       } catch {
         setResult({ success: false, error: "Ocurrió un error inesperado. Intentá de nuevo." });
@@ -89,14 +97,14 @@ export default function CrearComercioForm() {
 
   return (
     <form ref={formRef} action={handleSubmit} className="space-y-6">
-      {/* Datos del local */}
+      {/* Datos del negocio */}
       <section className={cardClass} aria-labelledby="datos-local">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-[#FF1F2D]">
             <Store size={20} />
           </div>
           <div>
-            <h2 id="datos-local" className="text-base font-bold text-gray-900">Datos del local</h2>
+            <h2 id="datos-local" className="text-base font-bold text-gray-900">Datos del negocio</h2>
             <p className="text-xs text-gray-500">Identidad del comercio y acceso del dueño.</p>
           </div>
         </div>
@@ -225,29 +233,6 @@ export default function CrearComercioForm() {
               </div>
             </div>
 
-            {/* Selector de color de marca */}
-            <div>
-              <label htmlFor="primaryColor" className={labelClass}>Color principal de la marca</label>
-              <div className="flex items-center gap-3">
-                <input
-                  id="primaryColor"
-                  name="primaryColor"
-                  type="color"
-                  value={primaryColor}
-                  disabled={isPending}
-                  onChange={(e) => setPrimaryColor(e.target.value.toUpperCase())}
-                  className="h-11 w-14 cursor-pointer rounded-xl border border-gray-200 bg-white p-1 shadow-sm transition hover:border-gray-400 disabled:opacity-60"
-                />
-                <span className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs font-semibold text-gray-700">
-                  {primaryColor}
-                </span>
-                <span
-                  className="h-4 w-4 rounded-full border border-black/10 shadow-sm"
-                  style={{ backgroundColor: primaryColor }}
-                  aria-hidden="true"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -282,6 +267,8 @@ export default function CrearComercioForm() {
         </div>
       </section>
 
+      <BusinessDesign value={design} onChange={setDesign} logoPreview={logoPreview} rewardTarget={stamps} rewardDescription={rewardDescription} disabled={isPending} />
+
       {/* Programa de sellos */}
       <section className={cardClass} aria-labelledby="programa-sellos">
         <div className="mb-5 flex items-center gap-3">
@@ -289,7 +276,7 @@ export default function CrearComercioForm() {
             <Stamp size={20} />
           </div>
           <div>
-            <h2 id="programa-sellos" className="text-base font-bold text-gray-900">Programa de sellos</h2>
+            <h2 id="programa-sellos" className="text-base font-bold text-gray-900">Programa de fidelización</h2>
             <p className="text-xs text-gray-500">Definí cuánto cuesta ganar el premio.</p>
           </div>
         </div>
@@ -338,6 +325,8 @@ export default function CrearComercioForm() {
                 id="rewardDescription"
                 name="rewardDescription"
                 type="text"
+                value={rewardDescription}
+                onChange={e => setRewardDescription(e.target.value)}
                 disabled={isPending}
                 className={inputClass}
                 placeholder='Ej: "Un café gratis"'

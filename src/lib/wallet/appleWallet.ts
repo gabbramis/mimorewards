@@ -17,6 +17,8 @@ type AppleCard = {
   targetStamps: number;
   rewardDescription: string;
   primaryColor?: string | null;
+  textColor?: string | null;
+  accentColor?: string | null;
 };
 
 function certificate(envName: string, fileName: string) {
@@ -77,8 +79,8 @@ export function createAppleWalletPass(card: AppleCard) {
         description: `Tarjeta de beneficios de ${card.businessName}`,
         logoText: card.businessName,
         backgroundColor: walletColor(card.primaryColor),
-        foregroundColor: "rgb(255, 255, 255)",
-        labelColor: "rgb(255, 240, 240)",
+        foregroundColor: walletColor(card.textColor || '#FFFFFF'),
+        labelColor: walletColor(card.accentColor || '#FFF0F0'),
         storeCard: {
           headerFields: [],
           primaryFields: [{ key: "stamps", label: "SELLOS", value: `${card.currentStamps} / ${card.targetStamps}` }],

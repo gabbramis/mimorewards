@@ -2,6 +2,9 @@
 
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { createClient as createSessionClient } from "@/lib/supabase/server";
+import { availableStamp } from '@/lib/stamp-catalog';
+import { validateEffect } from '@/lib/stamp-image';
+import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
 
 export type RegisterBusinessResult = { success: boolean; error?: string };
 
@@ -50,8 +53,8 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   if (!businessName || !email || !password) {
     return { success: false, error: "Todos los campos son obligatorios." };
   }
-  if (!Number.isFinite(rewardTarget) || rewardTarget < 1 || rewardTarget > 100) {
-    return { success: false, error: "La meta de sellos debe ser un número entre 1 y 100." };
+  if (!Number.isFinite(rewardTarget) || rewardTarget < 4 || rewardTarget > 15) {
+    return { success: false, error: "La meta de sellos debe ser un número entre 4 y 15." };
   }
   if (logoFile) {
     if (!logoFile.type.startsWith("image/")) {
@@ -60,6 +63,26 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     if (logoFile.size > MAX_LOGO_BYTES) {
       return { success: false, error: "El logo no puede pesar más de 800 KB." };
     }
+  }
+
+  const textColor = String(formData.get('cardTextColor') || '#FFFFFF');
+  const accentColor = String(formData.get('cardAccentColor') || '#FFFFFF');
+  if (![textColor, accentColor].every(value => /^#[0-9a-f]{6}$/i.test(value))) return { success: false, error: 'Los colores de la tarjeta no son válidos.' };
+  const stampSource = String(formData.get('stampSource') || '');
+  const stampCatalogId = String(formData.get('stampCatalogId') || '');
+  let effect;
+  try { effect = validateEffect(JSON.parse(String(formData.get('stampEffect') || '{}'))); } catch { effect = validateEffect(null); }
+  const selected = stampSource === 'collection' ? availableStamp(stampCatalogId) : null;
+  if (stampSource === 'collection' && !selected) return { success: false, error: 'Este motivo aún no tiene sus dos ilustraciones finales.' };
+  if (stampSource && !['collection', 'custom', 'logo'].includes(stampSource)) return { success: false, error: 'Origen del sello inválido.' };
+  const stampEntry = formData.get('stampFile');
+  const stampFile = stampEntry instanceof File && stampEntry.size > 0 ? stampEntry : null;
+  const imageFile = stampSource === 'logo' ? logoFile : stampSource === 'custom' ? stampFile : null;
+  if ((stampSource === 'logo' || stampSource === 'custom') && !imageFile) return { success: false, error: 'Subí un PNG transparente para usarlo como sello.' };
+  let preparedStamp: Awaited<ReturnType<typeof prepareStamp>> | null = null;
+  if (imageFile) {
+    try { preparedStamp = await prepareStamp(imageFile, effect); }
+    catch (error) { return { success: false, error: error instanceof Error ? error.message : 'No se pudo procesar el sello.' }; }
   }
 
   const baseSlug = slugify(businessName);
@@ -105,6 +128,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   // 5. Guardado real del logo en Supabase Storage (sin URLs random)
   let logoPath: string | null = null;
   let logoUrl: string | null = null;
+  let stampPaths: string[] = [];
   if (logoFile) {
     const ext = (logoFile.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
     logoPath = `${slug}-${Date.now()}.${ext || "png"}`;
@@ -130,6 +154,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     if (logoPath) {
       await supabaseAdmin.storage.from("logos").remove([logoPath]);
     }
+    if (stampPaths.length) await supabaseAdmin.storage.from('logos').remove(stampPaths);
     await supabaseAdmin.auth.admin.deleteUser(userId);
   };
 
@@ -144,6 +169,13 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
       active: isActive,
       logo_url: logoUrl,
       primary_color: primaryColor,
+      card_text_color: textColor.toUpperCase(),
+      card_accent_color: accentColor.toUpperCase(),
+      stamp_source: stampSource || null,
+      stamp_catalog_id: selected?.id || null,
+      stamp_completed_url: selected?.completed || null,
+      stamp_pending_url: selected?.pending || null,
+      stamp_pending_effect: preparedStamp ? effect : null,
     })
     .select("id")
     .single();
@@ -153,6 +185,18 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     return { success: false, error: businessError?.message ?? "No se pudo crear el comercio." };
   }
   const businessId = business.id as string;
+
+  if (preparedStamp) {
+    try {
+      const stored = await storeStampPair(supabaseAdmin, businessId, preparedStamp);
+      stampPaths = stored.paths;
+      const { error: designError } = await supabaseAdmin.from('businesses').update({ stamp_completed_url: stored.completedUrl, stamp_pending_url: stored.pendingUrl }).eq('id', businessId);
+      if (designError) throw designError;
+    } catch (error) {
+      await rollback(businessId);
+      return { success: false, error: error instanceof Error ? error.message : 'No se pudo guardar el sello.' };
+    }
+  }
 
   // 7. Vincular usuario con el comercio
   const { error: memberError } = await supabaseAdmin
