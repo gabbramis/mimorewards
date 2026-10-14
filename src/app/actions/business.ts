@@ -6,6 +6,7 @@ import { createClient as createSessionClient } from "@/lib/supabase/server";
 export type RegisterBusinessResult = { success: boolean; error?: string };
 
 const SUPER_ADMIN_EMAIL = "creator@mimorewards.com";
+const MAX_LOGO_BYTES = 800 * 1024; // 800 KB
 
 function slugify(text: string): string {
   return text
@@ -19,7 +20,7 @@ function slugify(text: string): string {
 }
 
 export async function registerNewBusiness(formData: FormData): Promise<RegisterBusinessResult> {
-  // Verificación de sesión (cliente normal con cookies)
+  // 1. Verificación de sesión de superadmin
   const sessionClient = await createSessionClient();
   const {
     data: { user },
@@ -29,6 +30,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     return { success: false, error: "Acceso denegado: Privilegios insuficientes" };
   }
 
+  // 2. Extracción y validación de campos
   const businessName = String(formData.get("businessName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -36,6 +38,12 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   const rewardTarget = Math.floor(Number(formData.get("rewardTarget") ?? 10));
   const rewardDescription = String(formData.get("rewardDescription") ?? "").trim() || "Un beneficio gratis";
   const isActive = String(formData.get("active") ?? "true") !== "false";
+
+  // Color primario de marca (hex válido, fallback a #FF1F2D)
+  const rawColor = String(formData.get("primaryColor") ?? "").trim();
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor.toUpperCase() : "#FF1F2D";
+
+  // Archivo real de logo
   const logo = formData.get("logo");
   const logoFile = logo instanceof File && logo.size > 0 ? logo : null;
 
@@ -49,8 +57,8 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     if (!logoFile.type.startsWith("image/")) {
       return { success: false, error: "El logo debe ser una imagen." };
     }
-    if (logoFile.size > 900 * 1024) {
-      return { success: false, error: "El logo no puede pesar más de 900 KB." };
+    if (logoFile.size > MAX_LOGO_BYTES) {
+      return { success: false, error: "El logo no puede pesar más de 800 KB." };
     }
   }
 
@@ -69,7 +77,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Slug único: si ya existe, se agrega un sufijo numérico (cafe-central-1, -2, ...)
+  // 3. Generación de slug único para el negocio
   const { data: existingSlugs, error: slugError } = await supabaseAdmin
     .from("businesses")
     .select("slug")
@@ -83,7 +91,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     slug = `${baseSlug}-${n}`;
   }
 
-  // Paso 1: crear el usuario dueño
+  // 4. Crear usuario dueño en Supabase Auth
   const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
@@ -94,54 +102,93 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   }
   const userId = userData.user.id;
 
-  // Paso 2: crear el comercio
-  const { data: business, error: businessError } = await supabaseAdmin
-    .from("businesses")
-    .insert({ name: businessName, slug, reward_target: rewardTarget, reward_description: rewardDescription, active: isActive })
-    .select("id")
-    .single();
-  if (businessError || !business) {
-    await supabaseAdmin.auth.admin.deleteUser(userId); // rollback: sin usuario huérfano
-    return { success: false, error: businessError?.message ?? "No se pudo crear el comercio." };
-  }
-  const businessId = business.id as string;
-
-  // Paso 3: vincular usuario y comercio
-  const { error: memberError } = await supabaseAdmin
-    .from("business_members")
-    .insert({ user_id: userId, business_id: businessId, role: "merchant" });
-  if (memberError) {
-    // rollback: sin datos huérfanos
-    await supabaseAdmin.from("businesses").delete().eq("id", businessId);
-    await supabaseAdmin.auth.admin.deleteUser(userId);
-    return { success: false, error: memberError.message };
-  }
-
-  // Paso 4 (opcional): subir el logo y guardarlo en el comercio
+  // 5. Guardado real del logo en Supabase Storage (sin URLs random)
+  let logoPath: string | null = null;
+  let logoUrl: string | null = null;
   if (logoFile) {
     const ext = (logoFile.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const filePath = `${businessId}-${Date.now()}.${ext || "png"}`;
+    logoPath = `${slug}-${Date.now()}.${ext || "png"}`;
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from("logos")
-      .upload(filePath, logoFile, { upsert: true, contentType: logoFile.type });
+      .upload(logoPath, logoFile, { upsert: true, contentType: logoFile.type });
+
     if (uploadError) {
-      await supabaseAdmin.from("businesses").delete().eq("id", businessId);
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return { success: false, error: `No se pudo subir el logo: ${uploadError.message}` };
     }
 
-    const { data: publicUrl } = supabaseAdmin.storage.from("logos").getPublicUrl(filePath);
-    const { error: logoError } = await supabaseAdmin
-      .from("businesses")
-      .update({ logo_url: publicUrl.publicUrl })
-      .eq("id", businessId);
-    if (logoError) {
-      await supabaseAdmin.storage.from("logos").remove([filePath]);
+    const { data: publicUrlData } = supabaseAdmin.storage.from("logos").getPublicUrl(logoPath);
+    logoUrl = publicUrlData?.publicUrl || null;
+  }
+
+  // Función de rollback para evitar datos o archivos huérfanos si algún paso falla
+  const rollback = async (businessId?: string) => {
+    if (businessId) {
       await supabaseAdmin.from("businesses").delete().eq("id", businessId);
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-      return { success: false, error: logoError.message };
     }
+    if (logoPath) {
+      await supabaseAdmin.storage.from("logos").remove([logoPath]);
+    }
+    await supabaseAdmin.auth.admin.deleteUser(userId);
+  };
+
+  // 6. INSERT inicial en la tabla businesses con logo real y color de marca
+  const { data: business, error: businessError } = await supabaseAdmin
+    .from("businesses")
+    .insert({
+      name: businessName,
+      slug,
+      reward_target: rewardTarget,
+      reward_description: rewardDescription,
+      active: isActive,
+      logo_url: logoUrl,
+      primary_color: primaryColor,
+    })
+    .select("id")
+    .single();
+
+  if (businessError || !business) {
+    await rollback();
+    return { success: false, error: businessError?.message ?? "No se pudo crear el comercio." };
+  }
+  const businessId = business.id as string;
+
+  // 7. Vincular usuario con el comercio
+  const { error: memberError } = await supabaseAdmin
+    .from("business_members")
+    .insert({ user_id: userId, business_id: businessId, role: "merchant" });
+
+  if (memberError) {
+    await rollback(businessId);
+    return { success: false, error: memberError.message };
+  }
+
+  // 8. Generar el tag NFC automáticamente en el alta inicial (nfc_id = slug)
+  let nfcCreated = false;
+  let nfcError: string | undefined;
+
+  for (let attempt = 0; attempt < 5 && !nfcCreated; attempt++) {
+    const nfcId = attempt === 0 ? slug : `${slug}-${crypto.randomUUID().replaceAll("-", "").slice(0, 4)}`;
+    const { error: tagInsertError } = await supabaseAdmin.from("nfc_tags").insert({
+      nfc_id: nfcId,
+      business_id: businessId,
+      label: `Soporte principal · ${businessName}`,
+      active: true,
+    });
+
+    if (!tagInsertError) {
+      nfcCreated = true;
+    } else {
+      nfcError = tagInsertError.message;
+      if (tagInsertError.code !== "23505") break; // Si no es conflicto de unicidad, aborta reintentos
+    }
+  }
+
+  if (!nfcCreated) {
+    await supabaseAdmin.from("business_members").delete().eq("business_id", businessId);
+    await rollback(businessId);
+    return { success: false, error: `No se pudo crear el tag NFC: ${nfcError ?? "error desconocido"}` };
   }
 
   return { success: true };
