@@ -124,9 +124,53 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
   const [formData, setFormData] = useState<FormDataState>(emptyForm);
   const [phase, setPhase] = useState<"loading" | "register" | "recover" | "card" | "unavailable">("loading");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  async function downloadWalletPass() {
+    if (isDownloading || !customer) return;
+    setIsDownloading(true);
+    setError("");
+
+    try {
+      const fullName = `${customer.firstName} ${customer.lastName || ""}`.trim();
+      const response = await fetch("/api/wallet/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: fullName,
+          currentStamps: customer.currentStamps,
+          targetStamps: customer.targetStamps,
+          businessName: customer.businessName || context.businessName,
+          rewardDescription: customer.rewardDescription || context.rewardDescription,
+          logoUrl: context.businessLogo || customer.businessLogo || null,
+          qrMessage: customer.uniqueCode || customer.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error || "No se pudo generar la tarjeta de Apple Wallet.");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = "tarjeta-mimo.pkpass";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      console.error("Error descargando tarjeta Apple Wallet:", err);
+      setError(err?.message || "Ocurrió un error al descargar la tarjeta de Apple Wallet.");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -354,8 +398,28 @@ export default function NfcEntryPage({ params }: NfcPageProps) {
               {error && <div className="m-nfc-alert m-nfc-alert-error" role="alert">{error}</div>}
               {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
-              <div className="m-nfc-actions">
-                <Link className="m-nfc-wallet-button m-nfc-wallet-google" href={`/tarjeta/${customer.id}`}><Wallet size={18} /> Ver mi tarjeta y opciones de Wallet</Link>
+              <div className="m-nfc-actions flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={downloadWalletPass}
+                  disabled={isDownloading}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-black px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-neutral-900 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 size={18} className="m-nfc-spin text-white" />
+                      <span>Generando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wallet size={18} className="text-white" />
+                      <span>Agregar a Apple Wallet</span>
+                    </>
+                  )}
+                </button>
+                <Link className="m-nfc-wallet-button m-nfc-wallet-google" href={`/tarjeta/${customer.id}`}>
+                  <Wallet size={18} /> Ver más opciones de tarjeta
+                </Link>
               </div>
               <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>
             </div>

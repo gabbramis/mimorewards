@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Check, Gift, Heart, Wallet, Wifi } from "lucide-react";
+import { Check, Gift, Heart, Loader2, Wallet, Wifi } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 function Stamps({ current, target }: { current: number; target: number }) {
@@ -19,8 +19,50 @@ function Stamps({ current, target }: { current: number; target: number }) {
 export default function MobileCard({ initialCustomer, business, notice, googleWalletUrl, appleWalletReady }: { initialCustomer: any, business: any, notice?: string | null, googleWalletUrl?: string, appleWalletReady: boolean }) {
     const [currentStamps, setCurrentStamps] = useState(initialCustomer.current_stamps || 0);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
     const supabase = createClient();
     const targetStamps = business.reward_target || 10;
+
+    const downloadWalletPass = async () => {
+        if (isDownloading) return;
+        setIsDownloading(true);
+        try {
+            const fullName = `${initialCustomer.first_name} ${initialCustomer.last_name || ""}`.trim();
+            const response = await fetch("/api/wallet/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    customerName: fullName,
+                    currentStamps,
+                    targetStamps,
+                    businessName: business.name,
+                    rewardDescription: business.reward_description || "Premio de lealtad",
+                    logoUrl: business.logo_url || null,
+                    qrMessage: initialCustomer.unique_code || initialCustomer.id,
+                }),
+            });
+
+            if (!response.ok) {
+                const errJson = await response.json().catch(() => null);
+                throw new Error(errJson?.error || "No se pudo generar la tarjeta.");
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = downloadUrl;
+            a.download = "tarjeta-mimo.pkpass";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (err: any) {
+            console.error("Error al descargar tarjeta Apple Wallet:", err);
+            alert(err?.message || "Ocurrió un error al descargar la tarjeta de Apple Wallet.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     useEffect(() => {
         void fetch(`/api/customer-session/${encodeURIComponent(initialCustomer.id)}`);
@@ -86,9 +128,30 @@ export default function MobileCard({ initialCustomer, business, notice, googleWa
 
                         {notice && <div className="m-nfc-alert m-nfc-alert-success" role="status"><Check size={16} /> {notice}</div>}
 
-                        <div className="m-nfc-actions">
-                            {appleWalletReady && <a className="m-nfc-wallet-button" href={`/api/wallet/apple/${encodeURIComponent(initialCustomer.id)}`}><Wallet size={18} /> Agregar a Apple Wallet</a>}
-                            {googleWalletUrl && <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleGoogleWalletClick}><Wallet size={18} /> Guardar en Google Wallet</button>}
+                        <div className="m-nfc-actions flex flex-col gap-2.5">
+                            <button
+                                type="button"
+                                onClick={downloadWalletPass}
+                                disabled={isDownloading}
+                                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-black px-6 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-neutral-900 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75"
+                            >
+                                {isDownloading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin text-white" />
+                                        <span>Generando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Wallet size={18} className="text-white" />
+                                        <span>Agregar a Apple Wallet</span>
+                                    </>
+                                )}
+                            </button>
+                            {googleWalletUrl && (
+                                <button type="button" className="m-nfc-wallet-button m-nfc-wallet-google" onClick={handleGoogleWalletClick}>
+                                    <Wallet size={18} /> Guardar en Google Wallet
+                                </button>
+                            )}
                         </div>
                         <p className="m-nfc-bottom-note">Podés consultar tus sellos y beneficios cuando quieras desde tu celular.</p>
                     </div>

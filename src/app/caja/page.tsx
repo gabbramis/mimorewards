@@ -1,7 +1,9 @@
 "use client";
+
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
-import { Search, Camera, CreditCard, Send, CheckCircle2, User, Phone, Gift, AlertCircle, CameraOff } from "lucide-react";
+import { Search, Camera, CreditCard, Send, CheckCircle2, User, Phone, Gift, AlertCircle, CameraOff, QrCode } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export default function CashierTerminal() {
@@ -191,9 +193,18 @@ export default function CashierTerminal() {
         <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-xl overflow-hidden font-sans">
             <header className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
                 <h1 className="font-bold text-gray-800 text-lg">Caja / Terminal</h1>
-                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    Online
+                <div className="flex items-center gap-2">
+                    <Link
+                        href="/admin/caja"
+                        className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-[#FF1F2D] transition hover:bg-red-100"
+                    >
+                        <QrCode size={13} />
+                        <span>Ver QR Cliente</span>
+                    </Link>
+                    <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                        <CheckCircle2 size={14} />
+                        Online
+                    </div>
                 </div>
             </header>
             <main className="flex-1 p-6 flex flex-col gap-6">

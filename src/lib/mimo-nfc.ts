@@ -21,6 +21,25 @@ export async function findNfcTag(supabase: any, rawNfcId: string) {
     if (tag) return tag;
   }
 
+  // Fallback: si el parámetro recibido es el slug del comercio en lugar del nfc_id directo
+  for (const candidate of candidates) {
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("id")
+      .or(`slug.eq.${candidate},slug.ilike.${candidate}`)
+      .maybeSingle();
+    if (biz) {
+      const { data: tag } = await supabase
+        .from("nfc_tags")
+        .select("nfc_id, business_id, active")
+        .eq("business_id", biz.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (tag) return tag;
+    }
+  }
+
   return null;
 }
 

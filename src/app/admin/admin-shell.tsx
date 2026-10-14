@@ -4,20 +4,19 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap } from "lucide-react";
+import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap, QrCode } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from "@/contexts/BusinessContext";
 
 const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
+    ["/admin/caja", "Caja QR", QrCode],
     ["/admin/negocios", "Negocios", Store],
     ["/admin/crear-comercio", "Crear Comercio", PlusCircle],
     ["/admin/accesos", "Accesos", ShieldCheck],
     ["/admin/metricas", "Métricas", BarChart3],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
-
-
 ] as const;
 
 const CREATOR_EMAIL = "creator@mimorewards.com";

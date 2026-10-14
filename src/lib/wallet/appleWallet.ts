@@ -24,7 +24,14 @@ type AppleCard = {
 function certificate(envName: string, fileName: string) {
   const encoded = process.env[envName];
   if (encoded) return Buffer.from(encoded, "base64");
-  return readFileSync(join(process.cwd(), ".secrets", "apple-wallet", fileName));
+
+  const certsPath = join(process.cwd(), "certs", fileName);
+  if (existsSync(certsPath)) return readFileSync(certsPath);
+
+  const legacyPath = join(process.cwd(), ".secrets", "apple-wallet", fileName);
+  if (existsSync(legacyPath)) return readFileSync(legacyPath);
+
+  throw new Error(`Certificado "${fileName}" no encontrado en certs/`);
 }
 
 function walletColor(value?: string | null) {
@@ -61,8 +68,11 @@ export function appleWalletConfigured() {
   }
   if (process.env.NODE_ENV === "production") return false;
 
-  return ["signerCert.pem", "mimo-wallet-private-key.pem", "wwdrg4.pem"]
-    .every((fileName) => existsSync(join(process.cwd(), ".secrets", "apple-wallet", fileName)));
+  const requiredFiles = ["signerCert.pem", "mimo-wallet-private-key.pem", "wwdrg4.pem"];
+  const hasInCerts = requiredFiles.every((fileName) => existsSync(join(process.cwd(), "certs", fileName)));
+  if (hasInCerts) return true;
+
+  return requiredFiles.every((fileName) => existsSync(join(process.cwd(), ".secrets", "apple-wallet", fileName)));
 }
 
 export function createAppleWalletPass(card: AppleCard) {
