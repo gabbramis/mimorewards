@@ -4,18 +4,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export type AppRole = "superadmin" | "merchant" | "staff";
 
 export async function getCurrentAccess() {
-  const sessionClient = await createClient();
-  const { data: { user } } = await sessionClient.auth.getUser();
-  if (!user) return { user: null, role: null as AppRole | null };
+  try {
+    const sessionClient = await createClient();
+    const { data: { user }, error } = await sessionClient.auth.getUser();
+    if (error || !user) return { user: null, role: null as AppRole | null };
 
-  const supabase: any = createAdminClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+    const supabase: any = createAdminClient();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  return { user, role: (profile?.role || null) as AppRole | null };
+    return { user, role: (profile?.role || null) as AppRole | null };
+  } catch (err) {
+    console.error("Error al obtener sesión en getCurrentAccess:", err);
+    return { user: null, role: null as AppRole | null };
+  }
 }
 
 export async function isSuperadmin() {

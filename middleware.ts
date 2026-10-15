@@ -27,14 +27,20 @@ export async function middleware(request: NextRequest) {
         }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Refrescar y validar la sesión con Supabase Auth
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
-    const url = request.nextUrl.clone();
+    const { pathname } = request.nextUrl;
 
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Proteger todo el segmento /admin (incluyendo /admin/caja) y /caja
+    if (pathname.startsWith('/admin') || pathname.startsWith('/caja')) {
         if (!user) {
-            url.pathname = '/login';
-            return NextResponse.redirect(url, 307);
+            const redirectUrl = request.nextUrl.clone();
+            redirectUrl.pathname = '/login';
+            redirectUrl.searchParams.set('redirectTo', pathname);
+            return NextResponse.redirect(redirectUrl);
         }
     }
 
@@ -43,6 +49,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        /*
+         * Match all request paths except for:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * - public assets (.svg, .png, .jpg, .jpeg, .gif, .webp)
+         */
         '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 };
