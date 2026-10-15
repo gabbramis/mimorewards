@@ -22,8 +22,14 @@ type AppleCard = {
 };
 
 function certificate(envName: string, fileName: string) {
-  const encoded = process.env[envName];
-  if (encoded) return Buffer.from(encoded, "base64");
+  const envVal = process.env[envName] || process.env[`${envName}_BASE64`];
+  if (envVal) {
+    let cleaned = envVal.trim().replace(/\\n/g, "\n");
+    if (!cleaned.includes("-----BEGIN") && /^[A-Za-z0-9+/=\s]+$/.test(cleaned)) {
+      return Buffer.from(cleaned, "base64");
+    }
+    return Buffer.from(cleaned, "utf-8");
+  }
 
   const certsPath = join(process.cwd(), "certs", fileName);
   if (existsSync(certsPath)) return readFileSync(certsPath);
@@ -31,7 +37,7 @@ function certificate(envName: string, fileName: string) {
   const legacyPath = join(process.cwd(), ".secrets", "apple-wallet", fileName);
   if (existsSync(legacyPath)) return readFileSync(legacyPath);
 
-  throw new Error(`Certificado "${fileName}" no encontrado en certs/`);
+  throw new Error(`Certificado "${fileName}" no encontrado en variables ni en certs/`);
 }
 
 function walletColor(value?: string | null) {
@@ -63,10 +69,13 @@ function icon(size: number) {
 }
 
 export function appleWalletConfigured() {
-  if (process.env.APPLE_WALLET_SIGNER_CERT_BASE64 && process.env.APPLE_WALLET_SIGNER_KEY_BASE64 && process.env.APPLE_WALLET_WWDR_CERT_BASE64) {
+  if (
+    (process.env.APPLE_WWDR_CERT || process.env.APPLE_WALLET_WWDR_CERT_BASE64) &&
+    (process.env.APPLE_SIGNER_CERT || process.env.APPLE_WALLET_SIGNER_CERT_BASE64) &&
+    (process.env.APPLE_PRIVATE_KEY || process.env.APPLE_WALLET_SIGNER_KEY_BASE64)
+  ) {
     return true;
   }
-  if (process.env.NODE_ENV === "production") return false;
 
   const requiredFiles = ["signerCert.pem", "mimo-wallet-private-key.pem", "wwdrg4.pem"];
   const hasInCerts = requiredFiles.every((fileName) => existsSync(join(process.cwd(), "certs", fileName)));
@@ -107,9 +116,9 @@ export function createAppleWalletPass(card: AppleCard) {
       })),
     },
     {
-      wwdr: certificate("APPLE_WALLET_WWDR_CERT_BASE64", "wwdrg4.pem"),
-      signerCert: certificate("APPLE_WALLET_SIGNER_CERT_BASE64", "signerCert.pem"),
-      signerKey: certificate("APPLE_WALLET_SIGNER_KEY_BASE64", "mimo-wallet-private-key.pem"),
+      wwdr: certificate("APPLE_WWDR_CERT", "wwdrg4.pem"),
+      signerCert: certificate("APPLE_SIGNER_CERT", "signerCert.pem"),
+      signerKey: certificate("APPLE_PRIVATE_KEY", "mimo-wallet-private-key.pem"),
     },
   );
 

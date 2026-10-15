@@ -21,22 +21,36 @@ const CERTS_DIR = join(process.cwd(), "certs");
 /**
  * Carga un certificado desde la carpeta `certs/`
  */
-function loadCertificate(fileName: string, envVarName?: string): Buffer {
-  if (envVarName && process.env[envVarName]) {
-    return Buffer.from(process.env[envVarName]!, "base64");
+function parseEnvCertificate(rawVal: string): Buffer {
+  let cleaned = rawVal.trim().replace(/\\n/g, "\n");
+  if (!cleaned.includes("-----BEGIN") && /^[A-Za-z0-9+/=\s]+$/.test(cleaned)) {
+    return Buffer.from(cleaned, "base64");
+  }
+  return Buffer.from(cleaned, "utf-8");
+}
+
+function loadCertificate(fileName: string, envVarName: string): Buffer {
+  // 1. Variables de entorno (producción Vercel)
+  const envVal = process.env[envVarName] || process.env[`${envVarName}_BASE64`];
+  if (envVal) {
+    return parseEnvCertificate(envVal);
   }
 
+  // 2. Fallback local: carpeta certs/ en la raíz del proyecto
   const certsPath = join(CERTS_DIR, fileName);
   if (existsSync(certsPath)) {
     return readFileSync(certsPath);
   }
 
+  // 3. Fallback alternativo legacy: .secrets/apple-wallet/
   const legacyPath = join(process.cwd(), ".secrets", "apple-wallet", fileName);
   if (existsSync(legacyPath)) {
     return readFileSync(legacyPath);
   }
 
-  throw new Error(`Certificado no encontrado: "${fileName}" en la carpeta certs/.`);
+  throw new Error(
+    `Certificado no encontrado: No se encontró la variable de entorno "${envVarName}" ni el archivo físico en "certs/${fileName}".`
+  );
 }
 
 /**
@@ -140,10 +154,10 @@ async function buildStoreCard(params: {
     serialNumber = `mimo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   } = params;
 
-  // Cargar certificados desde certs/
-  const wwdr = loadCertificate("wwdrg4.pem", "APPLE_WALLET_WWDR_CERT_BASE64");
-  const signerCert = loadCertificate("signerCert.pem", "APPLE_WALLET_SIGNER_CERT_BASE64");
-  const signerKey = loadCertificate("mimo-wallet-private-key.pem", "APPLE_WALLET_SIGNER_KEY_BASE64");
+  // Cargar certificados (prioridad: variables de entorno Vercel -> fallback: certs/)
+  const wwdr = loadCertificate("wwdrg4.pem", "APPLE_WWDR_CERT");
+  const signerCert = loadCertificate("signerCert.pem", "APPLE_SIGNER_CERT");
+  const signerKey = loadCertificate("mimo-wallet-private-key.pem", "APPLE_PRIVATE_KEY");
 
   // Procesar imágenes con Sharp en tiempo real
   const { iconBuffer, logoBuffer } = await processLogoImages(logoUrl);
