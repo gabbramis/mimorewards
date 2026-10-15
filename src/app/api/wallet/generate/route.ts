@@ -184,6 +184,7 @@ async function buildStoreCard(params: {
           key: "stamps",
           label: "Sellos",
           value: `${currentStamps} de ${targetStamps}`,
+          changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
         },
       ],
       secondaryFields: [

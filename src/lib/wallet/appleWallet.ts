@@ -189,7 +189,14 @@ export async function createAppleWalletPass(card: AppleCard) {
         labelColor: walletColor(card.accentColor || '#FFF0F0'),
         storeCard: {
           headerFields: [],
-          primaryFields: [{ key: "stamps", label: "SELLOS", value: `${card.currentStamps} / ${card.targetStamps}` }],
+          primaryFields: [
+            {
+              key: "stamps",
+              label: "SELLOS",
+              value: `${card.currentStamps} / ${card.targetStamps}`,
+              changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
+            },
+          ],
           secondaryFields: [{ key: "reward", label: "RECOMPENSA", value: card.rewardDescription }],
           auxiliaryFields: [{ key: "customer", label: "CLIENTE", value: card.customerName }],
           backFields: [{ key: "about", label: "Acerca de esta tarjeta", value: `Tarjeta de beneficios de ${card.businessName}, emitida por Mimo Rewards.` }],
