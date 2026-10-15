@@ -2,8 +2,9 @@ import "server-only";
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { PKPass } from "passkit-generator";
+import sharp from "sharp";
 
 const PASS_TYPE_ID = "pass.com.mimorewards.loyalty";
 const TEAM_ID = "K4TTF9N96K";
@@ -19,6 +20,9 @@ type AppleCard = {
   primaryColor?: string | null;
   textColor?: string | null;
   accentColor?: string | null;
+  logoImage?: Buffer | null;
+  completedStampImage?: Buffer | null;
+  pendingStampImage?: Buffer | null;
 };
 
 function certificate(envName: string, fileName: string) {
@@ -84,11 +88,60 @@ export function appleWalletConfigured() {
   return requiredFiles.every((fileName) => existsSync(join(process.cwd(), ".secrets", "apple-wallet", fileName)));
 }
 
-export function createAppleWalletPass(card: AppleCard) {
+async function stripImages(card: AppleCard) {
+  const canvas = createCanvas(1125, 432);
+  const context = canvas.getContext("2d");
+  const target = Math.min(15, Math.max(1, card.targetStamps));
+  const progress = Math.min(target, Math.max(0, card.currentStamps));
+  const columns = Math.ceil(target / 2);
+  const completed = card.completedStampImage ? await loadImage(card.completedStampImage) : null;
+  const pending = card.pendingStampImage ? await loadImage(card.pendingStampImage) : null;
+  const step = Math.min(180, 1000 / Math.max(1, columns - 1));
+  const size = Math.min(116, step * .75);
+  const startX = (1125 - (columns - 1) * step) / 2;
+
+  for (let index = 0; index < target; index++) {
+    const x = startX + (index % columns) * step;
+    const y = 260 + Math.floor(index / columns) * 105;
+    const image = index < progress ? completed : pending;
+    if (image) {
+      const scale = Math.min(size / image.width, size / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      context.drawImage(image, x - width / 2, y - height / 2, width, height);
+    } else {
+      context.beginPath();
+      context.arc(x, y, size * .34, 0, Math.PI * 2);
+      context.lineWidth = 8;
+      context.strokeStyle = walletColor(card.textColor || "#FFFFFF");
+      context.globalAlpha = index < progress ? .95 : .38;
+      if (index < progress) {
+        context.fillStyle = walletColor(card.textColor || "#FFFFFF");
+        context.fill();
+      } else context.stroke();
+      context.globalAlpha = 1;
+    }
+  }
+
+  const full = canvas.toBuffer("image/png");
+  return {
+    "strip.png": await sharp(full).resize(375, 144).png().toBuffer(),
+    "strip@2x.png": await sharp(full).resize(750, 288).png().toBuffer(),
+    "strip@3x.png": full,
+  };
+}
+
+export async function createAppleWalletPass(card: AppleCard) {
+  const logoImages = card.logoImage ? {
+    "logo.png": await sharp(card.logoImage).resize(160, 50, { fit: "contain", background: "#00000000" }).png().toBuffer(),
+    "logo@2x.png": await sharp(card.logoImage).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
+  } : {};
   const pass = new PKPass(
     {
       "icon.png": icon(29),
       "icon@2x.png": icon(58),
+      ...logoImages,
+      ...await stripImages(card),
       "pass.json": Buffer.from(JSON.stringify({
         formatVersion: 1,
         passTypeIdentifier: PASS_TYPE_ID,

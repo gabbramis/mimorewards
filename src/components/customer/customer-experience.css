@@ -28,7 +28,7 @@
 .cx-heading p, .cx-state p { color: #777970; font-size: 13px; line-height: 1.46; margin: 0; max-width: 350px; }
 .cx-heading p strong { color: #4d4e49; font-weight: 700; }
 .cx-form-card { background: #fff; border: 1px solid #e8e7e0; border-radius: 23px; box-shadow: 0 15px 42px #2c281013, 0 2px 5px #2c281008; padding: 20px; }
-.cx-form-card form { display: grid; gap: 11px; }
+.cx-form-card .cx-form-fields { display: grid; gap: 11px; }
 .cx-field-pair { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cx-field { display: grid; gap: 6px; min-width: 0; }
 .cx-field > span { color: #51534d; font-size: 11px; font-weight: 750; }
@@ -116,7 +116,7 @@
   .cx-heading h1 { font-size: 39px; margin-bottom: 8px; }
   .cx-overline { margin-bottom: 7px; }
   .cx-form-card { padding: 16px; }
-  .cx-form-card form { gap: 8px; }
+  .cx-form-card .cx-form-fields { gap: 8px; }
   .cx-field input { height: 43px; }
   .cx-button { min-height: 44px; }
   .cx-privacy { margin-top: 9px; }

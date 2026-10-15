@@ -209,8 +209,10 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const rewardReady = Boolean(visibleCustomer && visibleCustomer.currentStamps >= visibleCustomer.targetStamps);
   const isCard = phase === "card" || phase === "stamp" || phase === "cooldown" || phase === "reward";
   const stageMessage = phase === "stamp" ? messageFor("success", visibleCustomer?.firstName || "") : phase === "cooldown" ? messageFor("cooldown", "") : phase === "reward" || (rewardReady && stampStatus === "success") ? messageFor("reward_pending", "") : statusMessage;
+  const PageTag = preview ? "div" : "main";
+  const FormTag = preview ? "div" : "form";
 
-  return <main className={`cx-page ${preview ? "cx-preview" : ""}`} style={theme}>
+  return <PageTag className={`cx-page ${preview ? "cx-preview" : ""}`} style={theme}>
     <div className="cx-shell">
       <header className="cx-header">
         <div className="cx-identity">
@@ -223,24 +225,24 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       {phase === "loading" ? <LoadingView /> : phase === "unavailable" ? <section className="cx-state cx-unavailable"><span className="cx-state-icon"><LockKeyhole size={22} /></span><h1>Este programa no está disponible</h1><p>{error || "Pedile al comercio un enlace válido para sumarte."}</p></section> : context && <div className="cx-content" aria-live="polite">
         {phase === "register" && <>
           <div className="cx-heading"><span className="cx-overline">TU TARJETA EMPIEZA ACÁ</span><h1>Cada visita<br /><em>cuenta.</em></h1><p>Sumate a {context.businessName}. <strong>Premio: {context.rewardDescription}</strong></p></div>
-          <section className="cx-form-card"><form onSubmit={event => submit(event, false)}>
+          <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>
             <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
             <InputField label="Fecha de nacimiento" name="birthdate" value={form.birthdate} onChange={updateField} type="date" autoComplete="bday" disabled={preview} />
             <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Creando tu tarjeta…" : <>Crear mi tarjeta <ArrowRight size={18} /></>}</button>
-          </form><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("recover"); setError(""); }}>¿Ya tenés tarjeta? Recuperala</button></section>
+          </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("recover"); setError(""); }}>¿Ya tenés tarjeta? Recuperala</button></section>
           <p className="cx-privacy"><LockKeyhole size={13} /> Tus datos son para tu tarjeta y tus beneficios.</p>
         </>}
 
         {phase === "recover" && <>
           <div className="cx-heading"><span className="cx-overline">QUÉ BUENO VERTE OTRA VEZ</span><h1>Volvé a<br /><em>tu tarjeta.</em></h1><p>Ingresá el celular que usaste en {context.businessName}.</p></div>
-          <section className="cx-form-card"><form onSubmit={event => submit(event, true)}>
+          <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, true)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
             <p className="cx-phone-hint">También podés escribirlo sin +598.</p>
             <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Buscando tu tarjeta…" : <>Recuperar tarjeta <ArrowRight size={18} /></>}</button>
-          </form><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>
+          </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>
         </>}
 
         {isCard && visibleCustomer && <>
@@ -257,5 +259,5 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       </div>}
       <footer className="cx-footer">Powered by <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="Mimo Rewards" /></footer>
     </div>
-  </main>;
+  </PageTag>;
 }

@@ -6,6 +6,18 @@ import { appleWalletConfigured, createAppleWalletPass } from "@/lib/wallet/apple
 
 export const runtime = "nodejs";
 
+async function storedImage(supabase: any, url: string | null): Promise<Buffer | null> {
+  if (!url) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const prefix = `${base}/storage/v1/object/public/logos/`;
+  if (!base || !url.startsWith(prefix)) return null;
+  const path = decodeURIComponent(url.slice(prefix.length));
+  if (!path || path.split("/").some(part => !part || part === ".." || part === ".")) return null;
+  const { data, error } = await supabase.storage.from("logos").download(path);
+  if (error || !data || data.size > 2 * 1024 * 1024) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ customerId: string }> },
@@ -38,7 +50,7 @@ export async function GET(
 
     const [{ data: business, error: businessError }, { data: card, error: cardError }] = await Promise.all([
       supabase.from("businesses")
-        .select("id, name, reward_target, reward_description, primary_color, card_text_color, card_accent_color, active")
+        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active")
         .eq("id", customer.business_id)
         .maybeSingle(),
       supabase.from("loyalty_cards")
@@ -54,7 +66,13 @@ export async function GET(
       return NextResponse.json({ error: "Esta tarjeta no está disponible." }, { status: 404 });
     }
 
-    const pass = createAppleWalletPass({
+    const [logoImage, completedStampImage, pendingStampImage] = await Promise.all([
+      storedImage(supabase, business.logo_url),
+      storedImage(supabase, business.stamp_completed_url),
+      storedImage(supabase, business.stamp_pending_url),
+    ]);
+
+    const pass = await createAppleWalletPass({
       id: card.id,
       customerName: `${customer.first_name} ${customer.last_name || ""}`.trim(),
       customerCode: customer.unique_code,
@@ -65,6 +83,9 @@ export async function GET(
       primaryColor: business.primary_color,
       textColor: business.card_text_color,
       accentColor: business.card_accent_color,
+      logoImage,
+      completedStampImage,
+      pendingStampImage,
     });
 
     return new Response(new Uint8Array(pass), {

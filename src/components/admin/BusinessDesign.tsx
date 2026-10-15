@@ -5,6 +5,7 @@ import { Check, ImagePlus, Search, Stamp } from 'lucide-react';
 import { stampCatalog } from '@/lib/stamp-catalog';
 import { alphaBounds, defaultPendingEffect, pendingPixels, STAMP_SIZE, type PendingEffect } from '@/lib/stamp-image';
 import CustomerExperience, { type CustomerStage, type CustomerView } from '@/components/customer/CustomerExperience';
+import AppleWalletPreview from '@/components/admin/AppleWalletPreview';
 import type { NfcContext } from '@/lib/mimo-nfc';
 
 export type DesignValue = {
@@ -70,6 +71,8 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const [category, setCategory] = useState('Todos');
   const [simulated, setSimulated] = useState(0);
   const [previewStage, setPreviewStage] = useState<CustomerStage>('register');
+  const [previewSurface, setPreviewSurface] = useState<'web' | 'apple'>('web');
+  const [walletArtworkVisible, setWalletArtworkVisible] = useState(true);
   const [preview, setPreview] = useState<{ complete: string; pending: string; warning: string } | null>(null);
   const [error, setError] = useState('');
   const categories = useMemo(() => ['Todos', ...new Set(stampCatalog.map(x => x.category))], []);
@@ -135,10 +138,18 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
       <div className="mt-6 grid grid-cols-2 gap-3"><StampTile label="Completado" url={completed || null} /><StampTile label="Pendiente" url={pending || null} light={value.source === 'logo'} /></div>
     </section>
 
-    <section className={sectionClass} aria-labelledby="vista-previa"><h2 id="vista-previa" className="font-bold text-gray-900">Vista previa del cliente</h2><p className="mt-1 text-xs text-gray-500">Así se verá la experiencia web. La vista previa no registra clientes ni suma sellos. Apple Wallet y Google Wallet tienen diseños propios.</p>
-      <div className="mt-5 flex flex-wrap gap-2">{([['register', 'Registro'], ['card', 'Tarjeta'], ['stamp', 'Nuevo sello'], ['cooldown', 'Espera'], ['reward', 'Premio']] as const).map(([stage, label]) => <button key={stage} type="button" aria-pressed={previewStage === stage} onClick={() => setPreviewStage(stage)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${previewStage === stage ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'}`}>{label}</button>)}</div>
-      {previewStage !== 'register' && <label className="mt-4 block text-sm font-semibold text-gray-700">Simular progreso: {progress} de {target}<input type="range" min="0" max={target} value={progress} onChange={e => setSimulated(Number(e.target.value))} className="mt-2 block w-full accent-[#FF1F2D]" /></label>}
-      <div className="mx-auto mt-5 max-w-[390px]"><CustomerExperience key={JSON.stringify({ previewContext, previewCustomer, previewStage })} initialContext={previewContext} initialCustomer={previewCustomer} previewStage={previewStage} appleWalletReady /></div>
+    <section className={sectionClass} aria-labelledby="vista-previa"><h2 id="vista-previa" className="font-bold text-gray-900">Vista previa del cliente</h2><p className="mt-1 text-xs text-gray-500">Probá los colores y sellos antes de guardar. Esta vista no modifica ninguna tarjeta.</p>
+      <div className="mt-5 inline-flex rounded-xl bg-gray-100 p-1" role="group" aria-label="Elegir vista previa">{([['web', 'Formulario y tarjeta web'], ['apple', 'Apple Wallet']] as const).map(([surface, label]) => <button key={surface} type="button" aria-pressed={previewSurface === surface} onClick={() => setPreviewSurface(surface)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${previewSurface === surface ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>{label}</button>)}</div>
+      {previewSurface === 'web' ? <>
+        <div className="mt-5 flex flex-wrap gap-2">{([['register', 'Registro'], ['card', 'Tarjeta'], ['stamp', 'Nuevo sello'], ['cooldown', 'Espera'], ['reward', 'Premio']] as const).map(([stage, label]) => <button key={stage} type="button" aria-pressed={previewStage === stage} onClick={() => setPreviewStage(stage)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${previewStage === stage ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'}`}>{label}</button>)}</div>
+        {previewStage !== 'register' && <label className="mt-4 block text-sm font-semibold text-gray-700">Simular progreso: {progress} de {target}<input type="range" min="0" max={target} value={progress} onChange={e => setSimulated(Number(e.target.value))} className="mt-2 block w-full accent-[#FF1F2D]" /></label>}
+        <div className="mx-auto mt-5 max-w-[390px]"><CustomerExperience key={JSON.stringify({ previewContext, previewCustomer, previewStage })} initialContext={previewContext} initialCustomer={previewCustomer} previewStage={previewStage} appleWalletReady /></div>
+      </> : <>
+        <div className="mt-5 flex flex-wrap gap-2">{([['empty', 'Sin sellos', 0], ['half', 'En progreso', Math.max(1, Math.floor(target / 2))], ['complete', 'Premio listo', target]] as const).map(([state, label, amount]) => <button key={state} type="button" aria-pressed={progress === amount} onClick={() => setSimulated(amount)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${progress === amount ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'}`}>{label}</button>)}</div>
+        <label className="mt-4 block text-sm font-semibold text-gray-700">Simular progreso: {progress} de {target}<input type="range" min="0" max={target} value={progress} onChange={e => setSimulated(Number(e.target.value))} className="mt-2 block w-full accent-[#FF1F2D]" /></label>
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs"><span className="mr-1 font-semibold text-gray-500">Ilustración</span><button type="button" aria-pressed={walletArtworkVisible} onClick={() => setWalletArtworkVisible(true)} className={`rounded-lg border px-2.5 py-1.5 font-semibold ${walletArtworkVisible ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600'}`}>Visible</button><button type="button" aria-pressed={!walletArtworkVisible} onClick={() => setWalletArtworkVisible(false)} className={`rounded-lg border px-2.5 py-1.5 font-semibold ${!walletArtworkVisible ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600'}`}>Oculta por Wallet</button></div>
+        <div className="mt-6"><AppleWalletPreview businessName={businessName} logoUrl={logoPreview} completedUrl={completed || null} pendingUrl={pending || null} primaryColor={value.primaryColor} textColor={value.textColor} accentColor={value.accentColor} currentStamps={progress} targetStamps={target} rewardDescription={rewardDescription} artworkVisible={walletArtworkVisible} /></div>
+      </>}
     </section>
   </>;
 }
