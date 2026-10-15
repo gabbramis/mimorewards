@@ -122,7 +122,22 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [googleReady, setGoogleReady] = useState(googleWalletReady);
   const [walletBusy, setWalletBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [deviceOS, setDeviceOS] = useState<'ios' | 'android' | 'unknown'>('unknown');
   const supabase = useMemo(() => preview ? null : createClient(), [preview]);
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (
+      userAgent.includes('iphone') ||
+      userAgent.includes('ipad') ||
+      userAgent.includes('ipod') ||
+      userAgent.includes('mac')
+    ) {
+      setDeviceOS('ios');
+    } else if (userAgent.includes('android')) {
+      setDeviceOS('android');
+    }
+  }, []);
 
   useEffect(() => {
     if (!nfcId || preview) return;
@@ -192,6 +207,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   }
 
   async function openGoogleWallet() {
+    console.log("Descargando Google Pass");
     if (!customer || preview || walletBusy) return;
     if (googleWalletUrl) { window.location.href = googleWalletUrl; return; }
     setWalletBusy(true); setError("");
@@ -251,9 +267,19 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           {localNotice && !stageMessage && <p className="cx-alert cx-alert-success" role="status"><Check size={16} /> {localNotice}</p>}
           {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
           <div className="cx-card-actions">
-            {walletReady && <a className="cx-button cx-button-dark" href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`} aria-disabled={preview}><Wallet size={18} /> Agregar a Apple Wallet</a>}
-            {(googleWalletUrl || googleReady) && <button className="cx-button cx-button-outline" type="button" onClick={openGoogleWallet} disabled={preview || walletBusy}><Wallet size={18} /> {walletBusy ? "Abriendo Google Wallet…" : "Guardar en Google Wallet"}</button>}
-            {!walletReady && !googleWalletUrl && !googleReady && <p className="cx-wallet-note">Podés volver a abrir tu tarjeta desde este enlace o al acercar tu celular.</p>}
+            {(deviceOS === "ios" || deviceOS === "unknown") && walletReady && (
+              <a className="cx-button cx-button-dark" href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`} aria-disabled={preview}>
+                <Wallet size={18} /> Agregar a Apple Wallet
+              </a>
+            )}
+            {(deviceOS === "android" || deviceOS === "unknown") && (
+              <button className="cx-button cx-button-dark" type="button" onClick={openGoogleWallet} disabled={preview || walletBusy}>
+                <Wallet size={18} /> {walletBusy ? "Abriendo Google Wallet…" : "Agregar a Google Wallet"}
+              </button>
+            )}
+            {((deviceOS === "ios" && !walletReady) || (deviceOS === "unknown" && !walletReady && !googleWalletUrl && !googleReady)) && (
+              <p className="cx-wallet-note">Podés volver a abrir tu tarjeta desde este enlace o al acercar tu celular.</p>
+            )}
           </div>
         </>}
       </div>}
