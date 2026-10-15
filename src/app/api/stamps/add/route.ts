@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessBusiness } from "@/lib/authz";
+import { sendCustomerPassUpdate } from "@/lib/wallet/apns";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -49,6 +50,11 @@ export async function POST(request: Request) {
       };
       return NextResponse.json({ error: messages[result?.reason] || "No se pudo sumar el sello.", reason: result?.reason }, { status: 409 });
     }
+
+    // Notificar a los dispositivos Apple Wallet registrados
+    sendCustomerPassUpdate(customer.id, customer.business_id).catch((pushErr) => {
+      console.error("[APNs] Error triggering pass update push:", pushErr);
+    });
 
     return NextResponse.json({
       success: true,

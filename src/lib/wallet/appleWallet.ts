@@ -6,10 +6,12 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { PKPass } from "passkit-generator";
 import sharp from "sharp";
 
-const PASS_TYPE_ID = "pass.com.mimorewards.loyalty";
-const TEAM_ID = "K4TTF9N96K";
+import crypto from "node:crypto";
 
-type AppleCard = {
+export const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER || "pass.com.mimorewards.loyalty";
+export const TEAM_ID = process.env.APPLE_TEAM_IDENTIFIER || "K4TTF9N96K";
+
+export type AppleCard = {
   id: string;
   customerName: string;
   customerCode: string;
@@ -23,9 +25,23 @@ type AppleCard = {
   logoImage?: Buffer | null;
   completedStampImage?: Buffer | null;
   pendingStampImage?: Buffer | null;
+  webServiceURL?: string;
+  authenticationToken?: string;
 };
 
-function certificate(envName: string, fileName: string) {
+export function generatePassAuthToken(cardId: string): string {
+  const secret = process.env.WALLET_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "mimo-apple-wallet-auth-key";
+  return crypto.createHmac("sha256", secret).update(cardId).digest("hex");
+}
+
+export function verifyPassAuthToken(cardId: string, token: string): boolean {
+  if (!token || !cardId) return false;
+  const expected = generatePassAuthToken(cardId);
+  if (token.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+}
+
+export function certificate(envName: string, fileName: string): Buffer {
   const envVal = process.env[envName] || process.env[`${envName}_BASE64`];
   if (envVal) {
     let cleaned = envVal.trim().replace(/\\n/g, "\n");
@@ -42,6 +58,18 @@ function certificate(envName: string, fileName: string) {
   if (existsSync(legacyPath)) return readFileSync(legacyPath);
 
   throw new Error(`Certificado "${fileName}" no encontrado en variables ni en certs/`);
+}
+
+export async function storedImage(supabase: any, url: string | null): Promise<Buffer | null> {
+  if (!url) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const prefix = `${base}/storage/v1/object/public/logos/`;
+  if (!base || !url.startsWith(prefix)) return null;
+  const path = decodeURIComponent(url.slice(prefix.length));
+  if (!path || path.split("/").some((part) => !part || part === ".." || part === ".")) return null;
+  const { data, error } = await supabase.storage.from("logos").download(path);
+  if (error || !data || data.size > 2 * 1024 * 1024) return null;
+  return Buffer.from(await data.arrayBuffer());
 }
 
 function walletColor(value?: string | null) {
@@ -136,6 +164,10 @@ export async function createAppleWalletPass(card: AppleCard) {
     "logo.png": await sharp(card.logoImage).resize(160, 50, { fit: "contain", background: "#00000000" }).png().toBuffer(),
     "logo@2x.png": await sharp(card.logoImage).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
   } : {};
+  const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
+  const webServiceURL = card.webServiceURL || `${baseUrl}/api/wallet`;
+  const authenticationToken = card.authenticationToken || generatePassAuthToken(card.id);
+
   const pass = new PKPass(
     {
       "icon.png": icon(29),
@@ -147,6 +179,8 @@ export async function createAppleWalletPass(card: AppleCard) {
         passTypeIdentifier: PASS_TYPE_ID,
         teamIdentifier: TEAM_ID,
         serialNumber: card.id,
+        webServiceURL,
+        authenticationToken,
         organizationName: "Mimo Rewards",
         description: `Tarjeta de beneficios de ${card.businessName}`,
         logoText: card.businessName,

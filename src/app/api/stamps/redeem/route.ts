@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessBusiness } from '@/lib/authz';
+import { sendCustomerPassUpdate } from '@/lib/wallet/apns';
 
 export async function POST(request: Request) {
     try {
@@ -47,6 +48,11 @@ export async function POST(request: Request) {
             };
             return NextResponse.json({ error: messages[result?.reason] || 'No se pudo canjear la recompensa.', reason: result?.reason }, { status: 409 });
         }
+
+        // Notificar a los dispositivos Apple Wallet registrados
+        sendCustomerPassUpdate(customer.id, customer.business_id).catch((pushErr) => {
+            console.error('[APNs] Error triggering pass update push on redeem:', pushErr);
+        });
 
         return NextResponse.json({ success: true, currentStamps: result.current_stamps, message: result.reason === 'already_processed' ? 'El canje ya estaba registrado.' : 'Recompensa canjeada correctamente.' });
 

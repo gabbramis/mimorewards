@@ -2,21 +2,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession } from "@/lib/mimo-customer-session";
-import { appleWalletConfigured, createAppleWalletPass } from "@/lib/wallet/appleWallet";
+import { appleWalletConfigured, createAppleWalletPass, storedImage } from "@/lib/wallet/appleWallet";
 
 export const runtime = "nodejs";
-
-async function storedImage(supabase: any, url: string | null): Promise<Buffer | null> {
-  if (!url) return null;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
-  const prefix = `${base}/storage/v1/object/public/logos/`;
-  if (!base || !url.startsWith(prefix)) return null;
-  const path = decodeURIComponent(url.slice(prefix.length));
-  if (!path || path.split("/").some(part => !part || part === ".." || part === ".")) return null;
-  const { data, error } = await supabase.storage.from("logos").download(path);
-  if (error || !data || data.size > 2 * 1024 * 1024) return null;
-  return Buffer.from(await data.arrayBuffer());
-}
 
 export async function GET(
   _request: Request,

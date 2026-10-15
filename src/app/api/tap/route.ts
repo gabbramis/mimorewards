@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession, readTapTestToken } from "@/lib/mimo-customer-session";
 import { findNfcTag } from "@/lib/mimo-nfc";
+import { sendCustomerPassUpdate } from "@/lib/wallet/apns";
 
 type TapResult = {
   accepted: boolean;
@@ -59,6 +60,12 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
   }
 
   const result = firstResult(data);
+
+  if (result?.accepted) {
+    sendCustomerPassUpdate(customerId, tag.business_id).catch((pushErr) => {
+      console.error("[APNs] Error triggering pass update push on NFC tap:", pushErr);
+    });
+  }
 
   let status = result?.accepted ? "success" : result?.reason || "error";
   if (status.includes("cooldown")) {
