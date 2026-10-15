@@ -28,6 +28,7 @@ export default function CrearComercioForm() {
   const [active, setActive] = useState(true);
   const [design, setDesign] = useState(emptyDesign);
   const [rewardDescription, setRewardDescription] = useState('');
+  const [businessName, setBusinessName] = useState('');
 
   function selectLogo(file: File | undefined) {
     setLogoError("");
@@ -88,6 +89,7 @@ export default function CrearComercioForm() {
           setActive(true);
           setDesign(emptyDesign);
           setRewardDescription('');
+          setBusinessName('');
         }
       } catch {
         setResult({ success: false, error: "Ocurrió un error inesperado. Intentá de nuevo." });
@@ -193,6 +195,8 @@ export default function CrearComercioForm() {
                   name="businessName"
                   type="text"
                   required
+                  value={businessName}
+                  onChange={event => setBusinessName(event.target.value)}
                   disabled={isPending}
                   className={inputClass}
                   placeholder="Ej: Café Central"
@@ -267,7 +271,7 @@ export default function CrearComercioForm() {
         </div>
       </section>
 
-      <BusinessDesign value={design} onChange={setDesign} logoPreview={logoPreview} rewardTarget={stamps} rewardDescription={rewardDescription} disabled={isPending} />
+      <BusinessDesign value={design} onChange={setDesign} logoPreview={logoPreview} businessName={businessName} rewardTarget={stamps} rewardDescription={rewardDescription} disabled={isPending} />
 
       {/* Programa de sellos */}
       <section className={cardClass} aria-labelledby="programa-sellos">

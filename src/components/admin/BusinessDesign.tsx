@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ImagePlus, Search, Stamp } from 'lucide-react';
 import { stampCatalog } from '@/lib/stamp-catalog';
 import { alphaBounds, defaultPendingEffect, pendingPixels, STAMP_SIZE, type PendingEffect } from '@/lib/stamp-image';
+import CustomerExperience, { type CustomerStage, type CustomerView } from '@/components/customer/CustomerExperience';
+import type { NfcContext } from '@/lib/mimo-nfc';
 
 export type DesignValue = {
   primaryColor: string; textColor: string; accentColor: string;
@@ -19,6 +21,17 @@ export const emptyDesign: DesignValue = {
 };
 
 const sectionClass = 'rounded-2xl border border-gray-200 bg-white p-6 shadow-sm';
+
+function contrastRatio(foreground: string, background: string) {
+  const luminance = (hex: string) => {
+    const channels = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
+      .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  };
+  if (!/^#[0-9a-f]{6}$/i.test(foreground) || !/^#[0-9a-f]{6}$/i.test(background)) return 1;
+  const first = luminance(foreground), second = luminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
 
 function ColorField({ label, value, onChange, disabled }: { label: string; value: string; onChange: (value: string) => void; disabled: boolean }) {
   return <label className="block text-sm font-semibold text-gray-700">{label}<span className="mt-2 flex items-center gap-3"><input type="color" value={value} onChange={e => onChange(e.target.value.toUpperCase())} disabled={disabled} className="h-11 w-14 cursor-pointer rounded-xl border border-gray-200 bg-white p-1" /><span className="font-mono text-xs text-gray-600">{value}</span></span></label>;
@@ -49,13 +62,14 @@ async function previewFile(file: File, effect: PendingEffect): Promise<{ complet
   } finally { bitmap.close(); }
 }
 
-export function BusinessDesign({ value, onChange, logoPreview, rewardTarget, rewardDescription, disabled }: {
-  value: DesignValue; onChange: (next: DesignValue) => void; logoPreview: string | null;
+export function BusinessDesign({ value, onChange, logoPreview, businessName, rewardTarget, rewardDescription, disabled }: {
+  value: DesignValue; onChange: (next: DesignValue) => void; logoPreview: string | null; businessName: string;
   rewardTarget: number; rewardDescription: string; disabled: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [simulated, setSimulated] = useState(0);
+  const [previewStage, setPreviewStage] = useState<CustomerStage>('register');
   const [preview, setPreview] = useState<{ complete: string; pending: string; warning: string } | null>(null);
   const [error, setError] = useState('');
   const categories = useMemo(() => ['Todos', ...new Set(stampCatalog.map(x => x.category))], []);
@@ -76,6 +90,17 @@ export function BusinessDesign({ value, onChange, logoPreview, rewardTarget, rew
   const completed = value.source === 'custom' ? (preview?.complete || value.completedUrl) : value.source === 'logo' ? logoPreview : value.source === 'collection' ? stampCatalog.find(x => x.id === value.catalogId)?.completed : null;
   const pending = value.source === 'custom' ? (preview?.pending || value.pendingUrl) : value.source === 'logo' ? logoPreview : value.source === 'collection' ? stampCatalog.find(x => x.id === value.catalogId)?.pending : null;
   const update = (part: Partial<DesignValue>) => onChange({ ...value, ...part });
+  const previewContext: NfcContext = useMemo(() => ({
+    nfcId: 'PREVIEW', businessId: 'preview', businessName: businessName || 'Tu negocio', businessLogo: logoPreview || '', active: true,
+    rewardTarget: target, rewardDescription: rewardDescription || 'Tu recompensa', primaryColor: value.primaryColor,
+    textColor: value.textColor, accentColor: value.accentColor, stampCompletedUrl: completed || '', stampPendingUrl: pending || '',
+  }), [businessName, logoPreview, target, rewardDescription, value.primaryColor, value.textColor, value.accentColor, completed, pending]);
+  const previewCustomer: CustomerView = useMemo(() => ({
+    id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: 'CLI-12345',
+    currentStamps: previewStage === 'reward' ? target : previewStage === 'stamp' ? Math.max(1, progress) : progress,
+    targetStamps: target, businessName: previewContext.businessName, businessLogo: previewContext.businessLogo,
+    rewardDescription: previewContext.rewardDescription,
+  }), [previewStage, progress, target, previewContext.businessName, previewContext.businessLogo, previewContext.rewardDescription]);
 
   return <>
     <section className={sectionClass} aria-labelledby="identidad-visual">
@@ -85,6 +110,7 @@ export function BusinessDesign({ value, onChange, logoPreview, rewardTarget, rew
         <ColorField label="Textos" value={value.textColor} onChange={textColor => update({ textColor })} disabled={disabled} />
         <ColorField label="Acentos" value={value.accentColor} onChange={accentColor => update({ accentColor })} disabled={disabled} />
       </div>
+      {contrastRatio(value.textColor, value.primaryColor) < 4.5 && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-800">El texto de la tarjeta se lee con dificultad sobre este fondo. Elegí un color de texto más claro u oscuro.</p>}
       <p className="mt-4 text-xs leading-relaxed text-gray-500">Apple Wallet admite fondo, texto y color de etiquetas. Google Wallet usa el fondo y el logo principal; sus textos y acentos se muestran aquí de forma orientativa.</p>
     </section>
 
@@ -109,9 +135,10 @@ export function BusinessDesign({ value, onChange, logoPreview, rewardTarget, rew
       <div className="mt-6 grid grid-cols-2 gap-3"><StampTile label="Completado" url={completed || null} /><StampTile label="Pendiente" url={pending || null} light={value.source === 'logo'} /></div>
     </section>
 
-    <section className={sectionClass} aria-labelledby="vista-previa"><h2 id="vista-previa" className="font-bold text-gray-900">Vista previa en vivo</h2><p className="mt-1 text-xs text-gray-500">Diseño orientativo de mimo; Apple Wallet y Google Wallet tienen distribuciones distintas. Este control nunca cambia los sellos de un cliente.</p>
-      <div className="mt-5 overflow-hidden rounded-2xl p-5 shadow-md" style={{ backgroundColor: value.primaryColor, color: value.textColor }}><div className="flex items-center justify-between gap-3"><strong className="truncate text-lg">Tu tarjeta mimo</strong>{logoPreview ? <img src={logoPreview} alt="Logo principal" className="h-12 w-12 rounded-lg object-contain" /> : <span className="text-xs opacity-70">Sin logo</span>}</div><p className="mt-2 text-xs" style={{ color: value.accentColor }}>{progress} de {target} sellos</p><div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(5, target)}, minmax(0, 1fr))` }}>{Array.from({ length: target }, (_, index) => <span key={index} className="flex aspect-square items-center justify-center rounded-lg border border-current/20 bg-white/10 p-1">{(index < progress ? completed : pending) ? <img src={(index < progress ? completed : pending)!} alt="" className="h-full w-full object-contain" style={{ opacity: value.source === 'logo' && index >= progress ? 0.25 : 1 }} /> : <span className="h-5 w-5 rounded-full border border-current/50 opacity-50" />}</span>)}</div><p className="mt-4 text-sm font-semibold" style={{ color: value.accentColor }}>{rewardDescription || 'Un beneficio gratis'}</p></div>
-      <label className="mt-5 block text-sm font-semibold text-gray-700">Simular progreso: {progress} de {target}<input type="range" min="0" max={target} value={progress} onChange={e => setSimulated(Number(e.target.value))} className="mt-2 block w-full accent-[#FF1F2D]" /></label>
+    <section className={sectionClass} aria-labelledby="vista-previa"><h2 id="vista-previa" className="font-bold text-gray-900">Vista previa del cliente</h2><p className="mt-1 text-xs text-gray-500">Así se verá la experiencia web. La vista previa no registra clientes ni suma sellos. Apple Wallet y Google Wallet tienen diseños propios.</p>
+      <div className="mt-5 flex flex-wrap gap-2">{([['register', 'Registro'], ['card', 'Tarjeta'], ['stamp', 'Nuevo sello'], ['cooldown', 'Espera'], ['reward', 'Premio']] as const).map(([stage, label]) => <button key={stage} type="button" aria-pressed={previewStage === stage} onClick={() => setPreviewStage(stage)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${previewStage === stage ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'}`}>{label}</button>)}</div>
+      {previewStage !== 'register' && <label className="mt-4 block text-sm font-semibold text-gray-700">Simular progreso: {progress} de {target}<input type="range" min="0" max={target} value={progress} onChange={e => setSimulated(Number(e.target.value))} className="mt-2 block w-full accent-[#FF1F2D]" /></label>}
+      <div className="mx-auto mt-5 max-w-[390px]"><CustomerExperience key={JSON.stringify({ previewContext, previewCustomer, previewStage })} initialContext={previewContext} initialCustomer={previewCustomer} previewStage={previewStage} appleWalletReady /></div>
     </section>
   </>;
 }

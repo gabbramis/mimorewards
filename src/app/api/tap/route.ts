@@ -36,7 +36,8 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
   }
 
   const cookieStore = await cookies();
-  const customerId = readTapTestToken(testToken, nfcId) || readCustomerSession(cookieStore.get(customerCookieName(tag.business_id))?.value);
+  const testCustomerId = readTapTestToken(testToken, nfcId);
+  const customerId = testCustomerId || readCustomerSession(cookieStore.get(customerCookieName(tag.business_id))?.value);
   if (!customerId) {
     return { kind: "redirect" as const, destination: `/t/${encodeURIComponent(nfcId)}` };
   }
@@ -53,7 +54,8 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
 
   if (error) {
     console.error("NFC stamp error:", error);
-    return { kind: "redirect" as const, destination: `/tarjeta/${encodeURIComponent(customerId)}?stamp=error` };
+    const path = testCustomerId ? `/tarjeta/${encodeURIComponent(customerId)}` : `/t/${encodeURIComponent(nfcId)}`;
+    return { kind: "redirect" as const, destination: `${path}?stamp=error` };
   }
 
   const result = firstResult(data);
@@ -63,7 +65,8 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
     status = "cooldown";
   }
 
-  return { kind: "redirect" as const, destination: `/tarjeta/${encodeURIComponent(customerId)}?stamp=${encodeURIComponent(status)}` };
+  const path = testCustomerId ? `/tarjeta/${encodeURIComponent(customerId)}` : `/t/${encodeURIComponent(nfcId)}`;
+  return { kind: "redirect" as const, destination: `${path}?stamp=${encodeURIComponent(status)}` };
 }
 
 export async function GET(request: NextRequest) {

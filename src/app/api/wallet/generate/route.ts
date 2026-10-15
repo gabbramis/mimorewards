@@ -265,7 +265,7 @@ export async function POST(request: Request) {
 
       const { data: business } = await supabase
         .from("businesses")
-        .select("id, name, logo_url, reward_target")
+        .select("id, name, logo_url, reward_target, primary_color")
         .eq("id", customer.business_id)
         .single();
 
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
 
       if (business && loyaltyCard) {
         const fullName = `${customer.first_name} ${customer.last_name || ""}`.trim();
-        await createOrUpdateLoyaltyClass(business.id, business.name, "#10B981", business.logo_url);
+        await createOrUpdateLoyaltyClass(business.id, business.name, business.primary_color || "#FF1F2D", business.logo_url);
         const saveUrl = generateSavePassUrl(
           loyaltyCard.id,
           fullName,

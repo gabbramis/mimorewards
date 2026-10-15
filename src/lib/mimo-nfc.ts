@@ -6,6 +6,11 @@ export type NfcContext = {
   active: boolean;
   rewardTarget: number;
   rewardDescription: string;
+  primaryColor: string;
+  textColor: string;
+  accentColor: string;
+  stampCompletedUrl: string;
+  stampPendingUrl: string;
 };
 
 export async function findNfcTag(supabase: any, rawNfcId: string) {
@@ -68,23 +73,40 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
       active: false,
       rewardTarget: 10,
       rewardDescription: "",
+      primaryColor: "#FF1F2D",
+      textColor: "#FFFFFF",
+      accentColor: "#FFFFFF",
+      stampCompletedUrl: "",
+      stampPendingUrl: "",
     };
   }
 
-  const { data: business } = await supabase
+  let { data: business, error: businessError } = await supabase
     .from("businesses")
-    .select("id, name, logo_url, reward_target, reward_description")
+    .select("id, name, logo_url, reward_target, reward_description, active, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url")
     .eq("id", businessId)
     .maybeSingle();
+  if (businessError) {
+    const fallback = await supabase.from("businesses")
+      .select("id, name, logo_url, reward_target, reward_description, active")
+      .eq("id", businessId).maybeSingle();
+    business = fallback.data;
+    businessError = fallback.error;
+  }
 
   return {
     nfcId,
     businessId,
     businessName: business?.name || nfcId || "Tu negocio",
     businessLogo: business?.logo_url || "",
-    active: Boolean(business) && tagActive && business?.active !== false,
+    active: Boolean(business) && !businessError && tagActive && business?.active !== false,
     rewardTarget: business?.reward_target || 10,
     rewardDescription: business?.reward_description || "Un café gratis",
+    primaryColor: business?.primary_color || "#FF1F2D",
+    textColor: business?.card_text_color || "#FFFFFF",
+    accentColor: business?.card_accent_color || "#FFFFFF",
+    stampCompletedUrl: business?.stamp_completed_url || "",
+    stampPendingUrl: business?.stamp_pending_url || "",
   };
 }
 
