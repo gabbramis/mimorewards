@@ -10,7 +10,6 @@ import { useBusiness } from "@/contexts/BusinessContext";
 
 const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
-    ["/admin/caja", "Caja QR", QrCode],
     ["/admin/negocios", "Negocios", Store],
     ["/admin/crear-comercio", "Crear Comercio", PlusCircle],
     ["/admin/accesos", "Accesos", ShieldCheck],
@@ -41,6 +40,10 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
         await supabase.auth.signOut();
         router.push('/login');
     };
+
+    if (pathname === "/admin/caja") {
+        return <>{children}</>;
+    }
     const navItems = mode === "merchant" && businessId
         ? [
             [`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard],

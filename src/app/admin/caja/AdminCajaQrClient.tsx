@@ -64,7 +64,7 @@ export default function AdminCajaQrClient() {
         } = await supabase.auth.getUser();
 
         if (userErr || !user) {
-          window.location.href = "/login";
+          window.location.href = "/login?next=/admin/caja";
           return;
         }
 

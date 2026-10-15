@@ -1,13 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
 import { ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-export default function LoginPage() {
+function getValidRedirectUrl(url: string | null): string | null {
+    if (!url) return null;
+    // Solo permitir rutas relativas locales (evitar Open Redirect)
+    if (url.startsWith('/') && !url.startsWith('//') && !url.includes('://')) {
+        return url;
+    }
+    return null;
+}
+
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const nextParam = searchParams.get('next') || searchParams.get('redirectTo');
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -56,7 +68,8 @@ export default function LoginPage() {
                 } else {
                     localStorage.removeItem('mimo_saved_email');
                 }
-                router.push('/admin/metricas');
+                const destination = getValidRedirectUrl(nextParam) || '/admin/metricas';
+                router.push(destination);
                 router.refresh();
             }
         } catch (err) {
@@ -182,5 +195,19 @@ export default function LoginPage() {
             {/* Espaciador inferior */}
             <div className="h-6"></div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen w-full bg-[#FFF6EE] flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#FF1F2D]" />
+                </div>
+            }
+        >
+            <LoginForm />
+        </Suspense>
     );
 }

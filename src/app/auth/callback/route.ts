@@ -5,8 +5,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
-    // Redirige al panel por defecto si todo sale bien
-    const next = searchParams.get('next') ?? '/admin/metricas';
+    // Redirige al panel por defecto si todo sale bien o a la ruta solicitada
+    const rawNext = searchParams.get('next') || searchParams.get('redirectTo');
+    const next = (rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://'))
+        ? rawNext
+        : '/admin/metricas';
 
     if (code) {
         const cookieStore = await cookies();
