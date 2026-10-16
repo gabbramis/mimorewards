@@ -11,7 +11,6 @@ import { useBusiness } from "@/contexts/BusinessContext";
 const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
     ["/admin/negocios", "Negocios", Store],
-    ["/admin/crear-comercio", "Crear Comercio", PlusCircle],
     ["/admin/metricas", "Métricas", BarChart3],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
