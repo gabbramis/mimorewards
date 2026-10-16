@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
+import { normalizeUruguayMobile } from "@/lib/customer-phone";
 
 type CustomerInput = {
   nfcId?: string;
@@ -16,7 +17,7 @@ function clean(value: unknown) {
 }
 
 function makeUniqueCode() {
-  return `CLI-${Math.floor(10000 + Math.random() * 90000)}`;
+  return `CLI-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 async function creditStamp(supabase: any, customer: any, context: any, idempotencyKey: string) {
@@ -56,22 +57,30 @@ export async function POST(request: Request) {
     const nfcId = clean(input.nfcId);
     const firstName = clean(input.firstName);
     const lastName = clean(input.lastName);
-    const phone = clean(input.phone);
+    const rawPhone = clean(input.phone);
     const birthdate = clean(input.birthdate);
 
-    if (!nfcId || !firstName || !lastName || !phone || !birthdate) {
+    if (!nfcId || !firstName || !lastName || !rawPhone || !birthdate) {
       return NextResponse.json({ error: "Completá todos los campos para continuar." }, { status: 400 });
     }
+
+    const phone = normalizeUruguayMobile(rawPhone) || rawPhone;
 
     const context = await resolveNfcContext(supabase, nfcId);
     if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
 
-    const { data: existingCustomer, error: existingError } = await supabase
+    let existingQuery = supabase
       .from("customers")
       .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
-      .eq("business_id", context.businessId)
-      .eq("phone", phone)
-      .maybeSingle();
+      .eq("business_id", context.businessId);
+
+    if (phone !== rawPhone) {
+      existingQuery = existingQuery.or(`phone.eq.${phone},phone.eq.${rawPhone}`);
+    } else {
+      existingQuery = existingQuery.eq("phone", phone);
+    }
+
+    const { data: existingCustomer, error: existingError } = await existingQuery.maybeSingle();
 
     if (existingError) throw existingError;
 

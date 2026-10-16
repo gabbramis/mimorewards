@@ -19,13 +19,25 @@ export async function POST(request: Request) {
     if (!['QR', 'MANUAL'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
 
     const supabase: any = createAdminClient();
-    const customerQuery = supabase
+    const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
+    let customerQuery = supabase
       .from("customers")
       .select("id, business_id")
       .limit(1);
-    const { data: customer, error: customerError } = UUID_PATTERN.test(identifier)
-      ? await customerQuery.eq("id", identifier).maybeSingle()
-      : await customerQuery.eq("unique_code", identifier).maybeSingle();
+
+    if (businessId) {
+      customerQuery = customerQuery.eq("business_id", businessId);
+    }
+
+    let customerResult;
+    if (UUID_PATTERN.test(identifier)) {
+      customerResult = await customerQuery.eq("id", identifier).maybeSingle();
+    } else if (businessId) {
+      customerResult = await customerQuery.or(`unique_code.eq.${identifier},phone.eq.${identifier}`).maybeSingle();
+    } else {
+      customerResult = await customerQuery.eq("unique_code", identifier).maybeSingle();
+    }
+    const { data: customer, error: customerError } = customerResult;
 
     if (customerError || !customer) return NextResponse.json({ error: "Cliente no encontrado." }, { status: 404 });
     if (!await canAccessBusiness(customer.business_id)) {

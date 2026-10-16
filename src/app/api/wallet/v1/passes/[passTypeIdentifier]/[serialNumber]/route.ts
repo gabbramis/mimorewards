@@ -81,6 +81,7 @@ export async function GET(
         .from("customers")
         .select("id, first_name, last_name, unique_code, current_stamps")
         .eq("id", card.customer_id)
+        .eq("business_id", card.business_id)
         .maybeSingle(),
       supabase
         .from("businesses")

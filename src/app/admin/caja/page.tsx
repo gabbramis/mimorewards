@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 import { Search, CreditCard, Send, CheckCircle2, User, Phone, Gift, AlertCircle, QrCode, X, ArrowLeft } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
+import { normalizeUruguayMobile } from '@/lib/customer-phone';
 
 export default function CashierTerminal() {
     const router = useRouter();
@@ -24,6 +25,7 @@ export default function CashierTerminal() {
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
     const [qrToken, setQrToken] = useState<number>(Date.now());
     const [businessSlug, setBusinessSlug] = useState<string>("");
+    const [businessId, setBusinessId] = useState<string>("");
     const [origin, setOrigin] = useState<string>("");
 
     const supabase = createClient();
@@ -39,12 +41,15 @@ export default function CashierTerminal() {
                 if (user) {
                     const { data: member } = await supabase
                         .from("business_members")
-                        .select("business_id, businesses(slug)")
+                        .select("business_id, businesses(id, slug)")
                         .eq("user_id", user.id)
                         .order("created_at", { ascending: true })
                         .limit(1)
                         .maybeSingle();
 
+                    if (member?.business_id) {
+                        setBusinessId(member.business_id);
+                    }
                     if ((member as any)?.businesses?.slug) {
                         setBusinessSlug((member as any).businesses.slug);
                         return;
@@ -52,11 +57,12 @@ export default function CashierTerminal() {
                     if (member?.business_id) {
                         const { data: b } = await supabase
                             .from("businesses")
-                            .select("slug")
+                            .select("id, slug")
                             .eq("id", member.business_id)
                             .maybeSingle();
                         if (b?.slug) {
                             setBusinessSlug(b.slug);
+                            if (b.id) setBusinessId(b.id);
                             return;
                         }
                     }
@@ -64,14 +70,15 @@ export default function CashierTerminal() {
 
                 const { data: firstBiz } = await supabase
                     .from("businesses")
-                    .select("slug")
+                    .select("id, slug")
                     .limit(1)
                     .maybeSingle();
                 if (firstBiz?.slug) {
                     setBusinessSlug(firstBiz.slug);
+                    if (firstBiz.id) setBusinessId(firstBiz.id);
                 }
             } catch (err) {
-                console.error("Error al obtener slug del negocio:", err);
+                console.error("Error al obtener datos del negocio:", err);
             }
         }
 
@@ -119,15 +126,25 @@ export default function CashierTerminal() {
         try {
             const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
             const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
-            const orQuery = isUUID
+            const normalizedPhone = normalizeUruguayMobile(cleanQuery);
+
+            let orQuery = isUUID
                 ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
                 : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
 
-            const { data, error } = await supabase
+            if (normalizedPhone && normalizedPhone !== cleanQuery) {
+                orQuery += `,phone.eq.${normalizedPhone}`;
+            }
+
+            let query = supabase
                 .from('customers')
-                .select('id, first_name, last_name, phone, current_stamps, unique_code')
-                .or(orQuery)
-                .maybeSingle();
+                .select('id, first_name, last_name, phone, current_stamps, unique_code, business_id, businesses(reward_target)');
+
+            if (businessId) {
+                query = query.eq('business_id', businessId);
+            }
+
+            const { data, error } = await query.or(orQuery).maybeSingle();
 
             if (error) {
                 console.error("Error al buscar cliente:", error);
@@ -141,7 +158,7 @@ export default function CashierTerminal() {
                     lastName: data.last_name,
                     phone: data.phone,
                     currentStamps: data.current_stamps,
-                    targetStamps: 10,
+                    targetStamps: (data as any)?.businesses?.reward_target || 10,
                     uniqueCode: data.unique_code
                 });
                 setManualInput("");
@@ -170,7 +187,7 @@ export default function CashierTerminal() {
             const res = await fetch('/api/stamps/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: customer.id, method: 'MANUAL' })
+                body: JSON.stringify({ identifier: customer.id, businessId, method: 'MANUAL' })
             });
             const result = await res.json();
 
@@ -201,7 +218,7 @@ export default function CashierTerminal() {
             const res = await fetch('/api/stamps/redeem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: customer.id })
+                body: JSON.stringify({ identifier: customer.id, businessId })
             });
             const result = await res.json();
             if (!res.ok) throw new Error(result.error);

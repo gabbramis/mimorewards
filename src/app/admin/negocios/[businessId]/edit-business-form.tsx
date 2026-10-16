@@ -92,9 +92,103 @@ export default function EditBusinessForm({ business }: { business: Business }) {
 
   return <form onSubmit={save} className="space-y-6">
     <div><Link href="/admin/negocios" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#FF1F2D]"><ArrowLeft size={16} /> Negocios</Link><h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">Editar {business.name}</h1><p className="mt-1 text-sm text-gray-500">Los cambios se aplican únicamente al guardar.</p></div>
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h2 className="font-bold text-gray-900">Datos del negocio</h2><div className="mt-5 grid gap-5 sm:grid-cols-[160px_1fr]"><div><span className="text-sm font-semibold text-gray-700">Logo principal</span><div className="mt-2 flex h-36 w-36 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-gray-300 bg-gray-50">{logoPreview ? <img src={logoPreview} alt="Logo actual" className="h-full w-full object-contain" /> : <span className="text-xs text-gray-400">Sin logo</span>}</div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => chooseLogo(e.target.files?.[0])} disabled={saving} aria-label="Cambiar logo principal" className="mt-2 block w-full text-xs" /><p className="mt-1 text-xs text-gray-500">PNG, JPG o WebP · máximo 800 KB</p></div><div className="space-y-4"><label className="block text-sm font-semibold text-gray-700">Nombre del negocio<input required maxLength={120} value={name} onChange={e => setName(e.target.value)} disabled={saving} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" /></label><label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} disabled={saving} className="accent-[#FF1F2D]" /> Negocio activo</label></div></div></section>
-    <BusinessDesign value={design} onChange={setDesign} logoPreview={logoPreview} businessName={name} rewardTarget={rewardTarget} rewardDescription={rewardDescription} disabled={saving} />
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h2 className="font-bold text-gray-900">Programa de fidelización</h2><p className="mt-1 text-xs text-gray-500">Si ya hay clientes, la meta y el premio se mantienen para no reinterpretar su progreso.</p><div className="mt-5 grid gap-5 sm:grid-cols-2"><label className="text-sm font-semibold text-gray-700">Sellos necesarios<input type="number" min={4} max={15} required value={rewardTarget} onChange={e => setRewardTarget(Number(e.target.value))} disabled={saving} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" /></label><label className="text-sm font-semibold text-gray-700">Premio<input value={rewardDescription} onChange={e => setRewardDescription(e.target.value)} disabled={saving} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" /></label></div></section>
+    {/* Tarjeta superior (Ancho completo): Datos del negocio y Programa de fidelización */}
+    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Columna Izquierda: Datos del negocio */}
+        <div>
+          <h2 className="font-bold text-gray-900 text-base mb-4">Datos del negocio</h2>
+          <div className="grid gap-5 sm:grid-cols-[140px_1fr]">
+            <div>
+              <span className="text-sm font-semibold text-gray-700">Logo principal</span>
+              <div className="mt-2 flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-gray-300 bg-gray-50">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo actual" className="h-full w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-gray-400">Sin logo</span>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={e => chooseLogo(e.target.files?.[0])}
+                disabled={saving}
+                aria-label="Cambiar logo principal"
+                className="mt-2 block w-full text-xs"
+              />
+              <p className="mt-1 text-xs text-gray-400">PNG, JPG o WebP · máx 800 KB</p>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold text-gray-700">
+                Nombre del negocio
+                <input
+                  required
+                  maxLength={120}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  disabled={saving}
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 pt-1">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={e => setActive(e.target.checked)}
+                  disabled={saving}
+                  className="accent-[#FF1F2D] h-4 w-4 rounded"
+                />
+                Negocio activo
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Columna Derecha: Programa de fidelización */}
+        <div className="lg:border-l lg:border-gray-200 lg:pl-8">
+          <h2 className="font-bold text-gray-900 text-base mb-1">Programa de fidelización</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            La meta de sellos y el premio definen cuándo el cliente desbloquea su beneficio.
+          </p>
+          <div className="space-y-4">
+            <label className="block text-sm font-semibold text-gray-700">
+              Sellos necesarios para el premio
+              <input
+                type="number"
+                min={4}
+                max={15}
+                required
+                value={rewardTarget}
+                onChange={e => setRewardTarget(Number(e.target.value))}
+                disabled={saving}
+                className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
+              />
+            </label>
+            <label className="block text-sm font-semibold text-gray-700">
+              Descripción del premio o recompensa
+              <input
+                value={rewardDescription}
+                onChange={e => setRewardDescription(e.target.value)}
+                disabled={saving}
+                placeholder="Ej. Café gratis, 20% de descuento..."
+                className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Bloque inferior: Editor de diseño y previsualización en 2 columnas */}
+    <BusinessDesign
+      value={design}
+      onChange={setDesign}
+      logoPreview={logoPreview}
+      businessName={name}
+      rewardTarget={rewardTarget}
+      rewardDescription={rewardDescription}
+      disabled={saving}
+    />
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
     {success && <p role="status" className="rounded-xl bg-green-50 p-4 text-sm font-semibold text-green-700">{success}</p>}
     <div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={cancel} disabled={saving} className="rounded-xl border border-gray-200 px-6 py-3 font-semibold text-gray-700">Cancelar</button><button type="submit" disabled={saving || !dirty} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-6 py-3 font-bold text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'Guardando…' : 'Guardar cambios'}</button></div>

@@ -23,12 +23,13 @@ CREATE TABLE customers (
     last_visit_at TIMESTAMPTZ DEFAULT now(),
     apple_push_token TEXT,
     google_object_id TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (business_id, phone)
 );
 
 -- Indexes for quick lookup
 CREATE INDEX idx_customers_unique_code ON customers(unique_code);
-CREATE INDEX idx_customers_phone ON customers(phone);
+CREATE INDEX idx_customers_business_phone ON customers(business_id, phone);
 
 -- NFC stands resolve a physical support to a business/program.
 CREATE TABLE nfc_tags (

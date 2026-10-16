@@ -14,15 +14,22 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { identifier } = body;
 
+        const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
+
         if (!identifier) {
             return NextResponse.json({ error: 'Missing customer identifier' }, { status: 400 });
         }
 
-        const { data: customer, error: customerError } = await supabase
+        let query = supabase
             .from('customers')
             .select('id, current_stamps, business_id')
-            .or(`id.eq.${identifier},unique_code.eq.${identifier}`)
-            .single();
+            .or(`id.eq.${identifier},unique_code.eq.${identifier}${businessId ? `,phone.eq.${identifier}` : ''}`);
+
+        if (businessId) {
+            query = query.eq('business_id', businessId);
+        }
+
+        const { data: customer, error: customerError } = await query.maybeSingle();
 
         if (customerError || !customer) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });

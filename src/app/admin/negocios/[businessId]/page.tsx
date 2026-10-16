@@ -10,5 +10,5 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ b
     .select('id, name, logo_url, active, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_source, stamp_catalog_id, stamp_completed_url, stamp_pending_url, stamp_pending_effect')
     .eq('id', businessId).maybeSingle();
   if (error || !business) notFound();
-  return <main className="mx-auto w-full max-w-4xl p-6 sm:p-10"><EditBusinessForm business={business} /></main>;
+  return <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><EditBusinessForm business={business} /></main>;
 }

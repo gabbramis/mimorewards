@@ -382,7 +382,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                         // automation_events se borra solo por su FK ON DELETE CASCADE.
                                         await supabase.from('stamp_logs').delete().eq('customer_id', editingCustomer.id);
 
-                                        const { error } = await supabase.from('customers').delete().eq('id', editingCustomer.id);
+                                        const { error } = await supabase.from('customers').delete().eq('id', editingCustomer.id).eq('business_id', editingCustomer.business_id);
                                         if (error) {
                                             setCustomers(prevCustomers);
                                             alert("Error al eliminar");
@@ -420,7 +420,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                             phone: editingCustomer.phone,
                                             birthdate: editingCustomer.birthdate || null,
                                             current_stamps: editingCustomer.current_stamps
-                                        }).eq('id', editingCustomer.id);
+                                        }).eq('id', editingCustomer.id).eq('business_id', editingCustomer.business_id);
 
                                         if (!error && !countErr) {
                                             if (editingCustomer.current_stamps > dbCount) {
