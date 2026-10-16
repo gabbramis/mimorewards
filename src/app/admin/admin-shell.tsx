@@ -12,14 +12,13 @@ const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
     ["/admin/negocios", "Negocios", Store],
     ["/admin/crear-comercio", "Crear Comercio", PlusCircle],
-    ["/admin/accesos", "Accesos", ShieldCheck],
     ["/admin/metricas", "Métricas", BarChart3],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
 ] as const;
 
 const CREATOR_EMAIL = "creator@mimorewards.com";
-const CREATOR_ONLY_PATHS = ["/admin/crear-comercio", "/admin/accesos"];
+const CREATOR_ONLY_PATHS = ["/admin/crear-comercio"];
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
     const pathname = usePathname();

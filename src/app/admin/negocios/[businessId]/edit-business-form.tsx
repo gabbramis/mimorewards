@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { BusinessDesign, emptyDesign, type DesignValue } from '@/components/admin/BusinessDesign';
+import { BusinessMembersManager } from '@/components/admin/BusinessMembersManager';
 import { validateEffect } from '@/lib/stamp-image';
 
 type Business = {
@@ -176,6 +177,11 @@ export default function EditBusinessForm({ business }: { business: Business }) {
             </label>
           </div>
         </div>
+      </div>
+
+      {/* Sección: Accesos del comercio */}
+      <div className="mt-8 border-t border-gray-200 pt-8">
+        <BusinessMembersManager businessId={business.id} />
       </div>
     </section>
 
