@@ -10,15 +10,9 @@ const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700", "800
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com"),
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
-      { url: "/images/mimo-icon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    icon: "/favicon.ico",
     shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
   title: "mimo rewards | Kit de fidelización con NFC para gastronomía",
   description: "Recibí el kit mimo configurado para tu local: soportes NFC, tarjeta digital con tu logo y colores y un panel para seguir visitas, sellos y canjes. Plan $1.290 /mes, kit aparte.",
