@@ -14,7 +14,8 @@ const MAX_LIMIT = 50;
  *   status, triggered_at, provider_message_id, error_message, metadata)
  * - automations(id, business_id, type, channel, trigger_config, message_template,
  *   reward_id, ...)
- * - customers(id, first_name, last_name, phone, email, current_stamps, ...)
+ * - customers(id, first_name, last_name, phone, email, current_stamps,
+ *   whatsapp_marketing_opt_in, ...)
  * - businesses(id, name, ...) — ver NOTA-2 abajo.
  * - rewards(id, business_id, name, stamps_required, ...)
  *
@@ -28,24 +29,6 @@ const MAX_LIMIT = 50;
  * cálculo de remaining_stamps usa rewards.stamps_required y el fallback de
  * reward_name termina en metadata.reward_name.
  */
-
-// ---------------------------------------------------------------------------
-// CONSENTIMIENTO
-// ---------------------------------------------------------------------------
-// El esquema actual NO tiene campos de consentimiento (opt-in WhatsApp / email).
-// customers tiene phone y email pero ningún flag de aceptación, y
-// loyalty_cards.wallet_status es un estado genérico de tarjeta, no un opt-in.
-// Por eso NO se filtra nada aquí: inventar una validación sería lógica falsa.
-// Punto de extensión: cuando exista p.ej. customers.whatsapp_opt_in /
-// customers.email_opt_in, implementar canContactForChannel() y filtrar o
-// marcar skipped antes de devolver el evento.
-// Ver: automatizaciones/page.tsx ("Solo se contactará a clientes que hayan
-// aceptado...") — hoy es solo texto UI, sin columnas que lo respalden.
-// ---------------------------------------------------------------------------
-function canContactForChannel(_channel: string): boolean {
-  // TODO(consent): validar opt-in real cuando el esquema lo soporte.
-  return true;
-}
 
 function toInt(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return Math.floor(value);
@@ -77,10 +60,12 @@ export async function GET(request: Request) {
         id, automation_id, business_id, customer_id, channel, status,
         triggered_at, metadata,
         automations (id, type, channel, message_template, trigger_config, reward_id),
-        customers (id, first_name, last_name, phone, email, current_stamps)
+        customers!inner (id, first_name, last_name, phone, email, current_stamps, whatsapp_marketing_opt_in)
       `,
       )
       .eq("status", "pending")
+      .eq("channel", "whatsapp")
+      .eq("customers.whatsapp_marketing_opt_in", true)
       .order("triggered_at", { ascending: true })
       .limit(limit);
 
@@ -132,11 +117,6 @@ export async function GET(request: Request) {
     }
 
     const items = events
-      .filter((event) => {
-        const channel: string =
-          event?.channel ?? event?.automations?.channel ?? "whatsapp";
-        return canContactForChannel(channel);
-      })
       .map((event) => {
         const automation = event?.automations ?? null;
         const customer = event?.customers ?? null;

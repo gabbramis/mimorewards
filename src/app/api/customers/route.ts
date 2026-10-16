@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
 import { normalizeUruguayMobile } from "@/lib/customer-phone";
+import { CUSTOMER_CONSENT_VERSION } from "@/lib/customer-consent";
 
 type CustomerInput = {
   nfcId?: string;
@@ -10,6 +11,8 @@ type CustomerInput = {
   lastName?: string;
   phone?: string;
   birthdate?: string;
+  legalAccepted?: boolean;
+  whatsappMarketingOptIn?: boolean;
 };
 
 function clean(value: unknown) {
@@ -63,6 +66,12 @@ export async function POST(request: Request) {
     if (!nfcId || !firstName || !lastName || !rawPhone || !birthdate) {
       return NextResponse.json({ error: "Completá todos los campos para continuar." }, { status: 400 });
     }
+    if (input.legalAccepted !== true) {
+      return NextResponse.json({ error: "Aceptá los términos y la política de privacidad para crear tu tarjeta." }, { status: 400 });
+    }
+    if (typeof input.whatsappMarketingOptIn !== "boolean") {
+      return NextResponse.json({ error: "No pudimos registrar tu elección sobre promociones. Intentá de nuevo." }, { status: 400 });
+    }
 
     const phone = normalizeUruguayMobile(rawPhone) || rawPhone;
 
@@ -96,6 +105,7 @@ export async function POST(request: Request) {
       }, customer.id, context.businessId);
     }
 
+    const acceptedAt = new Date().toISOString();
     const { data: createdCustomer, error: customerError } = await supabase
       .from("customers")
       .insert({
@@ -107,6 +117,10 @@ export async function POST(request: Request) {
         birthdate,
         current_stamps: 0,
         total_visits: 0,
+        legal_accepted_at: acceptedAt,
+        legal_version: CUSTOMER_CONSENT_VERSION,
+        whatsapp_marketing_opt_in: input.whatsappMarketingOptIn,
+        whatsapp_marketing_opt_in_at: input.whatsappMarketingOptIn ? acceptedAt : null,
       })
       .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
       .single();

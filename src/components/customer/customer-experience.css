@@ -37,6 +37,11 @@
 .cx-field input:focus { border-color: var(--cx-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cx-brand) 17%, transparent); }
 .cx-field input:disabled { opacity: 1; }
 .cx-phone-hint { color: #868981; font-size: 11px; margin: -4px 1px 0; }
+.cx-consents { display: grid; gap: 10px; padding: 4px 0; }
+.cx-consent { align-items: flex-start; color: #55584f; display: flex; font-size: 11px; gap: 9px; line-height: 1.45; }
+.cx-consent input { accent-color: var(--cx-brand); flex: 0 0 17px; height: 17px; margin: 1px 0 0; width: 17px; }
+.cx-consent a { color: var(--cx-brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.cx-consent strong { font-weight: 750; }
 .cx-button { align-items: center; border: 1px solid transparent; border-radius: 12px; display: inline-flex; font: inherit; font-size: 13px; font-weight: 750; gap: 9px; justify-content: center; min-height: 49px; padding: 11px 16px; text-align: center; text-decoration: none; transition: transform .16s, box-shadow .16s, background .16s; width: 100%; }
 .cx-button:not(:disabled):hover { transform: translateY(-1px); }
 .cx-button:disabled { cursor: wait; opacity: .65; }

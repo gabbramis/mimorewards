@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight, Check, Gift, Heart, LockKeyhole, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
@@ -114,6 +115,8 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [customer, setCustomer] = useState<CustomerView | null>(initialCustomer || null);
   const [phase, setPhase] = useState<Phase>(previewStage || (initialCustomer ? "card" : initialContext ? "register" : "loading"));
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [whatsappMarketingOptIn, setWhatsappMarketingOptIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [localNotice, setLocalNotice] = useState("");
@@ -193,7 +196,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     try {
       const response = await fetch(recover ? "/api/recover" : "/api/customers", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(recover ? { nfcId, phone: form.phone } : { ...form, nfcId }),
+        body: JSON.stringify(recover ? { nfcId, phone: form.phone } : { ...form, nfcId, legalAccepted, whatsappMarketingOptIn }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "No pudimos completar la solicitud.");
@@ -242,15 +245,19 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
 
       {phase === "loading" ? <LoadingView /> : phase === "unavailable" ? <section className="cx-state cx-unavailable"><span className="cx-state-icon"><LockKeyhole size={22} /></span><h1>Este programa no está disponible</h1><p>{error || "Pedile al comercio un enlace válido para sumarte."}</p></section> : context && <div className="cx-content" aria-live="polite">
         {phase === "register" && <>
-          <div className="cx-heading"><span className="cx-overline">TU TARJETA EMPIEZA ACÁ</span><h1>Cada visita<br /><em>cuenta.</em></h1><p>Sumate a {context.businessName}. <strong>Premio: {context.rewardDescription}</strong></p></div>
+          <div className="cx-heading"><span className="cx-overline">TU TARJETA EMPIEZA ACÁ</span><h1>Cada visita<br /><em>cuenta.</em></h1></div>
           <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>
             <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
             <InputField label="Fecha de nacimiento" name="birthdate" value={form.birthdate} onChange={updateField} type="date" autoComplete="bday" disabled={preview} />
+            <div className="cx-consents">
+              <label className="cx-consent"><input type="checkbox" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required disabled={preview} /><span>Acepto los <Link href="/terminos" target="_blank" rel="noopener noreferrer">Términos de uso</Link> y la <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</Link> para crear mi tarjeta. <strong>Obligatorio.</strong></span></label>
+              <label className="cx-consent"><input type="checkbox" checked={whatsappMarketingOptIn} onChange={event => setWhatsappMarketingOptIn(event.target.checked)} disabled={preview} /><span>Quiero recibir promociones y novedades de {context.businessName} por WhatsApp al celular que registré. Puedo retirar esta autorización cuando quiera. <strong>Opcional.</strong></span></label>
+            </div>
             <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Creando tu tarjeta…" : <>Crear mi tarjeta <ArrowRight size={18} /></>}</button>
           </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("recover"); setError(""); }}>¿Ya tenés tarjeta? Recuperala</button></section>
-          <p className="cx-privacy"><LockKeyhole size={13} /> Tus datos son para tu tarjeta y tus beneficios.</p>
+          <p className="cx-privacy"><LockKeyhole size={13} /> Usamos tus datos para tu tarjeta. Las promociones requieren tu autorización.</p>
         </>}
 
         {phase === "recover" && <>
@@ -258,7 +265,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, true)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
-            <p className="cx-phone-hint">También podés escribirlo sin +598.</p>
+            
             <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Buscando tu tarjeta…" : <>Recuperar tarjeta <ArrowRight size={18} /></>}</button>
           </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>
         </>}

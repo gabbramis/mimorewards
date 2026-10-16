@@ -1,0 +1,11 @@
+.customer-legal { min-height: 100dvh; background: #f7f4ef; color: #232421; font-family: var(--font-geist-sans), Arial, sans-serif; padding: 40px 18px 70px; }
+.customer-legal-card { background: #fff; border: 1px solid #e8e7e0; border-radius: 22px; box-shadow: 0 15px 42px #2c28100d; margin: 0 auto; max-width: 760px; padding: clamp(24px, 5vw, 48px); }
+.customer-legal-back { color: #9c302e; display: inline-block; font-size: 13px; font-weight: 700; margin: 0 0 22px; text-decoration: none; }
+.customer-legal-back:hover, .customer-legal a:hover { text-decoration: underline; }
+.customer-legal-eyebrow { color: #9c302e; font-size: 11px; font-weight: 800; letter-spacing: .16em; margin: 0 0 8px; }
+.customer-legal h1 { font-size: clamp(32px, 6vw, 48px); letter-spacing: -.055em; line-height: 1.08; margin: 0 0 8px; }
+.customer-legal-date { color: #777970; font-size: 12px; margin: 0 0 28px; }
+.customer-legal h2 { font-size: 18px; letter-spacing: -.025em; margin: 30px 0 8px; }
+.customer-legal p { font-size: 14px; line-height: 1.7; margin: 0 0 14px; }
+.customer-legal a { color: #9c302e; overflow-wrap: anywhere; }
+.customer-legal-end { border-top: 1px solid #eceae5; margin-top: 30px !important; padding-top: 22px; }

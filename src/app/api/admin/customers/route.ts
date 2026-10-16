@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     let query = supabase
       .from("customers")
-      .select("id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at")
+      .select("id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at, whatsapp_marketing_opt_in")
       .order("created_at", { ascending: false });
     if (businessId) query = query.eq("business_id", businessId);
     else if (allowedBusinessIds) query = query.in("business_id", allowedBusinessIds);

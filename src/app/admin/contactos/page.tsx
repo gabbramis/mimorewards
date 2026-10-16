@@ -199,6 +199,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                             <tr className="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider">
                                 <th className="px-6 py-4 font-bold border-b border-gray-100">CÓDIGO</th>
                                 <th className="px-6 py-4 font-bold border-b border-gray-100">CLIENTE</th>
+                                <th className="px-6 py-4 font-bold border-b border-gray-100">PROMOS WHATSAPP</th>
                                 <th className="px-6 py-4 font-bold border-b border-gray-100">CUMPLEAÑOS</th>
                                 <th className="px-6 py-4 font-bold border-b border-gray-100">PROGRESO</th>
                                 <th className="px-6 py-4 font-bold border-b border-gray-100">ÚLTIMA VISITA</th>
@@ -208,7 +209,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                         <tbody className="divide-y divide-gray-100">
                             {isLoading && customers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                                    <td colSpan={7} className="p-8 text-center text-gray-500">
                                         <RefreshCcw size={24} className="animate-spin mx-auto mb-2 text-gray-300" />
                                         Cargando base de clientes de Supabase...
                                     </td>
@@ -221,6 +222,11 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="font-semibold text-gray-900">{c.first_name} {c.last_name}</div>
                                         <div className="text-gray-400 text-xs mt-0.5 font-medium">{c.phone || "Sin teléfono"}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold">
+                                        <span className={c.whatsapp_marketing_opt_in === true ? "text-green-700" : "text-gray-500"}>
+                                            {c.whatsapp_marketing_opt_in === true ? "Autorizadas" : "No autorizadas"}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{c.birthdate}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
