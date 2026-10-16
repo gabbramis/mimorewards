@@ -12,6 +12,15 @@ import { ScheduleSettings } from "./components/ScheduleSettings";
 import { NotificationSettings } from "./components/NotificationSettings";
 import { useBusiness } from "@/contexts/BusinessContext";
 
+const DEFAULT_LOCAL_FORM: LocalConfigFormState = {
+    notification_phone: "",
+    alert_on_completion: false,
+    weekly_summary: false,
+    nfc_protection: false,
+};
+const DEFAULT_HOURS: DayHourState[] = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    .map(day => ({ day, isOpen: true, openTime: "09:00", closeTime: "18:00" }));
+
 function AccordionSection({
     title, subtitle, icon, isOpen, onToggle, headerBadge, children
 }: {
@@ -70,17 +79,11 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
     // LocalStorage Config States
     const [initialLocalForm, setInitialLocalForm] = useState<LocalConfigFormState | null>(null);
-    const [localForm, setLocalForm] = useState<LocalConfigFormState>({
-        notification_phone: "",
-        alert_on_completion: false,
-        weekly_summary: false,
-        nfc_protection: false
-    });
+    const [localForm, setLocalForm] = useState<LocalConfigFormState>(DEFAULT_LOCAL_FORM);
 
     // Días de la semana para horarios
-    const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
     const [initialHours, setInitialHours] = useState<DayHourState[] | null>(null);
-    const [hours, setHours] = useState<DayHourState[]>(DAYS.map(day => ({ day, isOpen: true, openTime: "09:00", closeTime: "18:00" })));
+    const [hours, setHours] = useState<DayHourState[]>(DEFAULT_HOURS);
 
     // Draft State verification
     const isDirty = React.useMemo(() => {
@@ -131,7 +134,7 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
 
             const { data: business } = await supabase
                 .from("businesses")
-                .select("name, logo_url, reward_target, reward_description, slug")
+                .select("name, logo_url, reward_target, reward_description, slug, primary_color")
                 .eq("id", resolvedBusinessId)
                 .single();
 
@@ -167,11 +170,11 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
                         setHours(parsed.hours);
                         setInitialHours(parsed.hours);
                     } else {
-                        setInitialHours(hours);
+                        setInitialHours(DEFAULT_HOURS);
                     }
                 } else {
-                    setInitialLocalForm(localForm);
-                    setInitialHours(hours);
+                    setInitialLocalForm(DEFAULT_LOCAL_FORM);
+                    setInitialHours(DEFAULT_HOURS);
                 }
             }
         } catch (err) {
@@ -179,10 +182,12 @@ export default function ConfiguracionPage({ params }: { params: Promise<{ busine
         } finally {
             setLoading(false);
         }
-    }, [resolvedBusinessId, supabase]);
+    }, [resolvedBusinessId, supabase, setBusinessName, setLogoUrl, setPrimaryColor]);
 
     useEffect(() => {
         if (resolvedBusinessId) {
+            // Fetch stored configuration when the business changes.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             loadBusiness();
         }
     }, [resolvedBusinessId, loadBusiness]);

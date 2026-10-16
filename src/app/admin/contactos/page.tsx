@@ -11,6 +11,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
     const [searchTerm, setSearchTerm] = useState("");
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
     const [stampSuccessId, setStampSuccessId] = useState(null);
     const [toastMessage, setToastMessage] = useState(null);
     const [testLinkLoadingId, setTestLinkLoadingId] = useState(null);
@@ -31,30 +32,27 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
 
     const fetchCustomers = useCallback(async () => {
         setIsLoading(true);
+        setLoadError(null);
         try {
-            // OPTIMIZATION: Only select required fields instead of *
-            let customersQuery = supabase
-                .from('customers')
-                .select('id, unique_code, business_id, first_name, last_name, phone, birthdate, current_stamps, total_visits, last_visit_at, created_at, businesses(reward_target)')
-                .order('created_at', { ascending: false });
-            if (businessId) customersQuery = customersQuery.eq('business_id', businessId);
-            const { data, error } = await customersQuery;
-
-            if (error) throw error;
-            setCustomers(data || []);
+            const url = businessId
+                ? `/api/admin/customers?businessId=${encodeURIComponent(businessId)}`
+                : '/api/admin/customers';
+            const response = await fetch(url, { cache: 'no-store' });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || 'No se pudo cargar la lista de clientes.');
+            setCustomers(payload.customers || []);
         } catch (err) {
-            console.error("Error fetching customers:", err);
+            setLoadError(err instanceof Error ? err.message : 'No se pudo cargar la lista de clientes.');
         } finally {
             setIsLoading(false);
         }
-    }, [businessId, supabase]);
+    }, [businessId]);
 
     useEffect(() => {
         // Hydrate the customer table once the client has mounted.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCustomers();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [fetchCustomers]);
 
     const handleManualStamp = async (id, currentStamps, targetStamps) => {
         // Optimistic UI update
@@ -175,6 +173,11 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
             </div>
 
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                {loadError && (
+                    <div role="alert" className="p-4 border-b border-red-100 bg-red-50 text-red-700 text-sm font-medium">
+                        {loadError} <button onClick={fetchCustomers} className="underline font-semibold">Reintentar</button>
+                    </div>
+                )}
                 <div className="p-5 border-b border-gray-100 flex gap-4 bg-gray-50/50">
                     <div className="relative flex-1 max-w-md">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -281,7 +284,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                     </table>
                 </div>
 
-                {!isLoading && filtered.length === 0 && (
+                {!isLoading && !loadError && filtered.length === 0 && (
                     <div className="p-12 text-center flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-4">
                             <Search size={32} />

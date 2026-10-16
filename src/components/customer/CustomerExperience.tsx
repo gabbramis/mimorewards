@@ -133,6 +133,8 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       userAgent.includes('ipod') ||
       userAgent.includes('mac')
     ) {
+      // Browser detection runs after hydration so server markup stays consistent.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeviceOS('ios');
     } else if (userAgent.includes('android')) {
       setDeviceOS('android');

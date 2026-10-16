@@ -30,6 +30,8 @@ function LoginForm() {
     useEffect(() => {
         const savedEmail = localStorage.getItem('mimo_saved_email');
         if (savedEmail) {
+            // Read the persisted value after hydration to keep server and client markup aligned.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEmail(savedEmail);
             setRememberMe(true);
         }

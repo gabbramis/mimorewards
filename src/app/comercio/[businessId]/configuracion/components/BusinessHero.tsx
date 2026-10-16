@@ -48,7 +48,6 @@ export function BusinessHero({ businessId, form, setForm, saving, onImageUpload,
     useEffect(() => {
         let cancelled = false;
         if (!showQrModal || !nfcUrl) {
-            setQrDataUrl("");
             return;
         }
 
@@ -168,7 +167,7 @@ export function BusinessHero({ businessId, form, setForm, saving, onImageUpload,
                             </div>
                             <div className="flex items-center justify-between h-[28px] mt-0.5">
                                 <span className="text-[11px] font-semibold text-[#1F1F1F]/60">Listo para imprimir</span>
-                                <button onClick={() => setShowQrModal(true)} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white bg-[#1F1F1F] hover:bg-black px-2.5 py-1.5 rounded-lg transition-colors">
+                                <button onClick={() => { setQrDataUrl(""); setShowQrModal(true); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white bg-[#1F1F1F] hover:bg-black px-2.5 py-1.5 rounded-lg transition-colors">
                                     <Download className="w-3 h-3" /> PDF
                                 </button>
                             </div>

@@ -53,6 +53,8 @@ export function BusinessMembersManager({ businessId }: { businessId: string }) {
   }, [businessId]);
 
   useEffect(() => {
+    // Fetch current memberships when the selected business changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 

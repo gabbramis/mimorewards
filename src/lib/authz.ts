@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unstable_rethrow } from "next/navigation";
 
 export type AppRole = "superadmin" | "merchant" | "staff";
 
@@ -18,6 +19,7 @@ export async function getCurrentAccess() {
 
     return { user, role: (profile?.role || null) as AppRole | null };
   } catch (err) {
+    unstable_rethrow(err);
     console.error("Error al obtener sesión en getCurrentAccess:", err);
     return { user: null, role: null as AppRole | null };
   }

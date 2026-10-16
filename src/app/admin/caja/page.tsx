@@ -23,7 +23,7 @@ export default function CashierTerminal() {
     const [successMessage, setSuccessMessage] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-    const [qrToken, setQrToken] = useState<number>(Date.now());
+    const [qrToken, setQrToken] = useState<number>(0);
     const [businessSlug, setBusinessSlug] = useState<string>("");
     const [businessId, setBusinessId] = useState<string>("");
     const [origin, setOrigin] = useState<string>("");
@@ -31,10 +31,6 @@ export default function CashierTerminal() {
     const supabase = createClient();
 
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            setOrigin(window.location.origin);
-        }
-
         async function fetchBusinessSlug() {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -89,8 +85,6 @@ export default function CashierTerminal() {
     useEffect(() => {
         if (!isQrModalOpen) return;
 
-        setQrToken(Date.now());
-
         const intervalId = setInterval(() => {
             setQrToken(Date.now());
         }, 300000);
@@ -138,7 +132,7 @@ export default function CashierTerminal() {
 
             let query = supabase
                 .from('customers')
-                .select('id, first_name, last_name, phone, current_stamps, unique_code, business_id, businesses(reward_target)');
+                .select('id, first_name, last_name, phone, current_stamps, unique_code, business_id');
 
             if (businessId) {
                 query = query.eq('business_id', businessId);
@@ -146,11 +140,15 @@ export default function CashierTerminal() {
 
             const { data, error } = await query.or(orQuery).maybeSingle();
 
-            if (error) {
-                console.error("Error al buscar cliente:", error);
-            }
+            if (error) throw error;
 
             if (data) {
+                const { data: business, error: businessError } = await supabase
+                    .from('businesses')
+                    .select('reward_target')
+                    .eq('id', data.business_id)
+                    .maybeSingle();
+                if (businessError) throw businessError;
                 playSuccessBeep();
                 setCustomer({
                     id: data.id,
@@ -158,7 +156,7 @@ export default function CashierTerminal() {
                     lastName: data.last_name,
                     phone: data.phone,
                     currentStamps: data.current_stamps,
-                    targetStamps: (data as any)?.businesses?.reward_target || 10,
+                    targetStamps: business?.reward_target || 10,
                     uniqueCode: data.unique_code
                 });
                 setManualInput("");
@@ -166,8 +164,7 @@ export default function CashierTerminal() {
                 setErrorMsg("Cliente no encontrado o código inválido.");
             }
         } catch (error) {
-            console.error(error);
-            setErrorMsg("Ocurrió un error inesperado al conectar.");
+            setErrorMsg(error instanceof Error ? error.message : "Ocurrió un error inesperado al conectar.");
         } finally {
             setIsLoading(false);
         }
@@ -274,7 +271,11 @@ export default function CashierTerminal() {
 
                     <button
                         type="button"
-                        onClick={() => setIsQrModalOpen(true)}
+                        onClick={() => {
+                            setOrigin(window.location.origin);
+                            setQrToken(Date.now());
+                            setIsQrModalOpen(true);
+                        }}
                         className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50/50 px-3 py-2 text-xs font-bold text-slate-800 hover:text-[#FF1F2D] transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
                     >
                         <QrCode size={15} className="text-[#FF1F2D]" />

@@ -38,16 +38,9 @@ export default function AdminCajaQrClient() {
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshTimestamp, setRefreshTimestamp] = useState<number>(Date.now());
+  const [refreshTimestamp, setRefreshTimestamp] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Obtener origen en el cliente
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin);
-    }
-  }, []);
 
   // Cargar usuario y comercio asociado
   useEffect(() => {
@@ -62,6 +55,8 @@ export default function AdminCajaQrClient() {
           data: { user },
           error: userErr,
         } = await supabase.auth.getUser();
+
+        if (!cancelled) setOrigin(window.location.origin);
 
         if (userErr || !user) {
           window.location.href = "/login?next=/admin/caja";

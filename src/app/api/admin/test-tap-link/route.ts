@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const supabase: any = createAdminClient();
     const { data: customer, error: customerError } = await supabase
       .from("customers")
-      .select("id, business_id, businesses(slug, name)")
+      .select("id, business_id")
       .eq("id", customerId)
       .maybeSingle();
     if (customerError || !customer) return NextResponse.json({ error: "Cliente no encontrado." }, { status: 404 });
@@ -41,7 +41,12 @@ export async function POST(request: Request) {
 
     let tag = existingTag;
     if (!tag && !nfcId) {
-      const business = Array.isArray(customer.businesses) ? customer.businesses[0] : customer.businesses;
+      const { data: business, error: businessError } = await supabase
+        .from("businesses")
+        .select("slug, name")
+        .eq("id", customer.business_id)
+        .maybeSingle();
+      if (businessError) throw businessError;
       const baseNfcId = slugify(business?.slug || business?.name || "comercio");
       const { data: conflictingTag } = await supabase.from("nfc_tags").select("nfc_id").eq("nfc_id", baseNfcId).maybeSingle();
       const generatedNfcId = conflictingTag ? `${baseNfcId}-${crypto.randomUUID().replaceAll("-", "").slice(0, 4)}` : baseNfcId;
