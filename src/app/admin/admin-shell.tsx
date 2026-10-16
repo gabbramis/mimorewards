@@ -4,14 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap, QrCode } from "lucide-react";
+import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap, QrCode, History } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from "@/contexts/BusinessContext";
 
 const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
     ["/admin/negocios", "Negocios", Store],
-    ["/admin/metricas", "Métricas", BarChart3],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
 ] as const;
@@ -44,16 +43,16 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
     }
     const navItems = mode === "merchant" && businessId
         ? [
-            [`/comercio/${businessId}/metricas`, "Métricas", LayoutDashboard],
+            [`/comercio/${businessId}`, "Dashboard", LayoutDashboard],
             [`/comercio/${businessId}/clientes`, "Clientes", Users],
-            [`/comercio/${businessId}/automatizaciones`, "Automatizaciones", Zap],
+            [`/comercio/${businessId}/historial`, "Historial de movimientos", History],
             [`/comercio/${businessId}/configuracion`, "Configuración", Sliders],
         ] as const
         : internalNavItems.filter(([href]) => isCreator || !(CREATOR_ONLY_PATHS as readonly string[]).includes(href));
 
     const getLinkClass = (path: string) => {
-        const isActive = path === "/admin"
-            ? pathname === "/admin"
+        const isActive = path === "/admin" || path === `/comercio/${businessId}`
+            ? pathname === path
             : (pathname === path || pathname?.startsWith(path + '/'));
         const baseClass = "m-admin-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
         if (isActive) {
@@ -67,7 +66,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
             {sidebarOpen && <button className="m-admin-backdrop" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)} />}
             <aside className={`m-admin-sidebar flex flex-col ${sidebarOpen ? "is-open" : ""}`}>
                 <div className="m-admin-brand-row flex items-center justify-between">
-                    <Link href={mode === "merchant" && businessId ? `/comercio/${businessId}/metricas` : "/admin"} className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
+                    <Link href={mode === "merchant" && businessId ? `/comercio/${businessId}` : "/admin"} className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
                         <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
                         <span>{mode === "merchant" ? "Espacio de tu comercio" : "Panel interno de mimo"}</span>
                     </Link>

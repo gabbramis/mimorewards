@@ -1,10 +1,10 @@
-import MetricsDashboard from "@/app/admin/metricas/page";
+import { redirect } from "next/navigation";
 
-export default async function MerchantMetricsPage({
+export default async function MerchantMetricasRedirect({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  return <MetricsDashboard businessId={businessId} merchantMode />;
+  redirect(`/comercio/${businessId}`);
 }

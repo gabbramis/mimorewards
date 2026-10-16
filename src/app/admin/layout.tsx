@@ -32,6 +32,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       );
     }
+
+    redirect(`/comercio/${membership.business_id}`);
   }
 
   return <AdminShell>{children}</AdminShell>;

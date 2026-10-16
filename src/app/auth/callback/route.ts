@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const rawNext = searchParams.get('next') || searchParams.get('redirectTo');
     const next = (rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://'))
         ? rawNext
-        : '/admin/metricas';
+        : '/admin';
 
     if (code) {
         const cookieStore = await cookies();

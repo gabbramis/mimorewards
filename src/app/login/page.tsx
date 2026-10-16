@@ -70,7 +70,7 @@ function LoginForm() {
                 } else {
                     localStorage.removeItem('mimo_saved_email');
                 }
-                const destination = getValidRedirectUrl(nextParam) || '/admin/metricas';
+                const destination = getValidRedirectUrl(nextParam) || '/admin';
                 router.push(destination);
                 router.refresh();
             }

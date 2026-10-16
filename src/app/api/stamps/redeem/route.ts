@@ -56,6 +56,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: messages[result?.reason] || 'No se pudo canjear la recompensa.', reason: result?.reason }, { status: 409 });
         }
 
+        // Registrar el canje en stamp_logs para auditoría y métricas del local
+        if (result.accepted && result.reason !== 'already_processed') {
+            await supabase.from('stamp_logs').insert({
+                customer_id: customer.id,
+                business_id: customer.business_id,
+                method: 'REDEEM',
+                metadata: { redemption_id: result.redemption_id || null },
+            });
+        }
+
         // Notificar a los dispositivos Apple Wallet registrados
         sendCustomerPassUpdate(customer.id, customer.business_id).catch((pushErr) => {
             console.error('[APNs] Error triggering pass update push on redeem:', pushErr);
