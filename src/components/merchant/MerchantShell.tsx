@@ -14,7 +14,6 @@ import {
   Menu,
   X,
   ChevronRight,
-  Store,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -108,7 +107,7 @@ export default function MerchantShell({
           <div className="flex h-20 items-center justify-between border-b border-[#F0E6DE] px-6 box-border">
             <Link
               href={`/comercio/${businessId}`}
-              className="flex flex-col gap-1"
+              className="flex items-center"
               onClick={() => setSidebarOpen(false)}
             >
               <Image
@@ -117,11 +116,8 @@ export default function MerchantShell({
                 height={469}
                 alt="mimo rewards"
                 priority
-                className="w-28 h-auto object-contain object-left"
+                className="w-24 h-auto object-contain"
               />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
-                Panel de comercio
-              </span>
             </Link>
             <button
               type="button"
@@ -177,15 +173,23 @@ export default function MerchantShell({
         {/* Footer Profile & Logout */}
         <div className="border-t border-[#F0E6DE] p-3">
           <div className="flex items-center justify-between rounded-xl bg-[#FFF9F5] p-2.5 border border-[#F0E6DE]">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white border border-[#F0E6DE] text-[11px] font-bold text-[#1F1F1F]">
-                <Store size={14} className="text-[#737373]" />
-              </div>
+            <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+              {businessLogo ? (
+                <img
+                  src={businessLogo}
+                  alt={businessName}
+                  className="h-9 w-9 shrink-0 rounded-xl object-cover border border-[#F0E6DE] bg-white shadow-2xs"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs border border-[#FFD9DC]">
+                  {businessName.slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-[#1F1F1F]">
-                  Comercio
+                <p className="truncate text-xs font-bold text-[#1F1F1F] leading-tight">
+                  {businessName}
                 </p>
-                <p className="text-[10px] text-[#737373] truncate">
+                <p className="text-[10px] text-[#737373] truncate font-medium mt-0.5">
                   {businessSlug ? `@${businessSlug}` : "Local autenticado"}
                 </p>
               </div>
@@ -194,7 +198,7 @@ export default function MerchantShell({
               type="button"
               onClick={handleLogout}
               title="Cerrar sesión"
-              className="rounded-lg p-1.5 text-[#737373] hover:bg-[#FFF0F1] hover:text-[#FF1F2D] transition-colors"
+              className="rounded-lg p-1.5 text-[#737373] hover:bg-[#FFF0F1] hover:text-[#FF1F2D] transition-colors shrink-0 ml-1.5"
             >
               <LogOut size={15} />
             </button>
@@ -216,30 +220,15 @@ export default function MerchantShell({
               <Menu size={18} />
             </button>
 
-            {/* Identidad del Negocio: Logo visible y destacado + Nombre + Estado */}
-            <div className="flex items-center gap-3.5">
-              {businessLogo ? (
-                <img
-                  src={businessLogo}
-                  alt={businessName}
-                  className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl object-cover border border-[#F0E6DE] bg-white shadow-2xs shrink-0"
-                />
-              ) : (
-                <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-base sm:text-lg border border-[#FFD9DC]">
-                  {businessName.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <div className="flex flex-col">
-                <h1 className="text-sm font-bold text-[#1F1F1F] sm:text-base tracking-tight leading-tight">
-                  {businessName}
-                </h1>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[10px] font-bold text-[#10B981] border border-[#A7F3D0]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                    {isActive ? "Programa Activo" : "Pausado"}
-                  </span>
-                </div>
-              </div>
+            {/* Título de la sección y estado del programa */}
+            <div className="flex items-center gap-3">
+              <h1 className="text-base sm:text-lg font-bold text-[#1F1F1F] tracking-tight">
+                Panel de comercio
+              </h1>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-bold text-[#10B981] border border-[#A7F3D0]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                {isActive ? "Programa Activo" : "Pausado"}
+              </span>
             </div>
           </div>
 
