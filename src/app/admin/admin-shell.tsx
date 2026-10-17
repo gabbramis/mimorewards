@@ -46,7 +46,6 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
             [`/comercio/${businessId}`, "Dashboard", LayoutDashboard],
             [`/comercio/${businessId}/clientes`, "Clientes", Users],
             [`/comercio/${businessId}/historial`, "Historial de movimientos", History],
-            [`/comercio/${businessId}/configuracion`, "Configuración", Sliders],
         ] as const
         : internalNavItems.filter(([href]) => isCreator || !(CREATOR_ONLY_PATHS as readonly string[]).includes(href));
 

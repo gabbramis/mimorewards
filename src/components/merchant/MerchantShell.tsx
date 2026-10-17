@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   History,
-  Settings,
   Copy,
   Check,
   LogOut,
@@ -61,12 +60,6 @@ export default function MerchantShell({
       icon: History,
       exact: false,
     },
-    {
-      href: `/comercio/${businessId}/configuracion`,
-      label: "Configuración del local",
-      icon: Settings,
-      exact: false,
-    },
   ];
 
   const handleCopyCardLink = async () => {
@@ -111,24 +104,24 @@ export default function MerchantShell({
         }`}
       >
         <div className="flex flex-col">
-          {/* Brand Header */}
-          <div className="flex items-center justify-between border-b border-[#F0E6DE] px-5 py-4">
+          {/* Brand Header: Altura fija h-20 (80px) idéntica a la Topbar para alineación continua */}
+          <div className="flex h-20 items-center justify-between border-b border-[#F0E6DE] px-6 box-border">
             <Link
               href={`/comercio/${businessId}`}
-              className="flex items-center gap-2.5"
+              className="flex flex-col gap-1"
               onClick={() => setSidebarOpen(false)}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF1F2D] text-white shadow-sm font-bold text-sm">
-                M
-              </div>
-              <div className="flex flex-col">
-                <span className="text-base font-bold tracking-tight text-[#1F1F1F] leading-tight">
-                  mimo rewards
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">
-                  Panel de Comercio
-                </span>
-              </div>
+              <Image
+                src="/images/mimo-wordmark.png"
+                width={1220}
+                height={469}
+                alt="mimo rewards"
+                priority
+                className="w-28 h-auto object-contain object-left"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
+                Panel de comercio
+              </span>
             </Link>
             <button
               type="button"
@@ -139,32 +132,8 @@ export default function MerchantShell({
             </button>
           </div>
 
-          {/* Store Pill */}
-          <div className="mx-4 mt-4 mb-2 flex items-center gap-2.5 rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] p-2.5">
-            {businessLogo ? (
-              <img
-                src={businessLogo}
-                alt={businessName}
-                className="h-8 w-8 rounded-lg object-cover border border-[#F0E6DE] bg-white"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs">
-                {businessName.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-xs font-bold text-[#1F1F1F]">
-                {businessName}
-              </span>
-              <span className="flex items-center gap-1 text-[10px] text-[#10B981] font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                {isActive ? "Programa activo" : "En pausa"}
-              </span>
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-1.5 px-3 py-3">
+          {/* Navigation Links (solo Dashboard, Clientes, Historial de movimientos) */}
+          <nav className="flex flex-col gap-1.5 px-3 py-5">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#737373]">
               Gestión Operativa
             </p>
@@ -235,9 +204,9 @@ export default function MerchantShell({
 
       {/* Main Container */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top Navbar Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#F0E6DE] bg-white px-4 md:px-8">
-          <div className="flex items-center gap-3">
+        {/* Top Navbar Header: Altura fija h-20 (80px) idéntica al Sidebar para alineación perfecta */}
+        <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#F0E6DE] bg-white px-4 md:px-8 box-border">
+          <div className="flex items-center gap-3.5">
             <button
               type="button"
               className="rounded-lg border border-[#F0E6DE] p-2 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
@@ -246,14 +215,31 @@ export default function MerchantShell({
             >
               <Menu size={18} />
             </button>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-[#1F1F1F] sm:text-base tracking-tight">
-                {businessName}
-              </h1>
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-semibold text-[#10B981] border border-[#A7F3D0]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                {isActive ? "Programa Activo" : "Pausado"}
-              </span>
+
+            {/* Identidad del Negocio: Logo visible y destacado + Nombre + Estado */}
+            <div className="flex items-center gap-3.5">
+              {businessLogo ? (
+                <img
+                  src={businessLogo}
+                  alt={businessName}
+                  className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl object-cover border border-[#F0E6DE] bg-white shadow-2xs shrink-0"
+                />
+              ) : (
+                <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-base sm:text-lg border border-[#FFD9DC]">
+                  {businessName.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <h1 className="text-sm font-bold text-[#1F1F1F] sm:text-base tracking-tight leading-tight">
+                  {businessName}
+                </h1>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[10px] font-bold text-[#10B981] border border-[#A7F3D0]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                    {isActive ? "Programa Activo" : "Pausado"}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

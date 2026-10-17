@@ -186,13 +186,13 @@ export default function MerchantHistoryClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
-            Auditoría de Caja & Trazabilidad
+            Registro de Operaciones
           </span>
           <h2 className="text-2xl font-bold tracking-tight text-[#1F1F1F]">
             Historial de movimientos
           </h2>
           <p className="text-xs text-[#737373] mt-0.5">
-            Registro cronológico inmutable de sellos y canjes en esta sucursal.
+            Historial de sellos y premios canjeados en tu negocio.
           </p>
         </div>
 
@@ -460,11 +460,8 @@ export default function MerchantHistoryClient({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#F0E6DE] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex items-center justify-between">
-          <span>Mostrando {filteredLogs.length} movimientos auditados</span>
-          <span className="font-semibold text-[#1F1F1F]">
-            Trazabilidad garantizada por Mimo Rewards
-          </span>
+        <div className="border-t border-[#F0E6DE] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373]">
+          <span>Mostrando {filteredLogs.length} movimientos</span>
         </div>
       </div>
     </div>

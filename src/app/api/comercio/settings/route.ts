@@ -97,8 +97,11 @@ export async function POST(request: Request) {
       name,
       reward_target: rewardTarget,
       reward_description: rewardDescription || "Beneficio gratis",
-      primary_color: primaryColor,
     };
+
+    if (rawColor && /^#[0-9a-fA-F]{6}$/i.test(rawColor)) {
+      updatePayload.primary_color = rawColor.toUpperCase();
+    }
 
     if (logoUrl) {
       updatePayload.logo_url = logoUrl;

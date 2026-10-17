@@ -12,6 +12,7 @@ import {
   Edit3,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import MerchantRulesEditor from "@/components/merchant/MerchantRulesEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -162,29 +163,15 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
             Métricas de fidelización en tiempo real para {business.name}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/comercio/${businessId}/clientes`}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#E01522] transition-colors"
-          >
-            Ver clientes
-            <ArrowRight size={14} />
-          </Link>
-        </div>
       </div>
 
-      {/* 4 KPI Cards */}
+      {/* 4 KPI Cards (Limpias sin iconos a la derecha) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Sellos Entregados */}
         <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373]">
-              Sellos entregados
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#FF1F2D]">
-              <Stamp size={16} />
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-[#737373]">
+            Sellos entregados
+          </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
               {stampsWeek}{" "}
@@ -203,14 +190,9 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
 
         {/* Card 2: Premios Canjeados */}
         <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373]">
-              Premios canjeados
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#FF1F2D]">
-              <Gift size={16} />
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-[#737373]">
+            Premios canjeados
+          </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
               {totalRedeems}
@@ -223,14 +205,9 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
 
         {/* Card 3: Clientes Activos */}
         <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373]">
-              Clientes activos
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#FF1F2D]">
-              <Users size={16} />
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-[#737373]">
+            Clientes activos
+          </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
               {totalCustomers}
@@ -243,14 +220,9 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
 
         {/* Card 4: Tasa de Retorno */}
         <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373]">
-              Tasa de retorno
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ECFDF5] text-[#10B981]">
-              <TrendingUp size={16} />
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-[#737373]">
+            Tasa de retorno
+          </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
               {returnRate}%
@@ -262,7 +234,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Main Grid: Gráfico de Actividad & Panel de Resumen */}
+      {/* Main Grid: Gráfico de Actividad & Editor de Reglas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Gráfico de Actividad Semanal (2 cols) */}
         <div className="lg:col-span-2 rounded-2xl border border-[#F0E6DE] bg-white p-6 shadow-xs">
@@ -325,59 +297,19 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           <div className="mt-6 pt-4 border-t border-[#F0E6DE] flex items-center justify-between text-xs text-[#737373]">
             <span className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
-              Día con mayor afluencia registrado
+              Día con más visitas
             </span>
             <span>Total semanal: {stampsWeek} movimientos</span>
           </div>
         </div>
 
-        {/* Resumen de Programa y Tarjeta Digital (1 col) */}
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
-                Reglas del local
-              </h3>
-              <Sparkles size={16} className="text-[#FF1F2D]" />
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] p-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
-                  Meta de fidelización
-                </span>
-                <p className="text-lg font-bold text-[#1F1F1F] mt-1">
-                  {business.reward_target || 10} sellos
-                </p>
-                <p className="text-xs text-[#737373] mt-0.5">
-                  Para desbloquear el canje de premio.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] p-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
-                  Premio activo
-                </span>
-                <p className="text-sm font-bold text-[#1F1F1F] mt-1">
-                  {business.reward_description || "Café o recompensa gratis"}
-                </p>
-                <p className="text-xs text-[#737373] mt-0.5">
-                  Acreditación directa en mostrador.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-[#F0E6DE]">
-            <Link
-              href={`/comercio/${businessId}/configuracion`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F0E6DE] bg-white py-2.5 text-xs font-semibold text-[#1F1F1F] hover:bg-[#FFF9F5] transition-colors"
-            >
-              <Edit3 size={14} className="text-[#737373]" />
-              Editar datos y reglas
-            </Link>
-          </div>
-        </div>
+        {/* Editor de Reglas del Programa (1 col) */}
+        <MerchantRulesEditor
+          businessId={businessId}
+          initialTarget={business.reward_target || 10}
+          initialDescription={business.reward_description || "Beneficio de regalo"}
+          businessName={business.name}
+        />
       </div>
 
       {/* Resumen Rápido: Últimos 5 Movimientos */}

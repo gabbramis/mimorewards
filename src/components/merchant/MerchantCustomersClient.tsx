@@ -97,12 +97,19 @@ export default function MerchantCustomersClient({
       // Búsqueda de texto
       const fullName = `${c.first_name || ""} ${c.last_name || ""}`.toLowerCase();
       const phone = (c.phone || "").toLowerCase();
-      const code = (c.unique_code || "").toLowerCase();
+      const rawCode = (c.unique_code || "").toLowerCase();
+      const cleanCode = rawCode.replace(/^cli-?/i, "");
+      const cleanQuery = query.replace(/^cli-?/i, "");
+
+      const matchesCode =
+        rawCode.includes(query) ||
+        (cleanQuery.length > 0 && cleanCode.includes(cleanQuery));
+
       const matchesQuery =
         !query ||
         fullName.includes(query) ||
         phone.includes(query) ||
-        code.includes(query);
+        matchesCode;
 
       if (!matchesQuery) return false;
 
@@ -236,12 +243,20 @@ export default function MerchantCustomersClient({
   const modalSearchResults = useMemo(() => {
     const q = modalSearch.trim().toLowerCase();
     if (!q) return customers.slice(0, 5);
+    const cleanQ = q.replace(/^cli-?/i, "");
+
     return customers
       .filter((c) => {
         const fullName = `${c.first_name || ""} ${c.last_name || ""}`.toLowerCase();
         const phone = (c.phone || "").toLowerCase();
-        const code = (c.unique_code || "").toLowerCase();
-        return fullName.includes(q) || phone.includes(q) || code.includes(q);
+        const rawCode = (c.unique_code || "").toLowerCase();
+        const cleanCode = rawCode.replace(/^cli-?/i, "");
+
+        const matchesCode =
+          rawCode.includes(q) ||
+          (cleanQ.length > 0 && cleanCode.includes(cleanQ));
+
+        return fullName.includes(q) || phone.includes(q) || matchesCode;
       })
       .slice(0, 6);
   }, [customers, modalSearch]);
@@ -333,7 +348,7 @@ export default function MerchantCustomersClient({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por nombre, teléfono, email o código CLI-XXXXXX..."
+            placeholder="Buscar por nombre, teléfono o código (ej. 493146)..."
             className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none transition-colors"
           />
           {searchQuery && (
@@ -616,7 +631,7 @@ export default function MerchantCustomersClient({
                     type="text"
                     value={modalSearch}
                     onChange={(e) => setModalSearch(e.target.value)}
-                    placeholder="Escribí nombre, teléfono o código CLI-XXXXXX..."
+                    placeholder="Escribí nombre, teléfono o código (ej. 493146)..."
                     className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2.5 pl-9 pr-3 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
                   />
                 </div>
