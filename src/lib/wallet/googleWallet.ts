@@ -17,25 +17,49 @@ const SCOPES = ['https://www.googleapis.com/auth/wallet_object.issuer'];
 
 /**
  * Ensures we can safely load the Google credentials JSON.
+ * Prioritizes GOOGLE_CLIENT_EMAIL & GOOGLE_PRIVATE_KEY environment variables,
+ * and falls back to google-service-account.json in the project root.
  */
 function loadCredentials(): WalletCredentials {
+    if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+        return {
+            client_email: process.env.GOOGLE_CLIENT_EMAIL.trim(),
+            private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n').trim(),
+        };
+    }
     const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
     if (!fs.existsSync(credentialsPath)) {
-        throw new Error('Google Wallet service account credentials file (google-service-account.json) no se encontró en la raíz del proyecto.');
+        throw new Error('Google Wallet credentials: no se encontró GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY en variables ni el archivo google-service-account.json.');
     }
     const fileContent = fs.readFileSync(credentialsPath, 'utf8');
-    return JSON.parse(fileContent);
+    const parsed = JSON.parse(fileContent);
+    return {
+        client_email: parsed.client_email,
+        private_key: parsed.private_key,
+    };
 }
 
 /**
  * Validates the existence of the issuer ID in environment variables.
  */
-function getIssuerId(): string {
-    const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID;
-    if (!issuerId) {
+export function getIssuerId(): string {
+    const raw = process.env.GOOGLE_WALLET_ISSUER_ID;
+    if (!raw) {
         throw new Error('La variable de entorno GOOGLE_WALLET_ISSUER_ID no está definida en .env.local.');
     }
-    return issuerId;
+    return raw.replace(/['"]/g, '').trim();
+}
+
+export function getGoogleClassId(businessId: string): string {
+    const issuerId = getIssuerId();
+    const safeBusinessId = businessId.replace(/-/g, '_');
+    return `${issuerId}.${safeBusinessId}`;
+}
+
+export function getGoogleObjectId(cardId: string): string {
+    const issuerId = getIssuerId();
+    const safeCardId = cardId.replace(/-/g, '_');
+    return `${issuerId}.${safeCardId}`;
 }
 
 /**
@@ -60,9 +84,7 @@ export async function createOrUpdateLoyaltyClass(
     hexColor?: string,
     logoUrl?: string
 ): Promise<LoyaltyClassResponse> {
-    const issuerId = getIssuerId();
-    const safeBusinessId = businessId.replace(/-/g, '_');
-    const classId = `${issuerId}.${safeBusinessId}`;
+    const classId = getGoogleClassId(businessId);
 
     const authClient = await getAuthClient();
     const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
@@ -123,11 +145,8 @@ export function generateSavePassUrl(
     maxStamps: number,
     businessId: string
 ): string {
-    const issuerId = getIssuerId();
-    const safeBusinessId = businessId.replace(/-/g, '_');
-    const classId = `${issuerId}.${safeBusinessId}`;
-    const safeCardId = cardId.replace(/-/g, '_');
-    const objectId = `${issuerId}.${safeCardId}`;
+    const classId = getGoogleClassId(businessId);
+    const objectId = getGoogleObjectId(cardId);
 
     const credentials = loadCredentials();
 
@@ -147,8 +166,6 @@ export function generateSavePassUrl(
             balance: {
                 int: currentStamps
             }
-            // Note: 'maxStamps' is not natively standardized inside 'loyaltyPoints.balance',
-            // but 'currentStamps' is represented as requested. Typically we could show it in textual labels.
         }
     };
 
@@ -162,36 +179,109 @@ export function generateSavePassUrl(
         }
     };
 
-    console.log("Generando JWT con claims:\\n", JSON.stringify(claims, null, 2));
+    console.log("Generando JWT con claims:\n", JSON.stringify(claims, null, 2));
 
     const token = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
 
     return `https://pay.google.com/gp/v/save/${token}`;
 }
 
+export type UpdatePointsOptions = {
+    targetStamps?: number;
+    businessName?: string;
+    notificationMessage?: string;
+};
+
 /**
  * Updates an existing Loyalty Object (pass) in Google Wallet with a new points balance.
+ * Optionally triggers a push notification via TEXT_AND_NOTIFY.
  */
 export async function updateLoyaltyPoints(
     cardId: string,
-    currentStamps: number
-): Promise<void> {
-    const issuerId = getIssuerId();
-    const safeCardId = cardId.replace(/-/g, '_');
-    const objectId = `${issuerId}.${safeCardId}`;
+    currentStamps: number,
+    options?: UpdatePointsOptions
+): Promise<{ success: boolean; notFound?: boolean; error?: string }> {
+    const objectId = getGoogleObjectId(cardId);
 
-    const authClient = await getAuthClient();
-    const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
+    try {
+        const authClient = await getAuthClient();
+        const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
 
-    await walletobjects.loyaltyobject.patch({
-        resourceId: objectId,
-        requestBody: {
-            loyaltyPoints: {
-                label: 'Sellos',
-                balance: {
-                    int: currentStamps
+        await walletobjects.loyaltyobject.patch({
+            resourceId: objectId,
+            requestBody: {
+                loyaltyPoints: {
+                    label: 'Sellos',
+                    balance: {
+                        int: currentStamps
+                    }
                 }
             }
+        });
+
+        // Si se solicita mensaje y notificación en pantalla de bloqueo
+        if (options?.notificationMessage) {
+            try {
+                const messageId = `stamp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                await walletobjects.loyaltyobject.addmessage({
+                    resourceId: objectId,
+                    requestBody: {
+                        message: {
+                            id: messageId,
+                            header: options.businessName || "Mimo Rewards",
+                            body: options.notificationMessage,
+                            messageType: 'TEXT_AND_NOTIFY',
+                        }
+                    }
+                });
+            } catch (msgErr: any) {
+                console.warn(`[Google Wallet] No se pudo enviar addmessage a ${objectId}:`, msgErr?.message);
+            }
         }
-    });
+
+        return { success: true };
+    } catch (err: any) {
+        if (err.code === 404 || err.status === 404) {
+            // El usuario aún no guardó el pase en Google Wallet
+            return { success: false, notFound: true };
+        }
+        console.error(`[Google Wallet] Error updating loyalty points for ${objectId}:`, err);
+        return { success: false, error: err?.message };
+    }
 }
+
+/**
+ * Envía una notificación masiva TEXT_AND_NOTIFY a nivel LoyaltyClass en Google Wallet.
+ * Notifica a todos los dispositivos Android que tengan instalada la tarjeta del comercio.
+ */
+export async function broadcastGoogleWalletClassMessage(
+    businessId: string,
+    header: string,
+    body: string
+): Promise<{ success: boolean; error?: string }> {
+    const classId = getGoogleClassId(businessId);
+
+    try {
+        const authClient = await getAuthClient();
+        const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
+
+        const messageId = `camp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        await walletobjects.loyaltyclass.addmessage({
+            resourceId: classId,
+            requestBody: {
+                message: {
+                    id: messageId,
+                    header,
+                    body,
+                    messageType: 'TEXT_AND_NOTIFY',
+                }
+            }
+        });
+
+        return { success: true };
+    } catch (err: any) {
+        console.error(`[Google Wallet] Error enviando broadcast addmessage a clase ${classId}:`, err);
+        return { success: false, error: err?.message };
+    }
+}
+

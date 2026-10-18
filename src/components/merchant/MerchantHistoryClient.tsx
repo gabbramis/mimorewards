@@ -200,7 +200,7 @@ export default function MerchantHistoryClient({
         <button
           type="button"
           onClick={handleExportCSV}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#F0E6DE] bg-white px-4 py-2.5 text-xs font-semibold text-[#1F1F1F] shadow-xs hover:bg-[#FFF9F5] transition-colors shrink-0"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#D5CFC4] bg-white px-4 py-2.5 text-xs font-semibold text-[#1F1F1F] shadow-xs hover:bg-[#FFF9F5] hover:border-[#B8B1A4] transition-colors shrink-0"
         >
           <Download size={14} className="text-[#737373]" />
           <span>Exportar a CSV</span>
@@ -209,7 +209,7 @@ export default function MerchantHistoryClient({
 
       {/* Mini KPI Cards del Período */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
             Total movimientos
           </span>
@@ -217,7 +217,7 @@ export default function MerchantHistoryClient({
           <p className="text-[11px] text-[#737373] mt-0.5">En el rango seleccionado</p>
         </div>
 
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
             Sellos acreditados
           </span>
@@ -227,7 +227,7 @@ export default function MerchantHistoryClient({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
             Premios canjeados
           </span>
@@ -235,7 +235,7 @@ export default function MerchantHistoryClient({
           <p className="text-[11px] text-[#737373] mt-0.5">Validados en mostrador</p>
         </div>
 
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
             Auditoría de seguridad
           </span>
@@ -248,7 +248,7 @@ export default function MerchantHistoryClient({
       </div>
 
       {/* Barra de Filtros */}
-      <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 sm:p-5 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-5 shadow-xs space-y-4">
         {/* Buscador */}
         <div className="relative">
           <Search
@@ -260,7 +260,7 @@ export default function MerchantHistoryClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por cliente, teléfono o código CLI-XXXXXX..."
-            className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
           />
           {searchQuery && (
             <button
@@ -274,7 +274,7 @@ export default function MerchantHistoryClient({
         </div>
 
         {/* Filtros en dos filas / bloques */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1 border-t border-[#F0E6DE]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1 border-t border-[#D5CFC4]">
           {/* Rango de Fechas */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] font-bold text-[#737373] mr-1 flex items-center gap-1">
@@ -295,7 +295,7 @@ export default function MerchantHistoryClient({
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
                   dateFilter === tab.id
                     ? "bg-[#FF1F2D] text-white shadow-xs"
-                    : "border border-[#F0E6DE] bg-white text-[#737373] hover:border-[#E2D5CB] hover:text-[#1F1F1F]"
+                    : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
                 }`}
               >
                 {tab.label}
@@ -321,7 +321,7 @@ export default function MerchantHistoryClient({
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
                   actionFilter === tab.id
                     ? "bg-[#1F1F1F] text-white shadow-xs"
-                    : "border border-[#F0E6DE] bg-white text-[#737373] hover:border-[#E2D5CB] hover:text-[#1F1F1F]"
+                    : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
                 }`}
               >
                 {tab.label}
@@ -332,11 +332,11 @@ export default function MerchantHistoryClient({
       </div>
 
       {/* Tabla de Movimientos */}
-      <div className="rounded-2xl border border-[#F0E6DE] bg-white shadow-xs overflow-hidden">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#F0E6DE] bg-[#FFF9F5] text-[#737373]">
+              <tr className="border-b border-[#D5CFC4] bg-[#FFF9F5] text-[#737373]">
                 <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
                   Fecha y Hora exacta
                 </th>
@@ -354,7 +354,7 @@ export default function MerchantHistoryClient({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F0E6DE]">
+            <tbody className="divide-y divide-[#D5CFC4]">
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => {
                   const isRedeem = log.method === "REDEEM";
@@ -425,7 +425,7 @@ export default function MerchantHistoryClient({
                             NFC / Autoservicio
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#F0E6DE] bg-[#FFF9F5] px-2.5 py-1 text-xs font-semibold text-[#525252]">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#D5CFC4] bg-[#FFF9F5] px-2.5 py-1 text-xs font-semibold text-[#525252]">
                             <Edit3 size={13} />
                             Carga manual en panel
                           </span>
@@ -460,7 +460,7 @@ export default function MerchantHistoryClient({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#F0E6DE] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373]">
+        <div className="border-t border-[#D5CFC4] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373]">
           <span>Mostrando {filteredLogs.length} movimientos</span>
         </div>
       </div>

@@ -85,7 +85,7 @@ export async function GET(
         .maybeSingle(),
       supabase
         .from("businesses")
-        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active")
+        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active, active_campaign_message")
         .eq("id", card.business_id)
         .maybeSingle(),
     ]);
@@ -124,6 +124,7 @@ export async function GET(
       logoImage,
       completedStampImage,
       pendingStampImage,
+      activeCampaignMessage: business.active_campaign_message,
     });
 
     return new Response(new Uint8Array(passBuffer), {

@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  Megaphone,
+  Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -59,6 +61,12 @@ export default function MerchantShell({
       icon: History,
       exact: false,
     },
+    {
+      href: `/comercio/${businessId}/automatizaciones`,
+      label: "Automatizaciones",
+      icon: Zap,
+      exact: false,
+    },
   ];
 
   const handleCopyCardLink = async () => {
@@ -98,13 +106,13 @@ export default function MerchantShell({
 
       {/* Sidebar Persistente (260px) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col justify-between border-r border-[#F0E6DE] bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col justify-between border-r border-[#D5CFC4] bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col">
           {/* Brand Header: Altura fija h-20 (80px) idéntica a la Topbar para alineación continua */}
-          <div className="flex h-20 items-center justify-between border-b border-[#F0E6DE] px-6 box-border">
+          <div className="flex h-20 items-center justify-between border-b border-[#D5CFC4] px-6 box-border">
             <Link
               href={`/comercio/${businessId}`}
               className="flex items-center"
@@ -171,14 +179,14 @@ export default function MerchantShell({
         </div>
 
         {/* Footer Profile & Logout */}
-        <div className="border-t border-[#F0E6DE] p-3">
-          <div className="flex items-center justify-between rounded-xl bg-[#FFF9F5] p-2.5 border border-[#F0E6DE]">
+        <div className="border-t border-[#D5CFC4] p-3">
+          <div className="flex items-center justify-between rounded-xl bg-[#FFF9F5] p-2.5 border border-[#D5CFC4]">
             <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
               {businessLogo ? (
                 <img
                   src={businessLogo}
                   alt={businessName}
-                  className="h-9 w-9 shrink-0 rounded-xl object-cover border border-[#F0E6DE] bg-white shadow-2xs"
+                  className="h-9 w-9 shrink-0 rounded-xl object-cover border border-[#D5CFC4] bg-white shadow-2xs"
                 />
               ) : (
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs border border-[#FFD9DC]">
@@ -186,11 +194,8 @@ export default function MerchantShell({
                 </div>
               )}
               <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-[#1F1F1F] leading-tight">
+                <p className="truncate text-xs font-bold text-[#1F1F1F]">
                   {businessName}
-                </p>
-                <p className="text-[10px] text-[#737373] truncate font-medium mt-0.5">
-                  {businessSlug ? `@${businessSlug}` : "Local autenticado"}
                 </p>
               </div>
             </div>
@@ -209,11 +214,11 @@ export default function MerchantShell({
       {/* Main Container */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar Header: Altura fija h-20 (80px) idéntica al Sidebar para alineación perfecta */}
-        <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#F0E6DE] bg-white px-4 md:px-8 box-border">
+        <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#D5CFC4] bg-white px-4 md:px-8 box-border">
           <div className="flex items-center gap-3.5">
             <button
               type="button"
-              className="rounded-lg border border-[#F0E6DE] p-2 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+              className="rounded-lg border border-[#D5CFC4] p-2 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Abrir menú de navegación"
             >
@@ -240,7 +245,7 @@ export default function MerchantShell({
               className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-xs transition-all duration-150 ${
                 copiedLink
                   ? "border-[#10B981] bg-[#ECFDF5] text-[#10B981]"
-                  : "border-[#F0E6DE] bg-white text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#E2D5CB]"
+                  : "border-[#D5CFC4] bg-white text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#B8B1A4]"
               }`}
             >
               {copiedLink ? (

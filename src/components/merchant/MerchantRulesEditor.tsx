@@ -74,7 +74,7 @@ export default function MerchantRulesEditor({
   };
 
   return (
-    <div className="rounded-2xl border border-[#F0E6DE] bg-white p-6 shadow-xs flex flex-col justify-between relative">
+    <div className="rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs flex flex-col justify-between relative">
       {/* Toast Feedback */}
       {toast && (
         <div
@@ -119,7 +119,7 @@ export default function MerchantRulesEditor({
                   max={15}
                   value={rewardTarget}
                   onChange={(e) => setRewardTarget(Number(e.target.value))}
-                  className="w-24 rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2 px-3 text-xs font-bold text-[#1F1F1F] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
+                  className="w-24 rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2 px-3 text-xs font-bold text-[#1F1F1F] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
                 />
                 <span className="text-xs text-[#737373]">
                   sellos (entre 4 y 15)
@@ -136,7 +136,7 @@ export default function MerchantRulesEditor({
                 value={rewardDescription}
                 onChange={(e) => setRewardDescription(e.target.value)}
                 placeholder="Ej. 1 Café de especialidad + Alfajor"
-                className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2 px-3 text-xs text-[#1F1F1F] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
+                className="w-full rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2 px-3 text-xs text-[#1F1F1F] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
               />
             </div>
 
@@ -148,7 +148,7 @@ export default function MerchantRulesEditor({
                   setRewardDescription(initialDescription);
                   setIsEditing(false);
                 }}
-                className="rounded-xl border border-[#F0E6DE] bg-white px-3.5 py-2 text-xs font-semibold text-[#737373] hover:bg-[#FFF9F5]"
+                className="rounded-xl border border-[#D5CFC4] bg-white px-3.5 py-2 text-xs font-semibold text-[#737373] hover:bg-[#FFF9F5]"
               >
                 Cancelar
               </button>
@@ -173,7 +173,7 @@ export default function MerchantRulesEditor({
           </form>
         ) : (
           <div className="space-y-3 mt-2">
-            <div className="rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] p-3.5">
+            <div className="rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] p-3.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
                 Meta de fidelización
               </span>
@@ -185,7 +185,7 @@ export default function MerchantRulesEditor({
               </p>
             </div>
 
-            <div className="rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] p-3.5">
+            <div className="rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] p-3.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#737373]">
                 Premio activo
               </span>
@@ -201,11 +201,11 @@ export default function MerchantRulesEditor({
       </div>
 
       {!isEditing && (
-        <div className="mt-5 pt-4 border-t border-[#F0E6DE]">
+        <div className="mt-5 pt-4 border-t border-[#D5CFC4]">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F0E6DE] bg-white py-2.5 text-xs font-semibold text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#E2D5CB] transition-colors"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D5CFC4] bg-white py-2.5 text-xs font-semibold text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#B8B1A4] transition-colors"
           >
             Editar reglas del local
           </button>

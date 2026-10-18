@@ -87,10 +87,11 @@ export default function MerchantCustomersClient({
     }, 3500);
   };
 
+  const [now] = useState(() => Date.now());
+
   // Filtrado y segmentación rápida
   const filteredCustomers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const now = Date.now();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
     return customers.filter((c) => {
@@ -127,11 +128,10 @@ export default function MerchantCustomersClient({
       }
       return true;
     });
-  }, [customers, searchQuery, activeFilter, rewardTarget]);
+  }, [customers, searchQuery, activeFilter, rewardTarget, now]);
 
   // Contadores para chips
   const counts = useMemo(() => {
-    const now = Date.now();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
     let ready = 0;
     let frequent = 0;
@@ -151,7 +151,7 @@ export default function MerchantCustomersClient({
       frequent,
       inactive,
     };
-  }, [customers, rewardTarget]);
+  }, [customers, rewardTarget, now]);
 
   // Acción: Sumar Sello Manual
   const handleAddStamp = async (customerId: string, clientName: string) => {
@@ -337,7 +337,7 @@ export default function MerchantCustomersClient({
       </div>
 
       {/* Card de Búsqueda y Filtros Rápidos */}
-      <div className="rounded-2xl border border-[#F0E6DE] bg-white p-4 sm:p-5 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-5 shadow-xs space-y-4">
         {/* Buscador en tiempo real */}
         <div className="relative">
           <Search
@@ -349,7 +349,7 @@ export default function MerchantCustomersClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre, teléfono o código (ej. 493146)..."
-            className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none transition-colors"
+            className="w-full rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none transition-colors"
           />
           {searchQuery && (
             <button
@@ -370,7 +370,7 @@ export default function MerchantCustomersClient({
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               activeFilter === "all"
                 ? "bg-[#FF1F2D] text-white shadow-xs"
-                : "border border-[#F0E6DE] bg-white text-[#737373] hover:border-[#E2D5CB] hover:text-[#1F1F1F]"
+                : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
             }`}
           >
             Todos ({counts.all})
@@ -393,7 +393,7 @@ export default function MerchantCustomersClient({
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               activeFilter === "frequent"
                 ? "bg-[#FF1F2D] text-white shadow-xs"
-                : "border border-[#F0E6DE] bg-white text-[#737373] hover:border-[#E2D5CB] hover:text-[#1F1F1F]"
+                : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
             }`}
           >
             Frecuentes ({counts.frequent})
@@ -404,7 +404,7 @@ export default function MerchantCustomersClient({
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               activeFilter === "inactive"
                 ? "bg-[#FF1F2D] text-white shadow-xs"
-                : "border border-[#F0E6DE] bg-white text-[#737373] hover:border-[#E2D5CB] hover:text-[#1F1F1F]"
+                : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
             }`}
           >
             Inactivos (+30 días) ({counts.inactive})
@@ -413,11 +413,11 @@ export default function MerchantCustomersClient({
       </div>
 
       {/* Tabla de Clientes */}
-      <div className="rounded-2xl border border-[#F0E6DE] bg-white shadow-xs overflow-hidden">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#F0E6DE] bg-[#FFF9F5] text-[#737373]">
+              <tr className="border-b border-[#D5CFC4] bg-[#FFF9F5] text-[#737373]">
                 <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
                   Cliente
                 </th>
@@ -435,7 +435,7 @@ export default function MerchantCustomersClient({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F0E6DE]">
+            <tbody className="divide-y divide-[#D5CFC4]">
               {filteredCustomers.length > 0 ? (
                 filteredCustomers.map((customer) => {
                   const clientName =
@@ -526,7 +526,7 @@ export default function MerchantCustomersClient({
                             type="button"
                             disabled={isLoading}
                             onClick={() => handleAddStamp(customer.id, clientName)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#F0E6DE] bg-white px-3 py-1.5 text-xs font-semibold text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#E2D5CB] disabled:opacity-50 transition-all shadow-2xs"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5CFC4] bg-white px-3 py-1.5 text-xs font-semibold text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#B8B1A4] disabled:opacity-50 transition-all shadow-2xs"
                           >
                             <Stamp size={13} className="text-[#FF1F2D]" />
                             <span>+1 Sello</span>
@@ -576,7 +576,7 @@ export default function MerchantCustomersClient({
         </div>
 
         {/* Footer de resumen */}
-        <div className="border-t border-[#F0E6DE] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex items-center justify-between">
+        <div className="border-t border-[#D5CFC4] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex items-center justify-between">
           <span>
             Mostrando {filteredCustomers.length} de {customers.length} clientes
           </span>
@@ -590,11 +590,11 @@ export default function MerchantCustomersClient({
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div
-            className="w-full max-w-lg rounded-3xl border border-[#F0E6DE] bg-white p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-lg rounded-3xl border border-[#D5CFC4] bg-white p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#F0E6DE] pb-4">
+            <div className="flex items-center justify-between border-b border-[#D5CFC4] pb-4">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF1F2D]">
                   Operación Manual
@@ -632,12 +632,12 @@ export default function MerchantCustomersClient({
                     value={modalSearch}
                     onChange={(e) => setModalSearch(e.target.value)}
                     placeholder="Escribí nombre, teléfono o código (ej. 493146)..."
-                    className="w-full rounded-xl border border-[#F0E6DE] bg-[#FFF9F5] py-2.5 pl-9 pr-3 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2.5 pl-9 pr-3 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
                   />
                 </div>
 
                 {/* Lista desplegable de clientes coincidentes */}
-                <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-[#F0E6DE] bg-white divide-y divide-[#F0E6DE]">
+                <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-[#D5CFC4] bg-white divide-y divide-[#D5CFC4]">
                   {modalSearchResults.map((c) => {
                     const isSelected = selectedCustomerId === c.id;
                     const cName =
@@ -655,7 +655,7 @@ export default function MerchantCustomersClient({
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-[#FFF9F5] border border-[#F0E6DE] flex items-center justify-center font-bold text-[11px] text-[#FF1F2D]">
+                          <div className="h-7 w-7 rounded-full bg-[#FFF9F5] border border-[#D5CFC4] flex items-center justify-center font-bold text-[11px] text-[#FF1F2D]">
                             {cName.slice(0, 1).toUpperCase()}
                           </div>
                           <div>
@@ -695,7 +695,7 @@ export default function MerchantCustomersClient({
                       className={`flex flex-col items-start p-3.5 rounded-2xl border text-left transition-all ${
                         modalAction === "STAMP"
                           ? "border-[#FF1F2D] bg-[#FFF0F1] shadow-xs"
-                          : "border-[#F0E6DE] bg-white hover:bg-[#FFF9F5]"
+                          : "border-[#D5CFC4] bg-white hover:bg-[#FFF9F5]"
                       }`}
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white border border-[#FFD9DC] text-[#FF1F2D] mb-2">
@@ -717,7 +717,7 @@ export default function MerchantCustomersClient({
                       className={`flex flex-col items-start p-3.5 rounded-2xl border text-left transition-all ${
                         modalAction === "REDEEM"
                           ? "border-[#FF1F2D] bg-[#FFF0F1] shadow-xs"
-                          : "border-[#F0E6DE] bg-white hover:bg-[#FFF9F5]"
+                          : "border-[#D5CFC4] bg-white hover:bg-[#FFF9F5]"
                       }`}
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white border border-[#FFD9DC] text-[#FF1F2D] mb-2">
@@ -740,11 +740,11 @@ export default function MerchantCustomersClient({
             </div>
 
             {/* Modal Footer */}
-            <div className="mt-6 pt-4 border-t border-[#F0E6DE] flex items-center justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="rounded-xl border border-[#F0E6DE] bg-white px-4 py-2 text-xs font-semibold text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F]"
+                className="rounded-xl border border-[#D5CFC4] bg-white px-4 py-2 text-xs font-semibold text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F]"
               >
                 Cancelar
               </button>

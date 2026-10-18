@@ -144,35 +144,55 @@ export async function sendApnsNotification(
 export async function sendPassUpdatePush(serialNumber: string): Promise<{ sent: number; failed: number }> {
   try {
     const supabase: any = createAdminClient();
-    const { data: devices, error } = await supabase
+
+    // 1. Consultar wallet_registrations
+    const { data: regs, error: regsErr } = await supabase
+      .from("wallet_registrations")
+      .select("id, push_token, pass_type_identifier")
+      .eq("serial_number", serialNumber);
+
+    // 2. Consultar wallet_devices como fallback/complemento
+    const { data: legacyDevices, error: legacyErr } = await supabase
       .from("wallet_devices")
       .select("id, push_token, pass_type_identifier")
       .eq("serial_number", serialNumber);
 
-    if (error) {
-      console.error("[APNs] Error consultando wallet_devices:", error);
+    if (regsErr && legacyErr) {
+      console.error("[APNs] Error consultando registros de wallet:", { regsErr, legacyErr });
       return { sent: 0, failed: 0 };
     }
 
-    if (!devices || devices.length === 0) {
+    // Combinar evitando push_tokens duplicados
+    const tokensMap = new Map<string, { id?: string; passType: string; isReg: boolean }>();
+    (regs || []).forEach((r: any) => tokensMap.set(r.push_token, { id: r.id, passType: r.pass_type_identifier, isReg: true }));
+    (legacyDevices || []).forEach((d: any) => {
+      if (!tokensMap.has(d.push_token)) {
+        tokensMap.set(d.push_token, { id: d.id, passType: d.pass_type_identifier, isReg: false });
+      }
+    });
+
+    if (tokensMap.size === 0) {
       return { sent: 0, failed: 0 };
     }
 
     let sent = 0;
     let failed = 0;
 
-    for (const device of devices) {
-      const result = await sendApnsNotification(device.push_token, device.pass_type_identifier);
+    for (const [token, info] of tokensMap.entries()) {
+      const result = await sendApnsNotification(token, info.passType);
       if (result.success) {
         sent++;
       } else {
         failed++;
-        console.warn(`[APNs] Falló push a dispositivo ${device.id}:`, result.error);
+        console.warn(`[APNs] Falló push para serial ${serialNumber}:`, result.error);
 
         // Si el token es inválido o el usuario borró la tarjeta (410 Gone), limpiar registro
         if (result.unregistered) {
-          console.log(`[APNs] Limpiando dispositivo 410 (desinstalado): ${device.id}`);
-          await supabase.from("wallet_devices").delete().eq("id", device.id);
+          console.log(`[APNs] Limpiando registro 410 (desinstalado):`, token);
+          if (info.isReg && info.id) {
+            await supabase.from("wallet_registrations").delete().eq("id", info.id);
+          }
+          await supabase.from("wallet_devices").delete().eq("push_token", token);
         }
       }
     }
@@ -180,6 +200,74 @@ export async function sendPassUpdatePush(serialNumber: string): Promise<{ sent: 
     return { sent, failed };
   } catch (err) {
     console.error("[APNs] Error en sendPassUpdatePush:", err);
+    return { sent: 0, failed: 0 };
+  }
+}
+
+/**
+ * Envía la notificación push de campaña APNs a todos los pases Apple Wallet registrados de un comercio
+ */
+export async function sendBusinessCampaignPush(businessId: string): Promise<{ sent: number; failed: number }> {
+  try {
+    const supabase: any = createAdminClient();
+
+    // 1. Obtener registros directamente por business_id
+    const { data: registrations, error: regError } = await supabase
+      .from("wallet_registrations")
+      .select("id, push_token, pass_type_identifier")
+      .eq("business_id", businessId);
+
+    // 2. Obtener pases a través de loyalty_cards para wallet_devices
+    const { data: cards } = await supabase
+      .from("loyalty_cards")
+      .select("id")
+      .eq("business_id", businessId);
+
+    const cardIds = (cards || []).map((c: any) => c.id);
+
+    let legacyDevices: any[] = [];
+    if (cardIds.length > 0) {
+      const { data } = await supabase
+        .from("wallet_devices")
+        .select("id, push_token, pass_type_identifier")
+        .in("serial_number", cardIds);
+      legacyDevices = data || [];
+    }
+
+    const tokensMap = new Map<string, { id?: string; passType: string; isReg: boolean }>();
+    (registrations || []).forEach((r: any) => tokensMap.set(r.push_token, { id: r.id, passType: r.pass_type_identifier, isReg: true }));
+    legacyDevices.forEach((d: any) => {
+      if (!tokensMap.has(d.push_token)) {
+        tokensMap.set(d.push_token, { id: d.id, passType: d.pass_type_identifier, isReg: false });
+      }
+    });
+
+    if (tokensMap.size === 0) {
+      return { sent: 0, failed: 0 };
+    }
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const [token, info] of tokensMap.entries()) {
+      const result = await sendApnsNotification(token, info.passType);
+      if (result.success) {
+        sent++;
+      } else {
+        failed++;
+        console.warn(`[APNs Campaign] Falló push en negocio ${businessId}:`, result.error);
+        if (result.unregistered) {
+          if (info.isReg && info.id) {
+            await supabase.from("wallet_registrations").delete().eq("id", info.id);
+          }
+          await supabase.from("wallet_devices").delete().eq("push_token", token);
+        }
+      }
+    }
+
+    return { sent, failed };
+  } catch (err) {
+    console.error("[APNs] Error en sendBusinessCampaignPush:", err);
     return { sent: 0, failed: 0 };
   }
 }
@@ -218,3 +306,4 @@ export async function sendCustomerPassUpdate(
     return { sent: 0, failed: 0 };
   }
 }
+

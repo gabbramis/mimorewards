@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { createCanvas } from "@napi-rs/canvas";
 import { PKPass } from "passkit-generator";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createOrUpdateLoyaltyClass, generateSavePassUrl } from "@/lib/wallet/googleWallet";
+import { createOrUpdateLoyaltyClass, generateSavePassUrl, getGoogleObjectId } from "@/lib/wallet/googleWallet";
 
 export const runtime = "nodejs";
 
@@ -256,7 +256,7 @@ export async function POST(request: Request) {
       const supabase: any = createAdminClient();
       const { data: customer } = await supabase
         .from("customers")
-        .select("id, first_name, last_name, business_id, current_stamps")
+        .select("id, first_name, last_name, business_id, current_stamps, wallet_platform")
         .eq("id", body.customerId)
         .single();
 
@@ -272,14 +272,14 @@ export async function POST(request: Request) {
 
       const { data: loyaltyCard } = await supabase
         .from("loyalty_cards")
-        .select("id")
+        .select("id, wallet_platform")
         .eq("customer_id", customer.id)
         .eq("business_id", customer.business_id)
         .single();
 
       if (business && loyaltyCard) {
         const fullName = `${customer.first_name} ${customer.last_name || ""}`.trim();
-        await createOrUpdateLoyaltyClass(business.id, business.name, business.primary_color || "#FF1F2D", business.logo_url);
+        const { id: classId } = await createOrUpdateLoyaltyClass(business.id, business.name, business.primary_color || "#FF1F2D", business.logo_url);
         const saveUrl = generateSavePassUrl(
           loyaltyCard.id,
           fullName,
@@ -287,6 +287,21 @@ export async function POST(request: Request) {
           business.reward_target,
           business.id
         );
+        const objectId = getGoogleObjectId(loyaltyCard.id);
+
+        await Promise.all([
+          supabase.from("businesses").update({ google_wallet_class_id: classId }).eq("id", business.id),
+          supabase.from("customers").update({
+            google_wallet_object_id: objectId,
+            wallet_platform: customer.wallet_platform === "APPLE" ? "BOTH" : "GOOGLE",
+          }).eq("id", customer.id),
+          supabase.from("loyalty_cards").update({
+            google_wallet_object_id: objectId,
+            wallet_platform: loyaltyCard.wallet_platform === "APPLE" ? "BOTH" : "GOOGLE",
+            wallet_status: "ACTIVE",
+          }).eq("id", loyaltyCard.id),
+        ]);
+
         return NextResponse.json({ success: true, saveUrl });
       }
     }

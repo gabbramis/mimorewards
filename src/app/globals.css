@@ -3,11 +3,14 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --border: #D5CFC4;
+  --card-border: #D5CFC4;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -834,14 +837,14 @@ body {
 
 .m-admin-sidebar {
   background: #fffaf5;
-  border-right: 1px solid #f0e2d9;
+  border-right: 1px solid #D5CFC4;
   flex: 0 0 258px;
   position: relative;
   z-index: 20;
 }
 
 .m-admin-brand-row {
-  border-bottom: 1px solid #f0e2d9;
+  border-bottom: 1px solid #D5CFC4;
   min-height: 90px;
   padding: 20px 22px;
 }
@@ -932,7 +935,7 @@ body {
 }
 
 .m-admin-account {
-  border-top: 1px solid #f0e2d9;
+  border-top: 1px solid #D5CFC4;
 }
 
 .m-admin-account p:first-child {
@@ -971,8 +974,27 @@ body {
 .m-admin-main .border-gray-200,
 .m-admin-main .border-gray-100,
 .m-admin-main .border-slate-200,
-.m-admin-main .border-slate-100 {
-  border-color: #f0e2d9 !important;
+.m-admin-main .border-slate-100,
+.m-admin-main .border-stone-200,
+.m-admin-main .border-stone-100,
+.m-admin-main .border-neutral-200,
+.m-admin-main .border-neutral-100,
+.m-admin-main [class*="border-gray-200"],
+.m-admin-main [class*="border-gray-100"],
+.m-admin-main [class*="border-slate-200"],
+.m-admin-main [class*="border-slate-100"],
+.m-admin-main [class*="border-stone-200"],
+.m-admin-main [class*="border-stone-100"],
+.m-admin-main [class*="border-neutral-200"],
+.m-admin-main [class*="border-neutral-100"] {
+  border-color: #D5CFC4 !important;
+}
+
+.m-admin-main .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.m-admin-main .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.m-admin-main .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.m-admin-main .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #D5CFC4 !important;
 }
 
 .m-admin-main .text-gray-900,
@@ -1029,7 +1051,7 @@ body {
 .m-admin-main select,
 .m-admin-main textarea {
   background-color: #fffdfb !important;
-  border-color: #eaded6 !important;
+  border-color: #D5CFC4 !important;
 }
 
 .m-admin-main input:focus,
@@ -1042,6 +1064,15 @@ body {
 
 .m-admin-main table thead {
   background: #fffaf5 !important;
+  border-bottom: 1px solid #D5CFC4 !important;
+}
+
+.m-admin-main table thead th {
+  border-bottom: 1px solid #D5CFC4 !important;
+}
+
+.m-admin-main table tbody tr {
+  border-bottom: 1px solid #D5CFC4 !important;
 }
 
 .m-admin-main table tbody tr:hover {

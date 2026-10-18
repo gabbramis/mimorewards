@@ -27,6 +27,7 @@ export type AppleCard = {
   pendingStampImage?: Buffer | null;
   webServiceURL?: string;
   authenticationToken?: string;
+  activeCampaignMessage?: string | null;
 };
 
 export function generatePassAuthToken(cardId: string): string {
@@ -165,7 +166,7 @@ export async function createAppleWalletPass(card: AppleCard) {
     "logo@2x.png": await sharp(card.logoImage).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
   } : {};
   const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
-  const webServiceURL = card.webServiceURL || `${baseUrl}/api/wallet`;
+  const webServiceURL = card.webServiceURL || `${baseUrl}/api/apple-wallet`;
   const authenticationToken = card.authenticationToken || generatePassAuthToken(card.id);
 
   const pass = new PKPass(
@@ -199,7 +200,19 @@ export async function createAppleWalletPass(card: AppleCard) {
           ],
           secondaryFields: [{ key: "reward", label: "RECOMPENSA", value: card.rewardDescription }],
           auxiliaryFields: [{ key: "customer", label: "CLIENTE", value: card.customerName }],
-          backFields: [{ key: "about", label: "Acerca de esta tarjeta", value: `Tarjeta de beneficios de ${card.businessName}, emitida por Mimo Rewards.` }],
+          backFields: [
+            {
+              key: "latest_notification",
+              label: "Novedades",
+              value: card.activeCampaignMessage || "Programa de beneficios activo",
+              changeMessage: "%@",
+            },
+            {
+              key: "about",
+              label: "Acerca de esta tarjeta",
+              value: `Tarjeta de beneficios de ${card.businessName}, emitida por Mimo Rewards.`,
+            },
+          ],
         },
         barcodes: [{
           format: "PKBarcodeFormatQR",

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessBusiness } from '@/lib/authz';
-import { sendCustomerPassUpdate } from '@/lib/wallet/apns';
+import { notifyCustomerWalletUpdate } from '@/lib/wallet-notifications';
 
 export async function POST(request: Request) {
     try {
@@ -66,9 +66,14 @@ export async function POST(request: Request) {
             });
         }
 
-        // Notificar a los dispositivos Apple Wallet registrados
-        sendCustomerPassUpdate(customer.id, customer.business_id).catch((pushErr) => {
-            console.error('[APNs] Error triggering pass update push on redeem:', pushErr);
+        // Notificar a los dispositivos Apple Wallet y Google Wallet
+        notifyCustomerWalletUpdate({
+            customerId: customer.id,
+            businessId: customer.business_id,
+            currentStamps: result.current_stamps,
+            notificationMessage: '¡Recompensa canjeada con éxito! Tu tarjeta fue actualizada.',
+        }).catch((pushErr) => {
+            console.error('[Wallet Notifications] Error triggering pass update push on redeem:', pushErr);
         });
 
         return NextResponse.json({ success: true, currentStamps: result.current_stamps, message: result.reason === 'already_processed' ? 'El canje ya estaba registrado.' : 'Recompensa canjeada correctamente.' });

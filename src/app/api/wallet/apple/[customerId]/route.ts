@@ -38,11 +38,11 @@ export async function GET(
 
     const [{ data: business, error: businessError }, { data: card, error: cardError }] = await Promise.all([
       supabase.from("businesses")
-        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active")
+        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active, active_campaign_message")
         .eq("id", customer.business_id)
         .maybeSingle(),
       supabase.from("loyalty_cards")
-        .select("id")
+        .select("id, wallet_platform")
         .eq("customer_id", customer.id)
         .eq("business_id", customer.business_id)
         .maybeSingle(),
@@ -53,6 +53,17 @@ export async function GET(
     if (!business || !card || business.active === false) {
       return NextResponse.json({ error: "Esta tarjeta no está disponible." }, { status: 404 });
     }
+
+    // Actualizar wallet_platform en segundo plano
+    Promise.all([
+      supabase.from("customers").update({
+        wallet_platform: customer.wallet_platform === "GOOGLE" ? "BOTH" : "APPLE",
+      }).eq("id", customer.id),
+      supabase.from("loyalty_cards").update({
+        wallet_platform: card.wallet_platform === "GOOGLE" ? "BOTH" : "APPLE",
+        wallet_status: "ACTIVE",
+      }).eq("id", card.id),
+    ]).catch((err) => console.warn("[Apple Wallet] Error actualizando wallet_platform:", err));
 
     const [logoImage, completedStampImage, pendingStampImage] = await Promise.all([
       storedImage(supabase, business.logo_url),
@@ -74,6 +85,7 @@ export async function GET(
       logoImage,
       completedStampImage,
       pendingStampImage,
+      activeCampaignMessage: business.active_campaign_message,
     });
 
     return new Response(new Uint8Array(pass), {

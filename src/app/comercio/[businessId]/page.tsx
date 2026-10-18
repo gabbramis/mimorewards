@@ -168,7 +168,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       {/* 4 KPI Cards (Limpias sin iconos a la derecha) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Sellos Entregados */}
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
             Sellos entregados
           </span>
@@ -189,7 +189,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {/* Card 2: Premios Canjeados */}
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
             Premios canjeados
           </span>
@@ -204,7 +204,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {/* Card 3: Clientes Activos */}
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
             Clientes activos
           </span>
@@ -219,7 +219,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {/* Card 4: Tasa de Retorno */}
-        <div className="rounded-2xl border border-[#F0E6DE] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
             Tasa de retorno
           </span>
@@ -237,7 +237,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       {/* Main Grid: Gráfico de Actividad & Editor de Reglas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Gráfico de Actividad Semanal (2 cols) */}
-        <div className="lg:col-span-2 rounded-2xl border border-[#F0E6DE] bg-white p-6 shadow-xs">
+        <div className="lg:col-span-2 rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
@@ -247,7 +247,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                 Volumen de sellos y visitas por día de la semana.
               </p>
             </div>
-            <span className="rounded-full bg-[#FFF9F5] border border-[#F0E6DE] px-3 py-1 text-[11px] font-semibold text-[#737373]">
+            <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
               Últimos 7 días
             </span>
           </div>
@@ -294,7 +294,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
             })}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[#F0E6DE] flex items-center justify-between text-xs text-[#737373]">
+          <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
             <span className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
               Día con más visitas
@@ -313,7 +313,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       </div>
 
       {/* Resumen Rápido: Últimos 5 Movimientos */}
-      <div className="rounded-2xl border border-[#F0E6DE] bg-white p-6 shadow-xs">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
@@ -336,7 +336,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-[#F0E6DE] text-[#737373]">
+                <tr className="border-b border-[#D5CFC4] text-[#737373]">
                   <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
                     Fecha y Hora
                   </th>
@@ -351,7 +351,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F0E6DE]">
+              <tbody className="divide-y divide-[#D5CFC4]">
                 {recentLogsData.map((log: any) => {
                   const customer = log.customers;
                   const isRedeem = log.method === "REDEEM";

@@ -4,6 +4,7 @@ import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
 import { normalizeUruguayMobile } from "@/lib/customer-phone";
 import { CUSTOMER_CONSENT_VERSION } from "@/lib/customer-consent";
+import { notifyCustomerWalletUpdate } from "@/lib/wallet-notifications";
 
 type CustomerInput = {
   nfcId?: string;
@@ -35,6 +36,17 @@ async function creditStamp(supabase: any, customer: any, context: any, idempoten
   if (error) throw error;
   const result = Array.isArray(data) ? data[0] : data;
   if (!result) throw new Error("No se pudo confirmar el sello.");
+
+  if (result.accepted) {
+    notifyCustomerWalletUpdate({
+      customerId: customer.id,
+      businessId: context.businessId,
+      currentStamps: result.current_stamps,
+      targetStamps: result.target_stamps,
+      notificationMessage: `¡Sumaste sellos! Llevás ${result.current_stamps} de ${result.target_stamps}.`,
+    }).catch((err) => console.error("[Wallet Notifications] Error on customer visit:", err));
+  }
+
   return result;
 }
 

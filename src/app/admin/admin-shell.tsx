@@ -84,7 +84,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
                 <div className="m-admin-account p-5">
                     <div className="flex items-center gap-3">
                         {mode === "merchant" && logoUrl ? (
-                            <img src={logoUrl} alt="Logo del comercio" className="m-admin-avatar w-10 h-10 rounded-full object-cover shadow-sm bg-white border border-[#E5E5E5]" />
+                            <img src={logoUrl} alt="Logo del comercio" className="m-admin-avatar w-10 h-10 rounded-full object-cover shadow-sm bg-white border border-[#D5CFC4]" />
                         ) : (
                             <div
                                 className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm"
