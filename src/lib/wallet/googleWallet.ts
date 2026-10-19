@@ -1,3 +1,5 @@
+import "server-only";
+
 import { google } from 'googleapis';
 import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
@@ -17,35 +19,59 @@ const SCOPES = ['https://www.googleapis.com/auth/wallet_object.issuer'];
 
 /**
  * Ensures we can safely load the Google credentials JSON.
- * Prioritizes GOOGLE_CLIENT_EMAIL & GOOGLE_PRIVATE_KEY environment variables,
+ * Prioritizes GOOGLE_WALLET_CLIENT_EMAIL / GOOGLE_CLIENT_EMAIL &
+ * GOOGLE_WALLET_PRIVATE_KEY / GOOGLE_PRIVATE_KEY environment variables,
  * and falls back to google-service-account.json in the project root.
  */
 function loadCredentials(): WalletCredentials {
-    if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    const envEmail = (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim();
+    const envPrivateKey = (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim();
+
+    if (envEmail && envPrivateKey) {
         return {
-            client_email: process.env.GOOGLE_CLIENT_EMAIL.trim(),
-            private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n').trim(),
+            client_email: envEmail,
+            private_key: envPrivateKey.replace(/\\n/g, '\n').trim(),
         };
     }
     const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
     if (!fs.existsSync(credentialsPath)) {
-        throw new Error('Google Wallet credentials: no se encontró GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY en variables ni el archivo google-service-account.json.');
+        throw new Error('Google Wallet credentials: no se encontraron credenciales en variables de entorno ni el archivo google-service-account.json.');
     }
     const fileContent = fs.readFileSync(credentialsPath, 'utf8');
     const parsed = JSON.parse(fileContent);
+    if (!parsed.client_email || !parsed.private_key) {
+        throw new Error('El archivo google-service-account.json no contiene client_email o private_key válidos.');
+    }
     return {
-        client_email: parsed.client_email,
-        private_key: parsed.private_key,
+        client_email: String(parsed.client_email).trim(),
+        private_key: String(parsed.private_key).replace(/\\n/g, '\n').trim(),
     };
 }
 
 /**
- * Validates the existence of the issuer ID in environment variables.
+ * Returns whether Google Wallet is configured on the server.
+ */
+export function googleWalletConfigured(): boolean {
+    const issuerId = (process.env.GOOGLE_WALLET_ISSUER_ID || process.env.GOOGLE_ISSUER_ID)?.trim();
+    if (!issuerId) return false;
+
+    const hasEnvCreds = Boolean(
+        (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim() &&
+        (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim()
+    );
+    if (hasEnvCreds) return true;
+
+    const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
+    return fs.existsSync(credentialsPath);
+}
+
+/**
+ * Validates and retrieves the issuer ID from server environment variables.
  */
 export function getIssuerId(): string {
-    const raw = process.env.GOOGLE_WALLET_ISSUER_ID;
+    const raw = (process.env.GOOGLE_WALLET_ISSUER_ID || process.env.GOOGLE_ISSUER_ID)?.trim();
     if (!raw) {
-        throw new Error('La variable de entorno GOOGLE_WALLET_ISSUER_ID no está definida en .env.local.');
+        throw new Error('GOOGLE_WALLET_ISSUER_ID is not configured in server environment variables.');
     }
     return raw.replace(/['"]/g, '').trim();
 }

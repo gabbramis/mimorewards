@@ -212,16 +212,29 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   }
 
   async function openGoogleWallet() {
-    console.log("Descargando Google Pass");
     if (!customer || preview || walletBusy) return;
     if (googleWalletUrl) { window.location.href = googleWalletUrl; return; }
     setWalletBusy(true); setError("");
     try {
-      const response = await fetch("/api/wallet/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer.id }) });
+      const response = await fetch("/api/wallet/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer.id }),
+      });
       const payload = await response.json();
-      if (!response.ok || !payload.saveUrl) throw new Error(payload.error || "Google Wallet no está disponible en este momento.");
+      if (!response.ok || !payload.saveUrl) {
+        throw new Error(payload.error || "Google Wallet no está disponible en este momento.");
+      }
       window.location.href = payload.saveUrl;
-    } catch (err) { setError(err instanceof Error ? err.message : "No pudimos abrir Google Wallet."); setWalletBusy(false); }
+    } catch (err) {
+      const rawMessage = err instanceof Error ? err.message : "";
+      const isTechnical = /env|\.env|issuer|process\.|variable|key|token|jwt|crypto|credential|service-account/i.test(rawMessage);
+      const friendlyMessage = isTechnical || !rawMessage
+        ? "No pudimos abrir Google Wallet en este momento. Por favor intentá nuevamente."
+        : rawMessage;
+      setError(friendlyMessage);
+      setWalletBusy(false);
+    }
   }
 
   const theme = context ? { "--cx-card": context.primaryColor, "--cx-card-text": context.textColor, "--cx-card-accent": context.accentColor, "--cx-brand": readableBrand(context.primaryColor) } as CSSProperties : undefined;

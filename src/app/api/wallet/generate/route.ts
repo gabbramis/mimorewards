@@ -254,55 +254,90 @@ export async function POST(request: Request) {
     // Soporte para Google Wallet heredado si envían solo customerId
     if (body.customerId && !body.customerName && !body.nombre && !body.businessName && !body.comercio) {
       const supabase: any = createAdminClient();
-      const { data: customer } = await supabase
+      const { data: customer, error: customerError } = await supabase
         .from("customers")
         .select("id, first_name, last_name, business_id, current_stamps, wallet_platform")
         .eq("id", body.customerId)
-        .single();
+        .maybeSingle();
 
-      if (!customer) {
-        return NextResponse.json({ success: false, error: "Customer not found" }, { status: 404 });
+      if (customerError || !customer) {
+        console.warn("[Google Wallet] Cliente no encontrado para id:", body.customerId);
+        return NextResponse.json({ success: false, error: "No se encontró el cliente solicitado." }, { status: 404 });
       }
 
-      const { data: business } = await supabase
+      const { data: business, error: businessError } = await supabase
         .from("businesses")
         .select("id, name, logo_url, reward_target, primary_color")
         .eq("id", customer.business_id)
-        .single();
+        .maybeSingle();
 
-      const { data: loyaltyCard } = await supabase
+      if (businessError || !business) {
+        console.warn("[Google Wallet] Comercio no encontrado para cliente:", customer.id);
+        return NextResponse.json({ success: false, error: "No se encontró el comercio asociado." }, { status: 404 });
+      }
+
+      let { data: loyaltyCard } = await supabase
         .from("loyalty_cards")
         .select("id, wallet_platform")
         .eq("customer_id", customer.id)
         .eq("business_id", customer.business_id)
-        .single();
+        .maybeSingle();
 
-      if (business && loyaltyCard) {
-        const fullName = `${customer.first_name} ${customer.last_name || ""}`.trim();
-        const { id: classId } = await createOrUpdateLoyaltyClass(business.id, business.name, business.primary_color || "#FF1F2D", business.logo_url);
+      if (!loyaltyCard) {
+        const { data: newCard } = await supabase
+          .from("loyalty_cards")
+          .insert({
+            customer_id: customer.id,
+            business_id: customer.business_id,
+            current_stamps: customer.current_stamps || 0,
+            wallet_platform: "GOOGLE",
+            wallet_status: "ACTIVE",
+          })
+          .select("id, wallet_platform")
+          .maybeSingle();
+        loyaltyCard = newCard || { id: customer.id, wallet_platform: "GOOGLE" };
+      }
+
+      try {
+        const fullName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Cliente Mimo";
+        const { id: classId } = await createOrUpdateLoyaltyClass(
+          business.id,
+          business.name,
+          business.primary_color || "#FF1F2D",
+          business.logo_url
+        );
         const saveUrl = generateSavePassUrl(
           loyaltyCard.id,
           fullName,
-          customer.current_stamps,
-          business.reward_target,
+          customer.current_stamps || 0,
+          business.reward_target || 10,
           business.id
         );
         const objectId = getGoogleObjectId(loyaltyCard.id);
 
-        await Promise.all([
+        await Promise.allSettled([
           supabase.from("businesses").update({ google_wallet_class_id: classId }).eq("id", business.id),
           supabase.from("customers").update({
             google_wallet_object_id: objectId,
             wallet_platform: customer.wallet_platform === "APPLE" ? "BOTH" : "GOOGLE",
           }).eq("id", customer.id),
-          supabase.from("loyalty_cards").update({
+          loyaltyCard.id !== customer.id ? supabase.from("loyalty_cards").update({
             google_wallet_object_id: objectId,
             wallet_platform: loyaltyCard.wallet_platform === "APPLE" ? "BOTH" : "GOOGLE",
             wallet_status: "ACTIVE",
-          }).eq("id", loyaltyCard.id),
+          }).eq("id", loyaltyCard.id) : Promise.resolve(),
         ]);
 
         return NextResponse.json({ success: true, saveUrl });
+      } catch (gwError: any) {
+        console.error("[Google Wallet] Error generando pase para cliente:", customer.id, gwError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No pudimos generar tu tarjeta de Google Wallet en este momento. Por favor intentá más tarde.",
+          },
+          { status: 500 }
+        );
       }
     }
 
@@ -339,11 +374,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("Error al generar tarjeta Apple Wallet con Sharp:", error);
+    console.error("[Wallet Pass] Error al generar tarjeta:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "No se pudo generar la tarjeta de Apple Wallet.",
+        error: "No pudimos generar la tarjeta digital en este momento. Por favor intentá nuevamente.",
       },
       { status: 500 }
     );
