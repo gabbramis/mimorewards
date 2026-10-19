@@ -17,11 +17,16 @@ export interface LoyaltyClassResponse {
 
 const SCOPES = ['https://www.googleapis.com/auth/wallet_object.issuer'];
 
-function formatPrivateKey(key: string): string {
-    let cleaned = key.trim();
-    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
-    cleaned = cleaned.replace(/\\n/g, '\n');
-    return cleaned.trim();
+function formatPrivateKey(rawKey: string): string {
+    const base64Body = rawKey
+        .replace(/-----BEGIN [A-Z0-9 ]+-----/g, '')
+        .replace(/-----END [A-Z0-9 ]+-----/g, '')
+        .replace(/\\n/g, '')
+        .replace(/\\r/g, '')
+        .replace(/[^A-Za-z0-9+/=]/g, '');
+
+    const chunks = base64Body.match(/.{1,64}/g) || [];
+    return `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----\n`;
 }
 
 /**
