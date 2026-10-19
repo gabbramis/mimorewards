@@ -227,12 +227,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       }
       window.location.href = payload.saveUrl;
     } catch (err) {
-      const rawMessage = err instanceof Error ? err.message : "";
-      const isTechnical = /env|\.env|issuer|process\.|variable|key|token|jwt|crypto|credential|service-account/i.test(rawMessage);
-      const friendlyMessage = isTechnical || !rawMessage
-        ? "No pudimos abrir Google Wallet en este momento. Por favor intentá nuevamente."
-        : rawMessage;
-      setError(friendlyMessage);
+      setError(err instanceof Error ? err.message : "Error al abrir Google Wallet.");
       setWalletBusy(false);
     }
   }

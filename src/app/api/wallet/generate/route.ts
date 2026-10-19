@@ -331,10 +331,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, saveUrl });
       } catch (gwError: any) {
         console.error("[Google Wallet] Error generando pase para cliente:", customer.id, gwError);
+        const googleDetails = gwError?.response?.data ? JSON.stringify(gwError.response.data) : null;
+        const status = gwError?.status || gwError?.code || gwError?.response?.status;
+        const fullMessage = [
+          gwError?.message || "Error al procesar Google Wallet",
+          googleDetails ? `Google API: ${googleDetails}` : null,
+          status ? `Status: ${status}` : null,
+        ].filter(Boolean).join(" | ");
+
         return NextResponse.json(
           {
             success: false,
-            error: "No pudimos generar tu tarjeta de Google Wallet en este momento. Por favor intentá más tarde.",
+            error: fullMessage,
           },
           { status: 500 }
         );
@@ -375,10 +383,18 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("[Wallet Pass] Error al generar tarjeta:", error);
+    const googleDetails = error?.response?.data ? JSON.stringify(error.response.data) : null;
+    const status = error?.status || error?.code || error?.response?.status;
+    const fullMessage = [
+      error?.message || "Error al generar tarjeta digital",
+      googleDetails ? `Google API: ${googleDetails}` : null,
+      status ? `Status: ${status}` : null,
+    ].filter(Boolean).join(" | ");
+
     return NextResponse.json(
       {
         success: false,
-        error: "No pudimos generar la tarjeta digital en este momento. Por favor intentá nuevamente.",
+        error: fullMessage,
       },
       { status: 500 }
     );

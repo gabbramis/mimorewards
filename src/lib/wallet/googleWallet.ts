@@ -17,6 +17,13 @@ export interface LoyaltyClassResponse {
 
 const SCOPES = ['https://www.googleapis.com/auth/wallet_object.issuer'];
 
+function formatPrivateKey(key: string): string {
+    let cleaned = key.trim();
+    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+    cleaned = cleaned.replace(/\\n/g, '\n');
+    return cleaned.trim();
+}
+
 /**
  * Ensures we can safely load the Google credentials JSON.
  * Prioritizes GOOGLE_WALLET_CLIENT_EMAIL / GOOGLE_CLIENT_EMAIL &
@@ -29,8 +36,8 @@ function loadCredentials(): WalletCredentials {
 
     if (envEmail && envPrivateKey) {
         return {
-            client_email: envEmail,
-            private_key: envPrivateKey.replace(/\\n/g, '\n').trim(),
+            client_email: envEmail.replace(/^["']|["']$/g, '').trim(),
+            private_key: formatPrivateKey(envPrivateKey),
         };
     }
     const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
@@ -43,8 +50,8 @@ function loadCredentials(): WalletCredentials {
         throw new Error('El archivo google-service-account.json no contiene client_email o private_key válidos.');
     }
     return {
-        client_email: String(parsed.client_email).trim(),
-        private_key: String(parsed.private_key).replace(/\\n/g, '\n').trim(),
+        client_email: String(parsed.client_email).replace(/^["']|["']$/g, '').trim(),
+        private_key: formatPrivateKey(String(parsed.private_key)),
     };
 }
 
@@ -73,7 +80,7 @@ export function getIssuerId(): string {
     if (!raw) {
         throw new Error('GOOGLE_WALLET_ISSUER_ID is not configured in server environment variables.');
     }
-    return raw.replace(/['"]/g, '').trim();
+    return raw.replace(/^["']|["']$/g, '').trim();
 }
 
 export function getGoogleClassId(businessId: string): string {
@@ -157,7 +164,9 @@ export async function createOrUpdateLoyaltyClass(
         return { id: classId, success: true };
     } catch (error: any) {
         console.error('Error in createOrUpdateLoyaltyClass:', error);
-        throw new Error(`Fallo al generar LoyaltyClass: ${error.message}`);
+        const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message || 'Error desconocido';
+        const status = error?.status || error?.code || error?.response?.status || '';
+        throw new Error(`Google Wallet API error (${status ? `status ${status}: ` : ''}${details})`);
     }
 }
 
