@@ -1,7 +1,7 @@
-'use client';
-
 import { useState } from 'react';
-import { Wallet, Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
+import GoogleWalletButton from '@/components/GoogleWalletButton';
+import AppleWalletButton from '@/components/AppleWalletButton';
 
 export default function WalletTestPage() {
     const [stamps, setStamps] = useState(3);
@@ -92,19 +92,19 @@ export default function WalletTestPage() {
                         />
                     </div>
 
-                    <div className="space-y-4">
-                        <button
+                    <div className="space-y-3">
+                        <AppleWalletButton
+                            href="/api/wallet/generate?cliente=Franco&sellos=3&meta=8&comercio=Mimo%20Café&premio=Café%20gratis"
+                            className="w-full"
+                        />
+
+                        <GoogleWalletButton
                             onClick={handleGeneratePass}
+                            loading={isGenerating}
+                            loadingText="Generando..."
                             disabled={isGenerating}
-                            className="w-full bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
-                        >
-                            {isGenerating ? (
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                            ) : (
-                                <Wallet className="w-5 h-5 mr-2" />
-                            )}
-                            {isGenerating ? 'Generando...' : 'Abrir en Google Wallet'}
-                        </button>
+                            className="w-full"
+                        />
 
                         <button
                             onClick={handleStamping}

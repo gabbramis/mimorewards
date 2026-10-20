@@ -7,6 +7,7 @@ import { ArrowRight, Check, Gift, Heart, LockKeyhole, Wallet } from "lucide-reac
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
 import AppleWalletButton from "@/components/AppleWalletButton";
+import GoogleWalletButton from "@/components/GoogleWalletButton";
 
 export type CustomerView = {
   id: string;
@@ -300,24 +301,44 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           {localNotice && !stageMessage && <p className="cx-alert cx-alert-success" role="status"><Check size={16} /> {localNotice}</p>}
           {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
           <div className="cx-card-actions">
-            {(deviceOS === "ios" || deviceOS === "unknown") && walletReady && (
-              <AppleWalletButton
-                href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
-                onClick={openAppleWallet}
-                loading={appleWalletBusy}
-                loadingText="Generando pase…"
-                disabled={preview || appleWalletBusy}
-                className="w-full"
-              />
+            {deviceOS === "android" ? (
+              <>
+                <GoogleWalletButton
+                  onClick={openGoogleWallet}
+                  loading={walletBusy}
+                  loadingText="Abriendo Google Wallet…"
+                  disabled={preview || walletBusy}
+                  className="w-full"
+                />
+                <AppleWalletButton
+                  href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
+                  onClick={openAppleWallet}
+                  loading={appleWalletBusy}
+                  loadingText="Generando pase…"
+                  disabled={preview || appleWalletBusy}
+                  className="w-full"
+                />
+              </>
+            ) : (
+              <>
+                <AppleWalletButton
+                  href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
+                  onClick={openAppleWallet}
+                  loading={appleWalletBusy}
+                  loadingText="Generando pase…"
+                  disabled={preview || appleWalletBusy}
+                  className="w-full"
+                />
+                <GoogleWalletButton
+                  onClick={openGoogleWallet}
+                  loading={walletBusy}
+                  loadingText="Abriendo Google Wallet…"
+                  disabled={preview || walletBusy}
+                  className="w-full"
+                />
+              </>
             )}
-            {(deviceOS === "android" || deviceOS === "unknown") && (
-              <button className="cx-button cx-button-dark" type="button" onClick={openGoogleWallet} disabled={preview || walletBusy}>
-                <Wallet size={18} /> {walletBusy ? "Abriendo Google Wallet…" : "Agregar a Google Wallet"}
-              </button>
-            )}
-            {((deviceOS === "ios" && !walletReady) || (deviceOS === "unknown" && !walletReady && !googleWalletUrl && !googleReady)) && (
-              <p className="cx-wallet-note">Podés volver a abrir tu tarjeta desde este enlace o al acercar tu celular.</p>
-            )}
+            <p className="cx-wallet-note">Podés guardar tu tarjeta en tu teléfono o abrirla desde este enlace cuando quieras.</p>
           </div>
         </>}
       </div>}
