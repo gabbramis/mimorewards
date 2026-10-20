@@ -7,12 +7,13 @@ import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { BusinessDesign, emptyDesign, type DesignValue } from '@/components/admin/BusinessDesign';
 import { BusinessMembersManager } from '@/components/admin/BusinessMembersManager';
 import { validateEffect } from '@/lib/stamp-image';
+import { isHttpsUrl, sanitizeWalletConfig, type WalletConfig } from '@/lib/wallet-config';
 
 type Business = {
   id: string; name: string; logo_url: string | null; active: boolean; reward_target: number; reward_description: string | null;
   primary_color: string | null; card_text_color: string | null; card_accent_color: string | null;
   stamp_source: DesignValue['source']; stamp_catalog_id: string | null; stamp_completed_url: string | null;
-  stamp_pending_url: string | null; stamp_pending_effect: unknown;
+  stamp_pending_url: string | null; stamp_pending_effect: unknown; wallet_config: unknown;
 };
 
 export default function EditBusinessForm({ business }: { business: Business }) {
@@ -21,12 +22,14 @@ export default function EditBusinessForm({ business }: { business: Business }) {
     name: business.name, active: business.active, rewardTarget: business.reward_target || 10,
     rewardDescription: business.reward_description || '', logoUrl: business.logo_url,
     design: { ...emptyDesign, primaryColor: business.primary_color || emptyDesign.primaryColor, textColor: business.card_text_color || '#FFFFFF', accentColor: business.card_accent_color || '#FFFFFF', source: business.stamp_source, catalogId: business.stamp_catalog_id, completedUrl: business.stamp_completed_url, pendingUrl: business.stamp_pending_url, effect: validateEffect(business.stamp_pending_effect) } as DesignValue,
+    wallet: sanitizeWalletConfig(business.wallet_config),
   }), [business]);
   const [name, setName] = useState(initial.name);
   const [active, setActive] = useState(initial.active);
   const [rewardTarget, setRewardTarget] = useState(initial.rewardTarget);
   const [rewardDescription, setRewardDescription] = useState(initial.rewardDescription);
   const [design, setDesign] = useState(initial.design);
+  const [wallet, setWallet] = useState<WalletConfig>(initial.wallet);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(initial.logoUrl);
   const logoObjectUrl = useRef<string | null>(null);
@@ -34,8 +37,8 @@ export default function EditBusinessForm({ business }: { business: Business }) {
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState('');
-  const snapshot = JSON.stringify({ name, active, rewardTarget, rewardDescription, design: { ...design, customFile: design.customFile?.name || null }, logoFile: logoFile?.name || null });
-  const originalSnapshot = JSON.stringify({ name: initial.name, active: initial.active, rewardTarget: initial.rewardTarget, rewardDescription: initial.rewardDescription, design: { ...initial.design, customFile: null }, logoFile: null });
+  const snapshot = JSON.stringify({ name, active, rewardTarget, rewardDescription, design: { ...design, customFile: design.customFile?.name || null }, wallet, logoFile: logoFile?.name || null });
+  const originalSnapshot = JSON.stringify({ name: initial.name, active: initial.active, rewardTarget: initial.rewardTarget, rewardDescription: initial.rewardDescription, design: { ...initial.design, customFile: null }, wallet: initial.wallet, logoFile: null });
   const dirty = snapshot !== (savedSnapshot || originalSnapshot);
 
   useEffect(() => () => { if (logoObjectUrl.current) URL.revokeObjectURL(logoObjectUrl.current); }, []);
@@ -73,11 +76,15 @@ export default function EditBusinessForm({ business }: { business: Business }) {
   }
   async function save(event: FormEvent) {
     event.preventDefault(); if (saving) return;
+    if ((wallet.logoUrl && !isHttpsUrl(wallet.logoUrl)) || (wallet.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl))) {
+      setError('Las URLs del logo y del banner de Wallet deben ser públicas y empezar con https://.'); return;
+    }
     setSaving(true); setError(''); setSuccess('');
     const data = new FormData();
     data.set('name', name.trim()); data.set('active', String(active)); data.set('rewardTarget', String(rewardTarget)); data.set('rewardDescription', rewardDescription.trim());
     data.set('primaryColor', design.primaryColor); data.set('cardTextColor', design.textColor); data.set('cardAccentColor', design.accentColor);
     data.set('stampSource', design.source || ''); data.set('stampCatalogId', design.catalogId || ''); data.set('stampEffect', JSON.stringify(design.effect));
+    data.set('walletConfig', JSON.stringify(wallet));
     if (logoFile) data.set('logo', logoFile);
     if (design.customFile) data.set('stampFile', design.customFile);
     try {
@@ -193,6 +200,9 @@ export default function EditBusinessForm({ business }: { business: Business }) {
       businessName={name}
       rewardTarget={rewardTarget}
       rewardDescription={rewardDescription}
+      wallet={wallet}
+      onWalletChange={setWallet}
+      walletUploadUrl={`/api/admin/businesses/${business.id}/wallet-image`}
       disabled={saving}
     />
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}

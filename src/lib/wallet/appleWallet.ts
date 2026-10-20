@@ -7,6 +7,7 @@ import { PKPass } from "passkit-generator";
 import sharp from "sharp";
 
 import crypto from "node:crypto";
+import { appleBarcodeFormat, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
 
 export const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER || "pass.com.mimorewards.loyalty";
 export const TEAM_ID = process.env.APPLE_TEAM_IDENTIFIER || "K4TTF9N96K";
@@ -28,7 +29,24 @@ export type AppleCard = {
   webServiceURL?: string;
   authenticationToken?: string;
   activeCampaignMessage?: string | null;
+  /** Configuración JSONB de `businesses.wallet_config` (se valida internamente). */
+  wallet?: unknown;
 };
+
+/** Descarga una imagen pública https (máx. 2 MB). Devuelve null ante cualquier fallo. */
+export async function fetchPublicImage(url: string | null | undefined): Promise<Buffer | null> {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[)/i.test(parsed.hostname)) return null;
+    const response = await fetch(parsed, { signal: AbortSignal.timeout(6000) });
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length > 0 ? buffer : null;
+  } catch {
+    return null;
+  }
+}
 
 export function generatePassAuthToken(cardId: string): string {
   const secret = process.env.WALLET_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "mimo-apple-wallet-auth-key";
@@ -117,9 +135,17 @@ export function appleWalletConfigured() {
   return requiredFiles.every((fileName) => existsSync(join(process.cwd(), ".secrets", "apple-wallet", fileName)));
 }
 
-async function stripImages(card: AppleCard) {
+async function stripImages(card: AppleCard, banner?: Buffer | null) {
   const canvas = createCanvas(1125, 432);
   const context = canvas.getContext("2d");
+  if (banner) {
+    try {
+      const image = await loadImage(await sharp(banner).resize(1125, 432, { fit: "cover" }).png().toBuffer());
+      context.drawImage(image, 0, 0, 1125, 432);
+    } catch (error) {
+      console.warn("[Apple Wallet] Banner inválido, se omite:", error);
+    }
+  }
   const target = Math.min(15, Math.max(1, card.targetStamps));
   const progress = Math.min(target, Math.max(0, card.currentStamps));
   const columns = Math.ceil(target / 2);
@@ -161,9 +187,21 @@ async function stripImages(card: AppleCard) {
 }
 
 export async function createAppleWalletPass(card: AppleCard) {
-  const logoImages = card.logoImage ? {
-    "logo.png": await sharp(card.logoImage).resize(160, 50, { fit: "contain", background: "#00000000" }).png().toBuffer(),
-    "logo@2x.png": await sharp(card.logoImage).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
+  const wallet: WalletConfig = sanitizeWalletConfig(card.wallet);
+  const [remoteLogo, bannerImage] = await Promise.all([
+    fetchPublicImage(wallet.logoUrl),
+    wallet.bannerEnabled ? fetchPublicImage(wallet.bannerUrl) : Promise.resolve(null),
+  ]);
+  const logoSource = remoteLogo || card.logoImage;
+  const issuerName = wallet.issuerName || card.businessName;
+  const firstName = card.customerName.split(" ")[0] || card.customerName;
+  const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: card.rewardDescription });
+  const rewardValue = resolveWalletText(wallet.rewardText || "{proximo_premio}", { nombre: card.customerName, proximo_premio: card.rewardDescription }) || card.rewardDescription;
+  const altText = resolveWalletText(wallet.barcodeAltText, { id: card.customerCode });
+  const stampsField = { key: "stamps", label: "SELLOS", value: `${card.currentStamps} / ${card.targetStamps}`, changeMessage: "¡Sumaste un sello! Llevás %@ acumulados." };
+  const logoImages = logoSource ? {
+    "logo.png": await sharp(logoSource).resize(160, 50, { fit: "contain", background: "#00000000" }).png().toBuffer(),
+    "logo@2x.png": await sharp(logoSource).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
   } : {};
   const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
   const webServiceURL = card.webServiceURL || `${baseUrl}/api/apple-wallet`;
@@ -174,7 +212,7 @@ export async function createAppleWalletPass(card: AppleCard) {
       "icon.png": icon(29),
       "icon@2x.png": icon(58),
       ...logoImages,
-      ...await stripImages(card),
+      ...await stripImages(card, bannerImage),
       "pass.json": Buffer.from(JSON.stringify({
         formatVersion: 1,
         passTypeIdentifier: PASS_TYPE_ID,
@@ -184,21 +222,16 @@ export async function createAppleWalletPass(card: AppleCard) {
         authenticationToken,
         organizationName: "Mimo Rewards",
         description: `Tarjeta de beneficios de ${card.businessName}`,
-        logoText: card.businessName,
+        logoText: issuerName,
         backgroundColor: walletColor(card.primaryColor),
         foregroundColor: walletColor(card.textColor || '#FFFFFF'),
         labelColor: walletColor(card.accentColor || '#FFF0F0'),
         storeCard: {
           headerFields: [],
-          primaryFields: [
-            {
-              key: "stamps",
-              label: "SELLOS",
-              value: `${card.currentStamps} / ${card.targetStamps}`,
-              changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
-            },
-          ],
-          secondaryFields: [{ key: "reward", label: "RECOMPENSA", value: card.rewardDescription }],
+          primaryFields: headline ? [{ key: "headline", label: "", value: headline }] : [stampsField],
+          secondaryFields: headline
+            ? [stampsField, { key: "reward", label: "RECOMPENSA", value: rewardValue }]
+            : [{ key: "reward", label: "RECOMPENSA", value: rewardValue }],
           auxiliaryFields: [{ key: "customer", label: "CLIENTE", value: card.customerName }],
           backFields: [
             {
@@ -215,10 +248,10 @@ export async function createAppleWalletPass(card: AppleCard) {
           ],
         },
         barcodes: [{
-          format: "PKBarcodeFormatQR",
+          format: appleBarcodeFormat(wallet.barcodeFormat),
           message: card.customerCode,
           messageEncoding: "iso-8859-1",
-          altText: card.customerCode,
+          ...(altText ? { altText } : {}),
         }],
       })),
     },

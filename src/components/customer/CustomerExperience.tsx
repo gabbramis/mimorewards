@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Gift, Heart, LockKeyhole, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
+import AppleWalletButton from "@/components/AppleWalletButton";
 
 export type CustomerView = {
   id: string;
@@ -124,6 +125,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [walletReady, setWalletReady] = useState(appleWalletReady);
   const [googleReady, setGoogleReady] = useState(googleWalletReady);
   const [walletBusy, setWalletBusy] = useState(false);
+  const [appleWalletBusy, setAppleWalletBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [deviceOS, setDeviceOS] = useState<'ios' | 'android' | 'unknown'>('unknown');
   const supabase = useMemo(() => preview ? null : createClient(), [preview]);
@@ -187,6 +189,12 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     return () => window.clearTimeout(timeout);
   }, [celebrate]);
 
+  useEffect(() => {
+    if (!appleWalletBusy) return;
+    const timeout = window.setTimeout(() => setAppleWalletBusy(false), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [appleWalletBusy]);
+
   function updateField(name: keyof FormValues, value: string) { setForm(current => ({ ...current, [name]: value })); }
 
   async function submit(event: FormEvent<HTMLFormElement>, recover: boolean) {
@@ -230,6 +238,14 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       setError(err instanceof Error ? err.message : "Error al abrir Google Wallet.");
       setWalletBusy(false);
     }
+  }
+
+  function openAppleWallet() {
+    if (!customer || preview || appleWalletBusy) return;
+    setAppleWalletBusy(true);
+    setError("");
+    const passUrl = `/api/wallet/apple/${encodeURIComponent(customer.id)}`;
+    window.location.href = passUrl;
   }
 
   const theme = context ? { "--cx-card": context.primaryColor, "--cx-card-text": context.textColor, "--cx-card-accent": context.accentColor, "--cx-brand": readableBrand(context.primaryColor) } as CSSProperties : undefined;
@@ -285,9 +301,14 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
           <div className="cx-card-actions">
             {(deviceOS === "ios" || deviceOS === "unknown") && walletReady && (
-              <a className="cx-button cx-button-dark" href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`} aria-disabled={preview}>
-                <Wallet size={18} /> Agregar a Apple Wallet
-              </a>
+              <AppleWalletButton
+                href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
+                onClick={openAppleWallet}
+                loading={appleWalletBusy}
+                loadingText="Generando pase…"
+                disabled={preview || appleWalletBusy}
+                className="w-full"
+              />
             )}
             {(deviceOS === "android" || deviceOS === "unknown") && (
               <button className="cx-button cx-button-dark" type="button" onClick={openGoogleWallet} disabled={preview || walletBusy}>

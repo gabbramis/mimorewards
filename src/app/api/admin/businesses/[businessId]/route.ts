@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { availableStamp } from '@/lib/stamp-catalog';
 import { validateEffect } from '@/lib/stamp-image';
 import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
+import { sanitizeWalletConfig } from '@/lib/wallet-config';
 
 const color = (value: FormDataEntryValue | null) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : null;
 
@@ -55,6 +56,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
     if (source && !['collection', 'custom', 'logo'].includes(source)) return NextResponse.json({ error: 'Origen del sello inválido.' }, { status: 400 });
     let effect;
     try { effect = validateEffect(JSON.parse(String(data.get('stampEffect') || '{}'))); } catch { effect = validateEffect(null); }
+    let walletConfig;
+    try { walletConfig = sanitizeWalletConfig(JSON.parse(String(data.get('walletConfig') || '{}'))); } catch { walletConfig = sanitizeWalletConfig(null); }
     const catalogId = String(data.get('stampCatalogId') || '');
     const stamp = data.get('stampFile');
     const stampFile = stamp instanceof File && stamp.size > 0 ? stamp : null;
@@ -94,6 +97,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
       logo_url: logoUrl, primary_color: primaryColor, card_text_color: textColor, card_accent_color: accentColor,
       stamp_source: source || null, stamp_catalog_id: selectedId, stamp_completed_url: completedUrl, stamp_pending_url: pendingUrl,
       stamp_pending_effect: source === 'custom' || source === 'logo' ? effect : null,
+      wallet_config: walletConfig,
     }).eq('id', businessId).select('id, name').single();
     if (updateError || !updated) throw updateError || new Error('No se pudo actualizar el negocio.');
     return NextResponse.json({ business: updated });

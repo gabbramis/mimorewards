@@ -256,7 +256,7 @@ export async function POST(request: Request) {
       const supabase: any = createAdminClient();
       const { data: customer, error: customerError } = await supabase
         .from("customers")
-        .select("id, first_name, last_name, business_id, current_stamps, wallet_platform")
+        .select("id, first_name, last_name, business_id, current_stamps, wallet_platform, unique_code")
         .eq("id", body.customerId)
         .maybeSingle();
 
@@ -267,7 +267,7 @@ export async function POST(request: Request) {
 
       const { data: business, error: businessError } = await supabase
         .from("businesses")
-        .select("id, name, logo_url, reward_target, primary_color")
+        .select("id, name, logo_url, reward_target, primary_color, reward_description, wallet_config")
         .eq("id", customer.business_id)
         .maybeSingle();
 
@@ -304,14 +304,18 @@ export async function POST(request: Request) {
           business.id,
           business.name,
           business.primary_color || "#FF1F2D",
-          business.logo_url
+          business.logo_url,
+          business.wallet_config
         );
         const saveUrl = generateSavePassUrl(
           loyaltyCard.id,
           fullName,
           customer.current_stamps || 0,
           business.reward_target || 10,
-          business.id
+          business.id,
+          business.wallet_config,
+          business.reward_description || undefined,
+          customer.unique_code || undefined
         );
         const objectId = getGoogleObjectId(loyaltyCard.id);
 

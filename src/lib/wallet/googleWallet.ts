@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
+import { googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
 
 export interface WalletCredentials {
     client_email: string;
@@ -120,31 +121,44 @@ export async function createOrUpdateLoyaltyClass(
     businessId: string,
     businessName: string,
     hexColor?: string,
-    logoUrl?: string
+    logoUrl?: string,
+    walletConfig?: unknown
 ): Promise<LoyaltyClassResponse> {
     const classId = getGoogleClassId(businessId);
+    const wallet = sanitizeWalletConfig(walletConfig);
+    const issuerName = wallet.issuerName || businessName;
+    const programLogoUri = (isHttpsUrl(wallet.logoUrl) ? wallet.logoUrl : '') || logoUrl || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=60';
 
     const authClient = await getAuthClient();
     const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
 
-    const loyaltyClassPayload = {
+    const loyaltyClassPayload: Record<string, unknown> = {
         id: classId,
-        issuerName: businessName,
-        programName: businessName,
+        issuerName,
+        programName: issuerName,
         reviewStatus: 'UNDER_REVIEW',
         hexBackgroundColor: hexColor || '#10B981',
         programLogo: {
             sourceUri: {
-                uri: logoUrl || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=60'
+                uri: programLogoUri
             },
             contentDescription: {
                 defaultValue: {
                     language: 'es-419',
-                    value: `Logo de ${businessName}`
+                    value: `Logo de ${issuerName}`
                 }
             }
         }
     };
+
+    if (wallet.bannerEnabled && isHttpsUrl(wallet.bannerUrl)) {
+        loyaltyClassPayload.heroImage = {
+            sourceUri: { uri: wallet.bannerUrl },
+            contentDescription: {
+                defaultValue: { language: 'es-419', value: `Banner de ${issuerName}` }
+            }
+        };
+    }
 
     try {
         try {
@@ -183,12 +197,25 @@ export function generateSavePassUrl(
     customerName: string,
     currentStamps: number,
     maxStamps: number,
-    businessId: string
+    businessId: string,
+    walletConfig?: unknown,
+    rewardDescription?: string,
+    customerCode?: string
 ): string {
     const classId = getGoogleClassId(businessId);
     const objectId = getGoogleObjectId(cardId);
 
     const credentials = loadCredentials();
+
+    const wallet = sanitizeWalletConfig(walletConfig);
+    const firstName = customerName.split(' ')[0] || customerName;
+    const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: rewardDescription });
+    const reward = resolveWalletText(wallet.rewardText || '{proximo_premio}', { nombre: customerName, proximo_premio: rewardDescription }) || rewardDescription || '';
+    const altText = resolveWalletText(wallet.barcodeAltText, { id: customerCode || cardId });
+    const textModulesData = [
+        headline ? { id: 'headline', header: 'Tu tarjeta', body: headline } : null,
+        reward ? { id: 'reward', header: 'Próximo premio', body: reward } : null,
+    ].filter(Boolean);
 
     const loyaltyObject = {
         id: objectId,
@@ -197,10 +224,11 @@ export function generateSavePassUrl(
         accountId: cardId, // Map barcode with ID
         accountName: customerName,
         barcode: {
-            type: 'QR_CODE',
+            type: googleBarcodeType(wallet.barcodeFormat),
             value: cardId,
-            alternateText: cardId
+            ...(altText ? { alternateText: altText } : {})
         },
+        ...(textModulesData.length ? { textModulesData } : {}),
         loyaltyPoints: {
             label: 'Sellos',
             balance: {

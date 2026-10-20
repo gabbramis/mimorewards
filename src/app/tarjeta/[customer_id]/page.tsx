@@ -73,7 +73,8 @@ export default async function TarjetaPage(props: {
       customer.business_id,
       business.name,
       context.primaryColor,
-      business.logo_url
+      business.logo_url,
+      business.wallet_config
     );
 
     googleWalletUrl = generateSavePassUrl(
@@ -81,7 +82,10 @@ export default async function TarjetaPage(props: {
       `${customer.first_name} ${customer.last_name || ""}`.trim(),
       customer.current_stamps || 0,
       business.reward_target || 10,
-      business.id
+      business.id,
+      business.wallet_config,
+      context.rewardDescription,
+      customer.unique_code
     );
   } catch (err) {
     console.warn("No se pudo pregenerar enlace de Google Wallet:", err);

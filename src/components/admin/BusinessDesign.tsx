@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ImagePlus, Palette, Search, Smartphone, Stamp } from 'lucide-react';
+import { Check, ChevronDown, ImagePlus, Palette, ScanLine, Search, Smartphone, Stamp, Type as TypeIcon } from 'lucide-react';
 import { stampCatalog } from '@/lib/stamp-catalog';
 import { alphaBounds, defaultPendingEffect, pendingPixels, STAMP_SIZE, type PendingEffect } from '@/lib/stamp-image';
 import CustomerExperience, { type CustomerStage, type CustomerView } from '@/components/customer/CustomerExperience';
 import AppleWalletPreview from '@/components/admin/AppleWalletPreview';
+import GoogleWalletPreview from '@/components/admin/GoogleWalletPreview';
+import { BANNER_SIZES, isHttpsUrl, WALLET_LIMITS, type BarcodeFormat, type WalletConfig } from '@/lib/wallet-config';
 import type { NfcContext } from '@/lib/mimo-nfc';
 
 export type DesignValue = {
@@ -75,11 +77,149 @@ async function previewFile(file: File, effect: PendingEffect): Promise<{ complet
   } finally { bitmap.close(); }
 }
 
-export function BusinessDesign({ value, onChange, logoPreview, businessName, rewardTarget, rewardDescription, disabled }: {
+const BARCODE_OPTIONS: { value: BarcodeFormat; label: string; hint: string }[] = [
+  { value: 'QR', label: 'QR Code', hint: 'Recomendado: lo leen todos los celulares y lectores.' },
+  { value: 'PDF417', label: 'PDF417', hint: 'Código rectangular, usado en lectores de mostrador.' },
+  { value: 'AZTEC', label: 'Aztec', hint: 'Código cuadrado compacto, no requiere margen.' },
+];
+
+function TextField({ label, value, onChange, placeholder, maxLength, hint, error, disabled }: {
+  label: string; value: string; onChange: (value: string) => void; placeholder?: string; maxLength?: number;
+  hint?: string; error?: string; disabled: boolean;
+}) {
+  return (
+    <label className="block text-sm font-semibold text-gray-700">
+      {label}
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        disabled={disabled}
+        aria-invalid={!!error}
+        className={`mt-2 w-full rounded-xl border px-4 py-2.5 text-sm font-normal text-gray-900 transition focus:outline-none focus:ring-2 ${error ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:border-[#FF1F2D] focus:ring-red-100'}`}
+      />
+      {error ? <span className="mt-1 block text-xs font-medium text-red-600">{error}</span> : hint && <span className="mt-1 block text-xs font-normal text-gray-500">{hint}</span>}
+    </label>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return <span className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{children}</span>;
+}
+
+/** Sube un PNG al endpoint indicado (sin límite de peso propio) y devuelve su URL pública. Permite pegar una URL externa como alternativa. */
+function ImageUploadField({ label, kind, url, onChange, endpoint, disabled, round, error, hint, placeholder }: {
+  label: string; kind: 'logo' | 'banner'; url: string; onChange: (url: string) => void; endpoint?: string;
+  disabled: boolean; round?: boolean; error?: string; hint?: string; placeholder: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [manual, setManual] = useState(false);
+  const inputId = `wallet-upload-${kind}`;
+
+  async function upload(file: File | undefined) {
+    if (!file || !endpoint) return;
+    setUploading(true); setUploadError('');
+    try {
+      const body = new FormData();
+      body.set('kind', kind); body.set('file', file);
+      const response = await fetch(endpoint, { method: 'POST', body });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.url) throw new Error(payload.error || 'No se pudo subir la imagen.');
+      onChange(payload.url);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'No se pudo subir la imagen.');
+    } finally { setUploading(false); }
+  }
+
+  const shape = round ? 'h-16 w-16 rounded-full' : 'h-20 w-40 rounded-xl';
+  return (
+    <div className="space-y-2">
+      <span className="block text-sm font-semibold text-gray-700">{label}</span>
+      <div className="flex items-center gap-4">
+        <span className={`flex ${shape} shrink-0 items-center justify-center overflow-hidden border border-dashed border-gray-300 bg-gray-50`}>
+          {uploading ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#FF1F2D]" aria-label="Subiendo" />
+            : url ? <img src={url} alt="" className={`h-full w-full ${round ? 'object-cover' : 'object-contain'}`} />
+            : <ImagePlus size={20} className="text-gray-400" />}
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {endpoint && (
+            <>
+              <input id={inputId} type="file" accept="image/png, .png" disabled={disabled || uploading} className="sr-only"
+                onClick={e => e.stopPropagation()}
+                onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; upload(file); }} />
+              <label htmlFor={inputId} onClick={e => e.stopPropagation()}
+                className={`inline-flex cursor-pointer items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 transition hover:border-[#FF1F2D] hover:text-[#FF1F2D] ${disabled || uploading ? 'pointer-events-none opacity-50' : ''}`}>
+                {uploading ? 'Subiendo…' : url ? 'Reemplazar PNG' : 'Subir PNG'}
+              </label>
+            </>
+          )}
+          {url && <button type="button" disabled={disabled || uploading} onClick={e => { e.stopPropagation(); onChange(''); }}
+            className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-red-50 hover:text-red-600">Quitar</button>}
+          <button type="button" onClick={e => { e.stopPropagation(); setManual(v => !v); }}
+            className="rounded-lg px-2 py-2 text-xs font-semibold text-gray-400 underline-offset-2 hover:text-gray-700 hover:underline">{manual ? 'Ocultar URL' : 'Usar URL externa'}</button>
+        </div>
+      </div>
+      {manual && <TextField label="URL pública (https)" value={url} onChange={v => onChange(v.trim())} placeholder={placeholder} maxLength={WALLET_LIMITS.url} disabled={disabled} />}
+      {(uploadError || error) ? <p role="alert" className="text-xs font-medium text-red-600">{uploadError || error}</p> : hint && <p className="text-xs text-gray-500">{hint}</p>}
+    </div>
+  );
+}
+
+function SectionShell({ number, id, title, subtitle, icon, active, onActivate, summary, children }: {
+  number: string; id: string; title: string; subtitle: string; icon: React.ReactNode; active: boolean;
+  onActivate: () => void; summary: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <section
+      onClick={onActivate}
+      className={`rounded-2xl transition-all duration-200 overflow-hidden ${
+        active
+          ? 'border-2 border-[#FF1F2D] bg-white p-6 shadow-md ring-4 ring-red-500/5'
+          : 'border border-gray-200 bg-white p-5 shadow-xs hover:border-gray-300 hover:shadow-sm cursor-pointer'
+      }`}
+      aria-labelledby={id}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${active ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'}`}>{number}</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id={id} className="font-bold text-gray-900 text-base">{title}</h2>
+              <span className={active ? 'text-[#FF1F2D]' : 'text-gray-400'}>{icon}</span>
+            </div>
+            <p className="text-xs text-gray-500">{subtitle}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {active ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#FF1F2D]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF1F2D]" />
+              Editando
+            </span>
+          ) : (
+            <div className="flex items-center gap-2">{summary}<ChevronDown size={18} className="text-gray-400" /></div>
+          )}
+        </div>
+      </div>
+      {active && <div className="mt-6 pt-5 border-t border-gray-100 space-y-5 animate-in fade-in duration-200">{children}</div>}
+    </section>
+  );
+}
+
+export function BusinessDesign({ value, onChange, logoPreview, businessName, rewardTarget, rewardDescription, disabled, wallet, onWalletChange, walletUploadUrl }: {
   value: DesignValue; onChange: (next: DesignValue) => void; logoPreview: string | null; businessName: string;
   rewardTarget: number; rewardDescription: string; disabled: boolean;
+  /** Configuración de Apple/Google Wallet. Si no se informa, se ocultan los campos específicos de wallet. */
+  wallet?: WalletConfig; onWalletChange?: (next: WalletConfig) => void;
+  /** Endpoint POST para subir el logo/banner de Wallet. Si falta, solo se permite pegar URLs. */
+  walletUploadUrl?: string;
 }) {
-  const [activeSection, setActiveSection] = useState<'identidad' | 'sellos' | 'preview'>('identidad');
+  const [activeSection, setActiveSection] = useState<'identidad' | 'contenido' | 'codigo' | 'sellos' | 'preview'>('identidad');
+  const [walletTab, setWalletTab] = useState<'apple' | 'google'>('apple');
+  const walletEditable = !!wallet && !!onWalletChange;
+  const patchWallet = (part: Partial<WalletConfig>) => { if (wallet && onWalletChange) onWalletChange({ ...wallet, ...part }); };
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [simulated, setSimulated] = useState(0);
@@ -119,8 +259,12 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   }), [previewStage, progress, target, previewContext.businessName, previewContext.businessLogo, previewContext.rewardDescription]);
 
   const isIdentidad = activeSection === 'identidad';
+  const isContenido = activeSection === 'contenido';
+  const isCodigo = activeSection === 'codigo';
   const isSellos = activeSection === 'sellos';
   const isPreview = activeSection === 'preview';
+  const logoError = wallet?.logoUrl && !isHttpsUrl(wallet.logoUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
+  const bannerError = wallet?.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -187,11 +331,152 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               <p className="text-xs leading-relaxed text-gray-500">
                 Apple Wallet admite fondo, texto y color de etiquetas. Google Wallet usa el fondo y el logo principal; sus textos y acentos se muestran aquí de forma orientativa.
               </p>
+
+              {walletEditable && wallet && (
+                <>
+                  <div className="space-y-4 border-t border-gray-100 pt-5">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Logotipo y nombre</h3>
+                      <p className="text-xs text-gray-500">Cabecera de la tarjeta en ambas wallets.</p>
+                    </div>
+                    <TextField
+                      label="Nombre del comercio / emisor"
+                      value={wallet.issuerName}
+                      onChange={issuerName => patchWallet({ issuerName })}
+                      placeholder={businessName || 'Nombre del negocio'}
+                      maxLength={WALLET_LIMITS.issuerName}
+                      hint="Apple Wallet: logoText · Google Wallet: issuerName. Vacío usa el nombre del negocio."
+                      disabled={disabled}
+                    />
+                    <ImageUploadField
+                      label="Logo de la wallet (PNG)"
+                      kind="logo"
+                      url={wallet.logoUrl}
+                      onChange={logoUrl => patchWallet({ logoUrl })}
+                      endpoint={walletUploadUrl}
+                      disabled={disabled}
+                      round
+                      error={logoError}
+                      placeholder="https://tudominio.com/logo.png"
+                      hint="Imagen cuadrada o circular. Sin logo propio se usa el logo principal de «Datos del negocio»."
+                    />
+                  </div>
+
+                  <div className="space-y-4 border-t border-gray-100 pt-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900">Banner / imagen destacada</h3>
+                        <p className="text-xs text-gray-500">Apple Wallet: stripImage · Google Wallet: heroImage.</p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={wallet.bannerEnabled}
+                        aria-label="Activar banner horizontal"
+                        disabled={disabled}
+                        onClick={e => { e.stopPropagation(); patchWallet({ bannerEnabled: !wallet.bannerEnabled }); }}
+                        className={`relative h-6 w-11 shrink-0 rounded-full transition ${wallet.bannerEnabled ? 'bg-[#FF1F2D]' : 'bg-gray-300'} disabled:opacity-50`}
+                      >
+                        <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${wallet.bannerEnabled ? 'translate-x-5' : ''}`} />
+                      </button>
+                    </div>
+                    {wallet.bannerEnabled && (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Chip>Apple · {BANNER_SIZES.apple}</Chip>
+                          <Chip>Google · {BANNER_SIZES.google}</Chip>
+                        </div>
+                        <ImageUploadField
+                          label="Imagen del banner (PNG)"
+                          kind="banner"
+                          url={wallet.bannerUrl}
+                          onChange={bannerUrl => patchWallet({ bannerUrl })}
+                          endpoint={walletUploadUrl}
+                          disabled={disabled}
+                          error={bannerError}
+                          placeholder="https://tudominio.com/banner.png"
+                          hint="Imagen horizontal. En Apple se muestra detrás de los sellos."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </section>
 
-        {/* 02 Diseño de los sellos */}
+        {walletEditable && wallet && (
+          <>
+            {/* 02 Contenido y textos de la tarjeta */}
+            <SectionShell
+              number="02" id="contenido-textos" title="Contenido y textos de la tarjeta"
+              subtitle="Titular principal y texto de la recompensa."
+              icon={<TypeIcon size={16} />}
+              active={isContenido} onActivate={() => setActiveSection('contenido')}
+              summary={<span className="max-w-[160px] truncate text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{wallet.headline || 'Sin titular'}</span>}
+            >
+              <TextField
+                label="Titular principal (campo principal)"
+                value={wallet.headline}
+                onChange={headline => patchWallet({ headline })}
+                placeholder="¡Hola, {nombre}!"
+                maxLength={WALLET_LIMITS.headline}
+                hint="Ej. «¡Hola, {nombre}!» o «Cliente Frecuente». {nombre} se reemplaza por el nombre de cada cliente."
+                disabled={disabled}
+              />
+              <TextField
+                label="Texto de recompensa o beneficio próximo (campo secundario)"
+                value={wallet.rewardText}
+                onChange={rewardText => patchWallet({ rewardText })}
+                placeholder="{proximo_premio}"
+                maxLength={WALLET_LIMITS.rewardText}
+                hint="Ej. «1 café» o la variable {proximo_premio}, que usa el premio del programa de fidelización."
+                disabled={disabled}
+              />
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                <span className="font-semibold">Variables:</span>
+                {['{nombre}', '{proximo_premio}'].map(token => <code key={token} className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-700">{token}</code>)}
+              </div>
+            </SectionShell>
+
+            {/* 03 Código de escaneo y lectura */}
+            <SectionShell
+              number="03" id="codigo-escaneo" title="Código de escaneo y lectura"
+              subtitle="Formato del código y texto visible debajo."
+              icon={<ScanLine size={16} />}
+              active={isCodigo} onActivate={() => setActiveSection('codigo')}
+              summary={<span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{BARCODE_OPTIONS.find(o => o.value === wallet.barcodeFormat)?.label}</span>}
+            >
+              <label className="block text-sm font-semibold text-gray-700">
+                Tipo de código
+                <span className="relative mt-2 block">
+                  <select
+                    value={wallet.barcodeFormat}
+                    onChange={e => patchWallet({ barcodeFormat: e.target.value as BarcodeFormat })}
+                    disabled={disabled}
+                    className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-gray-900 transition focus:border-[#FF1F2D] focus:outline-none focus:ring-2 focus:ring-red-100"
+                  >
+                    {BARCODE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}{option.value === 'QR' ? ' (predeterminado)' : ''}</option>)}
+                  </select>
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-3.5 text-gray-400" />
+                </span>
+                <span className="mt-1 block text-xs font-normal text-gray-500">{BARCODE_OPTIONS.find(o => o.value === wallet.barcodeFormat)?.hint}</span>
+              </label>
+              <TextField
+                label="Texto alfanumérico bajo el código"
+                value={wallet.barcodeAltText}
+                onChange={barcodeAltText => patchWallet({ barcodeAltText })}
+                placeholder="CLI-{id}"
+                maxLength={WALLET_LIMITS.barcodeAltText}
+                hint="Texto visible o alternativo. {id} se reemplaza por el código único del cliente. Vacío = sin texto."
+                disabled={disabled}
+              />
+            </SectionShell>
+          </>
+        )}
+
+        {/* Diseño de los sellos */}
         <section
           onClick={() => setActiveSection('sellos')}
           className={`rounded-2xl transition-all duration-200 overflow-hidden ${
@@ -206,7 +491,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isSellos ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
               }`}>
-                02
+                {walletEditable ? '04' : '02'}
               </span>
               <div>
                 <div className="flex items-center gap-2">
@@ -406,7 +691,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isPreview ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
               }`}>
-                03
+                {walletEditable ? '05' : '03'}
               </span>
               <div>
                 <div className="flex items-center gap-2">
@@ -568,14 +853,32 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
             </div>
             <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100">
               {isIdentidad && 'Identidad visual'}
+              {isContenido && 'Contenido y textos'}
+              {isCodigo && 'Código de escaneo'}
               {isSellos && 'Diseño de sellos'}
               {isPreview && (previewSurface === 'web' ? 'Pantalla web' : 'Apple Wallet')}
             </span>
           </div>
 
-          {/* Si está en Identidad o Sellos: Tarjeta Apple Wallet en vivo */}
-          {(isIdentidad || isSellos) && (
+          {/* Edición: tarjeta Apple Wallet / Google Wallet en vivo */}
+          {!isPreview && (
             <div className="space-y-4">
+              <div className="inline-flex w-full rounded-xl bg-gray-100 p-1" role="group" aria-label="Elegir wallet de la previsualización">
+                {([['apple', 'Apple Wallet'], ['google', 'Google Wallet']] as const).map(([tab, label]) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={walletTab === tab}
+                    onClick={() => setWalletTab(tab)}
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition ${
+                      walletTab === tab ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                 <span className="text-xs font-semibold text-gray-700">Simular sellos: {progress}/{target}</span>
                 <div className="flex items-center gap-1.5">
@@ -601,25 +904,38 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               </div>
 
               <div className="flex justify-center overflow-x-auto py-1">
-                <AppleWalletPreview
-                  businessName={businessName}
-                  logoUrl={logoPreview}
-                  completedUrl={completed || null}
-                  pendingUrl={pending || null}
-                  primaryColor={value.primaryColor}
-                  textColor={value.textColor}
-                  accentColor={value.accentColor}
-                  currentStamps={progress}
-                  targetStamps={target}
-                  rewardDescription={rewardDescription}
-                  artworkVisible={walletArtworkVisible}
-                />
+                {walletTab === 'apple' ? (
+                  <AppleWalletPreview
+                    businessName={businessName}
+                    logoUrl={logoPreview}
+                    completedUrl={completed || null}
+                    pendingUrl={pending || null}
+                    primaryColor={value.primaryColor}
+                    textColor={value.textColor}
+                    accentColor={value.accentColor}
+                    currentStamps={progress}
+                    targetStamps={target}
+                    rewardDescription={rewardDescription}
+                    artworkVisible={walletArtworkVisible}
+                    wallet={wallet}
+                  />
+                ) : (
+                  <GoogleWalletPreview
+                    businessName={businessName}
+                    logoUrl={logoPreview}
+                    primaryColor={value.primaryColor}
+                    textColor={value.textColor}
+                    accentColor={value.accentColor}
+                    currentStamps={progress}
+                    targetStamps={target}
+                    rewardDescription={rewardDescription}
+                    wallet={wallet}
+                  />
+                )}
               </div>
 
               <p className="text-center text-[11px] text-gray-400">
-                {isIdentidad
-                  ? 'Los colores de fondo, texto y acento se actualizan en tiempo real.'
-                  : 'El motivo del sello y su versión pendiente se actualizan en tiempo real.'}
+                Los cambios de colores, logo, banner, textos y código se actualizan en tiempo real.
               </p>
             </div>
           )}
@@ -651,6 +967,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     targetStamps={target}
                     rewardDescription={rewardDescription}
                     artworkVisible={walletArtworkVisible}
+                    wallet={wallet}
                   />
                 </div>
               )}
