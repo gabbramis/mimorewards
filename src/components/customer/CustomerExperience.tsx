@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, Gift, Heart, LockKeyhole, Wallet } from "lucide-react";
+import { ArrowRight, Check, Gift, Heart, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
 import AppleWalletButton from "@/components/AppleWalletButton";
@@ -102,7 +102,7 @@ function LoadingView() {
   </div>;
 }
 
-export default function CustomerExperience({ nfcId, initialContext, initialCustomer, stampStatus = null, appleWalletReady = false, googleWalletReady = false, googleWalletUrl, previewStage }: {
+export default function CustomerExperience({ nfcId, initialContext, initialCustomer, stampStatus = null, googleWalletUrl, previewStage }: {
   nfcId?: string;
   initialContext?: NfcContext;
   initialCustomer?: CustomerView | null;
@@ -123,8 +123,6 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [error, setError] = useState("");
   const [localNotice, setLocalNotice] = useState("");
   const [returning, setReturning] = useState(Boolean(initialCustomer));
-  const [walletReady, setWalletReady] = useState(appleWalletReady);
-  const [googleReady, setGoogleReady] = useState(googleWalletReady);
   const [walletBusy, setWalletBusy] = useState(false);
   const [appleWalletBusy, setAppleWalletBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
@@ -158,8 +156,6 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       .then(payload => {
         if (cancelled) return;
         setContext(payload.context);
-        setWalletReady(Boolean(payload.appleWalletReady));
-        setGoogleReady(Boolean(payload.googleWalletReady));
         setCustomer(payload.customer || null);
         setReturning(Boolean(payload.customer));
         setPhase(payload.customer ? "card" : "register");

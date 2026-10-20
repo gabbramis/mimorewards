@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import GoogleWalletButton from '@/components/GoogleWalletButton';
