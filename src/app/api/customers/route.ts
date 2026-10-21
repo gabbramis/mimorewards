@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
-import { normalizeUruguayMobile } from "@/lib/customer-phone";
+import { findCustomersByMobile, getUruguayMobileVariants, normalizeUruguayMobile } from "@/lib/customer-phone";
 import { CUSTOMER_CONSENT_VERSION } from "@/lib/customer-consent";
 import { notifyCustomerWalletUpdate } from "@/lib/wallet-notifications";
 
@@ -90,22 +90,43 @@ export async function POST(request: Request) {
     const context = await resolveNfcContext(supabase, nfcId);
     if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
 
-    let existingQuery = supabase
-      .from("customers")
-      .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
-      .eq("business_id", context.businessId);
+    // 1. Verificación previa anti-duplicados buscando todas las variantes de formato
+    const variants = getUruguayMobileVariants(rawPhone);
+    let existingCustomer: any = null;
 
-    if (phone !== rawPhone) {
-      existingQuery = existingQuery.or(`phone.eq.${phone},phone.eq.${rawPhone}`);
-    } else {
-      existingQuery = existingQuery.eq("phone", phone);
+    // Buscar coincidencia directa priorizando la tarjeta con más sellos acumulados y última actividad
+    const { data: directMatch } = await supabase
+      .from("customers")
+      .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits, created_at, updated_at")
+      .eq("business_id", context.businessId)
+      .in("phone", variants)
+      .order("current_stamps", { ascending: false })
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (directMatch) {
+      existingCustomer = directMatch;
+    } else if (phone) {
+      // Fallback escaneando variantes con caracteres especiales (guiones, espacios)
+      const matches = await findCustomersByMobile(supabase, context.businessId, phone);
+      if (matches.length > 0) {
+        existingCustomer = matches[0];
+      }
     }
 
-    const { data: existingCustomer, error: existingError } = await existingQuery.maybeSingle();
-
-    if (existingError) throw existingError;
-
+    // 2. Si ya existe, NO creamos un registro duplicado: retornamos la tarjeta existente directamente
     if (existingCustomer) {
+      // Normalizamos el formato del teléfono si estaba sin +598
+      if (phone && existingCustomer.phone !== phone) {
+        await supabase
+          .from("customers")
+          .update({ phone, updated_at: new Date().toISOString() })
+          .eq("id", existingCustomer.id);
+        existingCustomer.phone = phone;
+      }
+
       const stamp = await creditStamp(supabase, existingCustomer, context, crypto.randomUUID());
       const customer = toCustomerView({ ...existingCustomer, current_stamps: stamp.current_stamps }, context);
       return responseWithCustomerCookie({
@@ -117,8 +138,11 @@ export async function POST(request: Request) {
       }, customer.id, context.businessId);
     }
 
+    // 3. Flujo de registro nuevo (con inserción segura y manejo de concurrencia)
     const acceptedAt = new Date().toISOString();
-    const { data: createdCustomer, error: customerError } = await supabase
+    let createdCustomer: any = null;
+
+    const { data: newCustomer, error: customerError } = await supabase
       .from("customers")
       .insert({
         business_id: context.businessId,
@@ -133,19 +157,50 @@ export async function POST(request: Request) {
         legal_version: CUSTOMER_CONSENT_VERSION,
         whatsapp_marketing_opt_in: input.whatsappMarketingOptIn,
         whatsapp_marketing_opt_in_at: input.whatsappMarketingOptIn ? acceptedAt : null,
+        updated_at: acceptedAt,
       })
       .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
       .single();
 
-    if (customerError || !createdCustomer) {
-      throw customerError || new Error("No se pudo crear el cliente.");
+    if (customerError) {
+      // Si ocurrió una colisión concurrente con la misma (business_id, phone)
+      if (customerError.code === "23505" || customerError.message?.includes("customers_business_id_phone_key")) {
+        const { data: raceCustomer } = await supabase
+          .from("customers")
+          .select("id, unique_code, first_name, last_name, phone, birthdate, current_stamps, total_visits")
+          .eq("business_id", context.businessId)
+          .eq("phone", phone)
+          .order("current_stamps", { ascending: false })
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (raceCustomer) {
+          const stamp = await creditStamp(supabase, raceCustomer, context, crypto.randomUUID());
+          const customer = toCustomerView({ ...raceCustomer, current_stamps: stamp.current_stamps }, context);
+          return responseWithCustomerCookie({
+            customer,
+            context,
+            isNewCustomer: false,
+            stampAdded: stamp.accepted,
+            message: "Te reconocimos y sumamos tu sello.",
+          }, customer.id, context.businessId);
+        }
+      }
+      throw customerError;
     }
 
-    const { error: cardError } = await supabase.from("loyalty_cards").insert({
-      customer_id: createdCustomer.id,
-      business_id: context.businessId,
-      current_stamps: 0,
-    });
+    createdCustomer = newCustomer;
+
+    const { error: cardError } = await supabase.from("loyalty_cards").upsert(
+      {
+        customer_id: createdCustomer.id,
+        business_id: context.businessId,
+        current_stamps: 0,
+      },
+      { onConflict: "customer_id, business_id", ignoreDuplicates: true }
+    );
     if (cardError) throw cardError;
 
     const stamp = await creditStamp(supabase, createdCustomer, context, crypto.randomUUID());

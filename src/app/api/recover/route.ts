@@ -46,14 +46,21 @@ export async function POST(request: Request) {
     const context = await resolveNfcContext(supabase, nfcId);
     if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
 
+    // Búsqueda tolerante que prioriza la tarjeta con más sellos acumulados y desempata por última actividad
     const matches = await findCustomersByMobile(supabase, context.businessId, phone);
-    if (matches.length > 1) {
-      return NextResponse.json({ error: "Encontramos más de una tarjeta con ese número y no pudimos identificar cuál es la tuya." }, { status: 409 });
-    }
     const customer = matches[0] || null;
 
     if (!customer) {
       return NextResponse.json({ error: "No encontramos una tarjeta registrada con este número en este local. Regístrate para comenzar a sumar." }, { status: 404 });
+    }
+
+    // Si el registro original tenía un formato de teléfono antiguo (sin +598), lo normalizamos en segundo plano
+    if (customer.phone !== phone) {
+      await supabase
+        .from("customers")
+        .update({ phone, updated_at: new Date().toISOString() })
+        .eq("id", customer.id);
+      customer.phone = phone;
     }
 
     const customerView = toCustomerView(customer, context);
