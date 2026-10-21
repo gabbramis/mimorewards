@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, Save } from 'lucide-react';
 import { BusinessDesign, emptyDesign, type DesignValue } from '@/components/admin/BusinessDesign';
 import { BusinessMembersManager } from '@/components/admin/BusinessMembersManager';
 import { validateEffect } from '@/lib/stamp-image';
@@ -35,7 +35,9 @@ export default function EditBusinessForm({ business }: { business: Business }) {
   const logoObjectUrl = useRef<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [syncInfo, setSyncInfo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [syncingWallet, setSyncingWallet] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const snapshot = JSON.stringify({ name, active, rewardTarget, rewardDescription, design: { ...design, customFile: design.customFile?.name || null }, wallet, logoFile: logoFile?.name || null });
   const originalSnapshot = JSON.stringify({ name: initial.name, active: initial.active, rewardTarget: initial.rewardTarget, rewardDescription: initial.rewardDescription, design: { ...initial.design, customFile: null }, wallet: initial.wallet, logoFile: null });
@@ -79,7 +81,7 @@ export default function EditBusinessForm({ business }: { business: Business }) {
     if ((wallet.logoUrl && !isHttpsUrl(wallet.logoUrl)) || (wallet.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl))) {
       setError('Las URLs del logo y del banner de Wallet deben ser públicas y empezar con https://.'); return;
     }
-    setSaving(true); setError(''); setSuccess('');
+    setSaving(true); setError(''); setSuccess(''); setSyncInfo(null);
     const data = new FormData();
     data.set('name', name.trim()); data.set('active', String(active)); data.set('rewardTarget', String(rewardTarget)); data.set('rewardDescription', rewardDescription.trim());
     data.set('primaryColor', design.primaryColor); data.set('cardTextColor', design.textColor); data.set('cardAccentColor', design.accentColor);
@@ -91,11 +93,42 @@ export default function EditBusinessForm({ business }: { business: Business }) {
       const response = await fetch(`/api/admin/businesses/${business.id}`, { method: 'PUT', body: data });
       const payload = await response.json();
       if (!response.ok) { setError(payload.error || 'No se pudieron guardar los cambios.'); return; }
-      setSuccess('Cambios guardados en este negocio. Las tarjetas Wallet ya emitidas no se sincronizan automáticamente.');
+      setSuccess('Cambios guardados. Se inició la propagación automática del nuevo diseño a las tarjetas de Google Wallet y Apple Wallet.');
       setSavedSnapshot(snapshot);
       router.refresh();
     } catch { setError('No se pudieron guardar los cambios. Revisá la conexión e intentá de nuevo.'); }
     finally { setSaving(false); }
+  }
+
+  async function syncWalletNow() {
+    if (syncingWallet || saving) return;
+    setSyncingWallet(true);
+    setError('');
+    setSyncInfo(null);
+    try {
+      const response = await fetch(`/api/admin/businesses/${business.id}/sync-wallet`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || 'No se pudieron sincronizar las tarjetas.');
+        return;
+      }
+      const parts: string[] = [];
+      if (payload.google?.success) {
+        parts.push('Google Wallet actualizado');
+      } else if (payload.google?.error) {
+        parts.push(`Google Wallet: ${payload.google.error}`);
+      }
+      if (payload.apple?.configured) {
+        parts.push(`Apple Wallet: ${payload.apple.sent} pases notificados`);
+      } else {
+        parts.push(`Apple Wallet: ${payload.apple?.devicesFound || 0} dispositivos registrados (certificados APNs pendientes)`);
+      }
+      setSyncInfo(`Sincronización completada: ${parts.join(' · ')}.`);
+    } catch {
+      setError('Error de conexión al sincronizar tarjetas.');
+    } finally {
+      setSyncingWallet(false);
+    }
   }
 
   return <form onSubmit={save} className="space-y-6">
@@ -207,6 +240,24 @@ export default function EditBusinessForm({ business }: { business: Business }) {
     />
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
     {success && <p role="status" className="rounded-xl bg-green-50 p-4 text-sm font-semibold text-green-700">{success}</p>}
-    <div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={cancel} disabled={saving} className="rounded-xl border border-gray-200 px-6 py-3 font-semibold text-gray-700">Cancelar</button><button type="submit" disabled={saving || !dirty} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-6 py-3 font-bold text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'Guardando…' : 'Guardar cambios'}</button></div>
+    {syncInfo && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-800">{syncInfo}</p>}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <button
+          type="button"
+          onClick={syncWalletNow}
+          disabled={saving || syncingWallet || dirty}
+          title={dirty ? 'Guardá los cambios antes de sincronizar' : 'Propagar diseño a todas las tarjetas Wallet ya emitidas'}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-40"
+        >
+          {syncingWallet ? <Loader2 size={15} className="animate-spin text-[#FF1F2D]" /> : <RefreshCw size={15} />}
+          {syncingWallet ? 'Sincronizando tarjetas…' : 'Sincronizar tarjetas Wallet ahora'}
+        </button>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <button type="button" onClick={cancel} disabled={saving || syncingWallet} className="rounded-xl border border-gray-200 px-6 py-3 font-semibold text-gray-700">Cancelar</button>
+        <button type="submit" disabled={saving || syncingWallet || !dirty} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-6 py-3 font-bold text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'Guardando…' : 'Guardar cambios'}</button>
+      </div>
+    </div>
   </form>;
 }

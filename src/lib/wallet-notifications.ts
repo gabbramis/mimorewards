@@ -7,6 +7,10 @@ import {
   broadcastGoogleWalletClassMessage,
   getGoogleClassId,
 } from "@/lib/wallet/googleWallet";
+import { updateWalletTemplate, type WalletTemplateSyncResult } from "@/lib/wallet/sync-template";
+
+export { updateWalletTemplate, type WalletTemplateSyncResult };
+
 
 export type CustomerNotificationParams = {
   customerId: string;

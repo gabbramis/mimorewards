@@ -190,6 +190,108 @@ export async function createOrUpdateLoyaltyClass(
 }
 
 /**
+ * Actualiza la plantilla (LoyaltyClass) en Google Wallet vía PATCH (o INSERT si no existía).
+ * Envía los nuevos valores de wallet_config: hexBackgroundColor, heroImage, programLogo y issuerName.
+ * Al actualizar la Class, Google Wallet propaga automáticamente los cambios a todas las tarjetas de usuarios vinculados.
+ */
+export async function patchGoogleWalletLoyaltyClass(
+    businessId: string,
+    params: {
+        businessName: string;
+        hexBackgroundColor?: string | null;
+        logoUrl?: string | null;
+        walletConfig?: unknown;
+    }
+): Promise<{ success: boolean; id: string; error?: string }> {
+    if (!googleWalletConfigured()) {
+        console.warn(`[Google Wallet] Credenciales no configuradas. Omitiendo PATCH de LoyaltyClass para negocio: ${businessId}`);
+        return { success: false, id: '', error: 'Credenciales de Google Wallet no configuradas' };
+    }
+
+    const classId = getGoogleClassId(businessId);
+    const wallet = sanitizeWalletConfig(params.walletConfig);
+    const issuerName = wallet.issuerName || params.businessName;
+    const programLogoUri = (isHttpsUrl(wallet.logoUrl) ? wallet.logoUrl : '') || params.logoUrl || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=60';
+
+    const authClient = await getAuthClient();
+    const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
+
+    const patchPayload: Record<string, unknown> = {
+        issuerName,
+        programName: issuerName,
+        hexBackgroundColor: params.hexBackgroundColor || '#10B981',
+        programLogo: {
+            sourceUri: { uri: programLogoUri },
+            contentDescription: {
+                defaultValue: {
+                    language: 'es-419',
+                    value: `Logo de ${issuerName}`,
+                },
+            },
+        },
+    };
+
+    if (wallet.bannerEnabled && isHttpsUrl(wallet.bannerUrl)) {
+        patchPayload.heroImage = {
+            sourceUri: { uri: wallet.bannerUrl },
+            contentDescription: {
+                defaultValue: { language: 'es-419', value: `Banner de ${issuerName}` },
+            },
+        };
+    } else {
+        // Enviar null para borrar la imagen en Google Wallet si fue desactivada
+        patchPayload.heroImage = null;
+    }
+
+    try {
+        try {
+            await walletobjects.loyaltyclass.patch({
+                resourceId: classId,
+                requestBody: patchPayload,
+            });
+            console.log(`[Google Wallet] LoyaltyClass ${classId} actualizada vía PATCH con éxito.`);
+            return { success: true, id: classId };
+        } catch (patchErr: any) {
+            // Si dio 400 por enviar heroImage: null, reintentar sin heroImage
+            if (patchPayload.heroImage === null && (patchErr.code === 400 || patchErr.status === 400)) {
+                const retryPayload = { ...patchPayload };
+                delete retryPayload.heroImage;
+                await walletobjects.loyaltyclass.patch({
+                    resourceId: classId,
+                    requestBody: retryPayload,
+                });
+                console.log(`[Google Wallet] LoyaltyClass ${classId} actualizada vía PATCH (fallback sin heroImage).`);
+                return { success: true, id: classId };
+            }
+
+            // Si la clase no existía (404), insertarla con INSERT
+            if (patchErr.code === 404 || patchErr.status === 404) {
+                console.log(`[Google Wallet] LoyaltyClass ${classId} no existía (404). Insertando...`);
+                const insertPayload: Record<string, unknown> = {
+                    ...patchPayload,
+                    id: classId,
+                    reviewStatus: 'UNDER_REVIEW',
+                };
+                if (!insertPayload.heroImage) {
+                    delete insertPayload.heroImage;
+                }
+                await walletobjects.loyaltyclass.insert({
+                    requestBody: insertPayload,
+                });
+                console.log(`[Google Wallet] LoyaltyClass ${classId} creada vía INSERT con éxito.`);
+                return { success: true, id: classId };
+            }
+
+            throw patchErr;
+        }
+    } catch (error: any) {
+        console.error(`[Google Wallet] Error en patchGoogleWalletLoyaltyClass para ${classId}:`, error?.message || error);
+        const details = error?.response?.data ? JSON.stringify(error.response.data) : error?.message || 'Error desconocido';
+        return { success: false, id: classId, error: details };
+    }
+}
+
+/**
  * Generates a signed JWT payload URL for the 'Save to Google Wallet' button.
  */
 export function generateSavePassUrl(

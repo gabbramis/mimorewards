@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { isSuperadmin } from '@/lib/authz';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { availableStamp } from '@/lib/stamp-catalog';
 import { validateEffect } from '@/lib/stamp-image';
 import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
 import { sanitizeWalletConfig } from '@/lib/wallet-config';
+import { updateWalletTemplate } from '@/lib/wallet/sync-template';
 
 const color = (value: FormDataEntryValue | null) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : null;
 
@@ -100,6 +101,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
       wallet_config: walletConfig,
     }).eq('id', businessId).select('id, name').single();
     if (updateError || !updated) throw updateError || new Error('No se pudo actualizar el negocio.');
+
+    // Propagación asíncrona de plantilla Wallet (Google Wallet PATCH + Apple Wallet APNs)
+    // Se ejecuta de fondo para no bloquear ni demorar la respuesta de guardado del frontend
+    if (typeof after === 'function') {
+      after(async () => {
+        try {
+          await updateWalletTemplate(businessId);
+        } catch (syncErr) {
+          console.error('[Admin Business Update] Error en propagación asíncrona de plantilla Wallet:', syncErr);
+        }
+      });
+    } else {
+      updateWalletTemplate(businessId).catch((syncErr) => {
+        console.error('[Admin Business Update] Error en propagación asíncrona de plantilla Wallet:', syncErr);
+      });
+    }
+
     return NextResponse.json({ business: updated });
   } catch (error: unknown) {
     if (createdPaths.length) await supabase.storage.from('logos').remove(createdPaths);
