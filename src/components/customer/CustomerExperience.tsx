@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
 import AppleWalletButton from "@/components/AppleWalletButton";
 import GoogleWalletButton from "@/components/GoogleWalletButton";
+import { useDevicePlatform } from "@/hooks/useDevicePlatform";
 
 export type CustomerView = {
   id: string;
@@ -126,24 +127,8 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [walletBusy, setWalletBusy] = useState(false);
   const [appleWalletBusy, setAppleWalletBusy] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
-  const [deviceOS, setDeviceOS] = useState<'ios' | 'android' | 'unknown'>('unknown');
+  const { platform } = useDevicePlatform();
   const supabase = useMemo(() => preview ? null : createClient(), [preview]);
-
-  useEffect(() => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (
-      userAgent.includes('iphone') ||
-      userAgent.includes('ipad') ||
-      userAgent.includes('ipod') ||
-      userAgent.includes('mac')
-    ) {
-      // Browser detection runs after hydration so server markup stays consistent.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDeviceOS('ios');
-    } else if (userAgent.includes('android')) {
-      setDeviceOS('android');
-    }
-  }, []);
 
   useEffect(() => {
     if (!nfcId || preview) return;
@@ -297,15 +282,33 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           {localNotice && !stageMessage && <p className="cx-alert cx-alert-success" role="status"><Check size={16} /> {localNotice}</p>}
           {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
           <div className="cx-card-actions">
-            {deviceOS === "android" ? (
+            {/* Si el usuario entra desde iOS: ÚNICAMENTE Apple Wallet */}
+            {platform === "ios" && (
+              <AppleWalletButton
+                href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
+                onClick={openAppleWallet}
+                loading={appleWalletBusy}
+                loadingText="Generando pase…"
+                disabled={preview || appleWalletBusy}
+                className="w-full"
+              />
+            )}
+
+            {/* Si el usuario entra desde Android: ÚNICAMENTE Google Wallet */}
+            {platform === "android" && (
+              <GoogleWalletButton
+                href={preview ? undefined : googleWalletUrl}
+                onClick={openGoogleWallet}
+                loading={walletBusy}
+                loadingText="Abriendo Google Wallet…"
+                disabled={preview || walletBusy}
+                className="w-full"
+              />
+            )}
+
+            {/* Si entra desde Desktop / Computadora o plataforma no identificada: mostrar ambos botones */}
+            {(platform === "desktop" || platform === "unknown") && (
               <>
-                <GoogleWalletButton
-                  onClick={openGoogleWallet}
-                  loading={walletBusy}
-                  loadingText="Abriendo Google Wallet…"
-                  disabled={preview || walletBusy}
-                  className="w-full"
-                />
                 <AppleWalletButton
                   href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
                   onClick={openAppleWallet}
@@ -314,18 +317,8 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
                   disabled={preview || appleWalletBusy}
                   className="w-full"
                 />
-              </>
-            ) : (
-              <>
-                <AppleWalletButton
-                  href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
-                  onClick={openAppleWallet}
-                  loading={appleWalletBusy}
-                  loadingText="Generando pase…"
-                  disabled={preview || appleWalletBusy}
-                  className="w-full"
-                />
                 <GoogleWalletButton
+                  href={preview ? undefined : googleWalletUrl}
                   onClick={openGoogleWallet}
                   loading={walletBusy}
                   loadingText="Abriendo Google Wallet…"
