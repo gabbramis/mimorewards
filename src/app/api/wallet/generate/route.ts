@@ -120,7 +120,8 @@ async function processLogoImages(logoUrl?: string | null): Promise<{
 
       const logoBuffer = await sharp(trimmed)
         .resize(160, 160, {
-          fit: "cover",
+          fit: "contain",
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
         })
         .png()
         .toBuffer();

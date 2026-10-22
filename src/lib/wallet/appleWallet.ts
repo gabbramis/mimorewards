@@ -136,28 +136,53 @@ export function appleWalletConfigured() {
 }
 
 async function stripImages(card: AppleCard, banner?: Buffer | null) {
-  const canvas = createCanvas(1125, 432);
+  const canvasWidth = 1125;
+  const canvasHeight = 432;
+  const canvas = createCanvas(canvasWidth, canvasHeight);
   const context = canvas.getContext("2d");
   if (banner) {
     try {
-      const image = await loadImage(await sharp(banner).resize(1125, 432, { fit: "cover" }).png().toBuffer());
-      context.drawImage(image, 0, 0, 1125, 432);
+      const image = await loadImage(await sharp(banner).resize(canvasWidth, canvasHeight, { fit: "cover" }).png().toBuffer());
+      context.drawImage(image, 0, 0, canvasWidth, canvasHeight);
     } catch (error) {
       console.warn("[Apple Wallet] Banner inválido, se omite:", error);
     }
   }
   const target = Math.min(15, Math.max(1, card.targetStamps));
   const progress = Math.min(target, Math.max(0, card.currentStamps));
-  const columns = Math.ceil(target / 2);
+
+  // Distribuir en 1 fila si son 5 o menos, o en 2 filas si son más
+  const rows = target <= 5 ? 1 : 2;
+  const columns = Math.ceil(target / rows);
+
   const completed = card.completedStampImage ? await loadImage(card.completedStampImage) : null;
   const pending = card.pendingStampImage ? await loadImage(card.pendingStampImage) : null;
-  const step = Math.min(180, 1000 / Math.max(1, columns - 1));
-  const size = Math.min(116, step * .75);
-  const startX = (1125 - (columns - 1) * step) / 2;
+
+  // Tamaño prominente de los sellos (120px - 140px según cantidad de columnas)
+  const maxAvailableWidth = (canvasWidth - 100) / columns;
+  const maxAvailableHeight = (canvasHeight - 60) / (rows === 1 ? 1 : 2.2);
+  const size = Math.floor(Math.min(140, maxAvailableWidth * 0.85, maxAvailableHeight));
+
+  // Centrado vertical exacto en los 432px de alto
+  const rowGap = rows > 1 ? Math.min(44, Math.max(16, Math.floor((canvasHeight - rows * size) / (rows + 1)))) : 0;
+  const totalGridHeight = rows * size + (rows - 1) * rowGap;
+  const startY = Math.floor((canvasHeight - totalGridHeight) / 2) + Math.floor(size / 2);
+
+  // Distribución horizontal
+  const maxContentWidth = Math.min(canvasWidth - 120, columns * (size + 50));
+  const stepX = columns > 1 ? maxContentWidth / (columns - 1) : 0;
 
   for (let index = 0; index < target; index++) {
-    const x = startX + (index % columns) * step;
-    const y = 260 + Math.floor(index / columns) * 105;
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+
+    // Centrar la última fila si tiene menos elementos
+    const itemsInRow = (row === rows - 1 && target % columns !== 0) ? (target % columns) : columns;
+    const rowStartX = itemsInRow > 1 ? (canvasWidth - (itemsInRow - 1) * stepX) / 2 : canvasWidth / 2;
+
+    const x = rowStartX + col * stepX;
+    const y = startY + row * (size + rowGap);
+
     const image = index < progress ? completed : pending;
     if (image) {
       const scale = Math.min(size / image.width, size / image.height);
@@ -166,10 +191,10 @@ async function stripImages(card: AppleCard, banner?: Buffer | null) {
       context.drawImage(image, x - width / 2, y - height / 2, width, height);
     } else {
       context.beginPath();
-      context.arc(x, y, size * .34, 0, Math.PI * 2);
+      context.arc(x, y, size * 0.38, 0, Math.PI * 2);
       context.lineWidth = 8;
       context.strokeStyle = walletColor(card.textColor || "#FFFFFF");
-      context.globalAlpha = index < progress ? .95 : .38;
+      context.globalAlpha = index < progress ? 0.95 : 0.38;
       if (index < progress) {
         context.fillStyle = walletColor(card.textColor || "#FFFFFF");
         context.fill();
@@ -216,8 +241,14 @@ export async function createAppleWalletPass(card: AppleCard) {
   }
 
   const logoImages = trimmedLogo ? {
-    "logo.png": await sharp(trimmedLogo).resize(160, 160, { fit: "cover" }).png().toBuffer(),
-    "logo@2x.png": await sharp(trimmedLogo).resize(320, 320, { fit: "cover" }).png().toBuffer(),
+    "logo.png": await sharp(trimmedLogo)
+      .resize(160, 160, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer(),
+    "logo@2x.png": await sharp(trimmedLogo)
+      .resize(320, 320, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer(),
   } : {};
   const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
   const webServiceURL = card.webServiceURL || `${baseUrl}/api/apple-wallet`;
