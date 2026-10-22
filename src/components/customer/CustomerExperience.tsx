@@ -9,6 +9,7 @@ import type { NfcContext } from "@/lib/mimo-nfc";
 import AppleWalletButton from "@/components/AppleWalletButton";
 import GoogleWalletButton from "@/components/GoogleWalletButton";
 import { useDevicePlatform } from "@/hooks/useDevicePlatform";
+import { COUNTRY_CODES, formatCustomerSubmitPhone } from "@/lib/customer-phone";
 
 export type CustomerView = {
   id: string;
@@ -96,6 +97,43 @@ function InputField({ label, name, value, onChange, type = "text", placeholder, 
   return <label className="cx-field"><span>{label}</span><input required type={type} name={name} value={value} onChange={event => onChange(name, event.target.value)} placeholder={placeholder} autoComplete={autoComplete} disabled={disabled} /></label>;
 }
 
+function PhoneInputField({ label, value, onChange, countryCode, onCountryChange, disabled }: {
+  label: string; value: string; onChange: (value: string) => void;
+  countryCode: string; onCountryChange: (code: string) => void; disabled?: boolean;
+}) {
+  return (
+    <label className="cx-field">
+      <span>{label}</span>
+      <div className="cx-phone-input-group">
+        <select
+          value={countryCode}
+          onChange={e => onCountryChange(e.target.value)}
+          disabled={disabled}
+          className="cx-country-select"
+          aria-label="Código de país"
+        >
+          {COUNTRY_CODES.map(c => (
+            <option key={c.code} value={c.code}>
+              {c.flag} {c.code}
+            </option>
+          ))}
+        </select>
+        <input
+          required
+          type="tel"
+          name="phone"
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          placeholder={countryCode === "+598" ? "099 123 456" : "Número de celular"}
+          autoComplete="tel-national"
+          disabled={disabled}
+          className="cx-phone-input"
+        />
+      </div>
+    </label>
+  );
+}
+
 function LoadingView() {
   return <div className="cx-loading" role="status" aria-label="Cargando información del comercio">
     <div className="cx-skeleton cx-skeleton-title" /><div className="cx-skeleton cx-skeleton-copy" />
@@ -118,6 +156,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
   const [customer, setCustomer] = useState<CustomerView | null>(initialCustomer || null);
   const [phase, setPhase] = useState<Phase>(previewStage || (initialCustomer ? "card" : initialContext ? "register" : "loading"));
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const [countryCode, setCountryCode] = useState<string>("+598");
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [whatsappMarketingOptIn, setWhatsappMarketingOptIn] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -184,9 +223,11 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     if (preview || !nfcId || busy) return;
     setBusy(true); setError(""); setLocalNotice("");
     try {
+      const cleanPhone = formatCustomerSubmitPhone(form.phone, countryCode);
+
       const response = await fetch(recover ? "/api/recover" : "/api/customers", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(recover ? { nfcId, phone: form.phone } : { ...form, nfcId, legalAccepted, whatsappMarketingOptIn }),
+        body: JSON.stringify(recover ? { nfcId, phone: cleanPhone } : { ...form, phone: cleanPhone, nfcId, legalAccepted, whatsappMarketingOptIn }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "No pudimos completar la solicitud.");
@@ -255,7 +296,14 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>
-            <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
+            <PhoneInputField
+              label="Celular"
+              value={form.phone}
+              onChange={val => updateField("phone", val)}
+              countryCode={countryCode}
+              onCountryChange={setCountryCode}
+              disabled={preview}
+            />
             <InputField label="Fecha de nacimiento" name="birthdate" value={form.birthdate} onChange={updateField} type="date" autoComplete="bday" disabled={preview} />
             <div className="cx-consents">
               <label className="cx-consent"><input type="checkbox" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required disabled={preview} /><span>Acepto los <Link href="/terminos" target="_blank" rel="noopener noreferrer">Términos de uso</Link> y la <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</Link> para crear mi tarjeta. <strong>Obligatorio.</strong></span></label>
@@ -270,7 +318,14 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
           <div className="cx-heading"><span className="cx-overline">QUÉ BUENO VERTE OTRA VEZ</span><h1>Volvé a<br /><em>tu tarjeta.</em></h1><p>Ingresá el celular que usaste en {context.businessName}.</p></div>
           <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, true)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
-            <InputField label="Celular" name="phone" value={form.phone} onChange={updateField} type="tel" placeholder="+598 99 123 456" autoComplete="tel" disabled={preview} />
+            <PhoneInputField
+              label="Celular"
+              value={form.phone}
+              onChange={val => updateField("phone", val)}
+              countryCode={countryCode}
+              onCountryChange={setCountryCode}
+              disabled={preview}
+            />
             
             <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Buscando tu tarjeta…" : <>Recuperar tarjeta <ArrowRight size={18} /></>}</button>
           </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>

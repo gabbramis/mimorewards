@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, RefreshCw, Save } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2, QrCode, RefreshCw, Save } from 'lucide-react';
 import { BusinessDesign, emptyDesign, type DesignValue } from '@/components/admin/BusinessDesign';
 import { BusinessMembersManager } from '@/components/admin/BusinessMembersManager';
 import { validateEffect } from '@/lib/stamp-image';
@@ -132,7 +132,37 @@ export default function EditBusinessForm({ business }: { business: Business }) {
   }
 
   return <form onSubmit={save} className="space-y-6">
-    <div><Link href="/admin/negocios" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#FF1F2D]"><ArrowLeft size={16} /> Negocios</Link><h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">Editar {business.name}</h1><p className="mt-1 text-sm text-gray-500">Los cambios se aplican únicamente al guardar.</p></div>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <Link href="/admin/negocios" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#FF1F2D] transition-colors">
+          <ArrowLeft size={16} /> Negocios
+        </Link>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900">Editar {business.name}</h1>
+        <p className="mt-1 text-sm text-gray-500">Los cambios se aplican únicamente al guardar.</p>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3 sm:pt-6">
+        <a
+          href={`/t/${business.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          title="Ver cómo ve el cliente su tarjeta y programa"
+        >
+          <ExternalLink size={16} className="text-gray-400" />
+          <span>Portal clientes</span>
+        </a>
+        <a
+          href={`/admin/negocios/${business.id}/caja`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          title="Abrir la terminal de caja y escaneo de este comercio"
+        >
+          <QrCode size={16} className="text-gray-400" />
+          <span>Abrir Caja</span>
+        </a>
+      </div>
+    </div>
     {/* Tarjeta superior (Ancho completo): Datos del negocio y Programa de fidelización */}
     <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="grid gap-8 lg:grid-cols-2">

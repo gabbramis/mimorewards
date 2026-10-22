@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
+import crypto from 'node:crypto';
 import { googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
 
 export interface WalletCredentials {
@@ -18,47 +19,103 @@ export interface LoyaltyClassResponse {
 
 const SCOPES = ['https://www.googleapis.com/auth/wallet_object.issuer'];
 
-function formatPrivateKey(rawKey: string): string {
-    const base64Body = rawKey
-        .replace(/-----BEGIN [A-Z0-9 ]+-----/g, '')
-        .replace(/-----END [A-Z0-9 ]+-----/g, '')
-        .replace(/\\n/g, '')
-        .replace(/\\r/g, '')
-        .replace(/[^A-Za-z0-9+/=]/g, '');
-
-    const chunks = base64Body.match(/.{1,64}/g) || [];
-    return `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----\n`;
-}
+const stripQuotes = (value: string) => value.trim().replace(/^["']|["']$/g, '').trim();
 
 /**
- * Ensures we can safely load the Google credentials JSON.
- * Prioritizes GOOGLE_WALLET_CLIENT_EMAIL / GOOGLE_CLIENT_EMAIL &
- * GOOGLE_WALLET_PRIVATE_KEY / GOOGLE_PRIVATE_KEY environment variables,
- * and falls back to google-service-account.json in the project root.
+ * Normaliza la private_key de la Service Account para que OpenSSL pueda decodificarla.
+ * Cubre los casos típicos que producen `error:1E08010C:DECODER routines::unsupported`:
+ *  - Saltos de línea literales (`\n`, `\r\n`) guardados en la variable de entorno.
+ *  - Comillas envolventes agregadas por el panel de variables (Vercel, .env, etc.).
+ *  - PEM completo codificado en base64.
+ *  - Body base64 sin headers (se asume PKCS#8, formato estándar de Google).
+ * Respeta el tipo de header original (PKCS#8 `PRIVATE KEY` vs PKCS#1 `RSA PRIVATE KEY`).
+ */
+function formatPrivateKey(rawKey: string): string {
+    let key = stripQuotes(rawKey)
+        .replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\r/g, '');
+
+    // PEM completo guardado en base64
+    if (!key.includes('-----BEGIN') && /^[A-Za-z0-9+/=\s]+$/.test(key)) {
+        const decoded = Buffer.from(key.replace(/\s/g, ''), 'base64').toString('utf8');
+        if (decoded.includes('-----BEGIN')) {
+            key = decoded.replace(/\\n/g, '\n').replace(/\r/g, '');
+        }
+    }
+
+    const match = key.match(/-----BEGIN ([A-Z0-9 ]+)-----([\s\S]*?)-----END \1-----/);
+    const label = match ? match[1] : 'PRIVATE KEY';
+    const body = (match ? match[2] : key).replace(/[^A-Za-z0-9+/=]/g, '');
+    const chunks = body.match(/.{1,64}/g) || [];
+    return `-----BEGIN ${label}-----\n${chunks.join('\n')}\n-----END ${label}-----\n`;
+}
+
+/** Valida la clave con OpenSSL para fallar con un mensaje claro en vez de un error críptico en runtime. */
+function assertValidPrivateKey(pem: string, source: string): void {
+    try {
+        crypto.createPrivateKey({ key: pem, format: 'pem' });
+    } catch (err: any) {
+        throw new Error(
+            `Google Wallet: la private_key de ${source} no es válida (${err?.message || err}). ` +
+            'Revisá que sea el valor "private_key" completo del JSON de la Service Account, incluyendo BEGIN/END.'
+        );
+    }
+}
+
+function credentialsFromJson(json: string, source: string): WalletCredentials {
+    let parsed: any;
+    try {
+        parsed = JSON.parse(json);
+    } catch {
+        // Puede venir el JSON completo codificado en base64
+        parsed = JSON.parse(Buffer.from(json, 'base64').toString('utf8'));
+    }
+    if (!parsed?.client_email || !parsed?.private_key) {
+        throw new Error(`${source} no contiene client_email o private_key válidos.`);
+    }
+    const private_key = formatPrivateKey(String(parsed.private_key));
+    assertValidPrivateKey(private_key, source);
+    return { client_email: stripQuotes(String(parsed.client_email)), private_key };
+}
+
+const credentialsJsonEnv = () =>
+    (process.env.GOOGLE_WALLET_CREDENTIALS_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)?.trim();
+
+let cachedCredentials: WalletCredentials | null = null;
+
+/**
+ * Carga las credenciales de la Service Account de Google Wallet. Prioridad:
+ *  1. GOOGLE_WALLET_CLIENT_EMAIL / GOOGLE_CLIENT_EMAIL + GOOGLE_WALLET_PRIVATE_KEY / GOOGLE_PRIVATE_KEY
+ *  2. GOOGLE_WALLET_CREDENTIALS_JSON / GOOGLE_APPLICATION_CREDENTIALS_JSON (JSON completo, plano o base64)
+ *  3. google-service-account.json en la raíz del proyecto
  */
 function loadCredentials(): WalletCredentials {
+    if (cachedCredentials) return cachedCredentials;
+
     const envEmail = (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim();
     const envPrivateKey = (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim();
 
     if (envEmail && envPrivateKey) {
-        return {
-            client_email: envEmail.replace(/^["']|["']$/g, '').trim(),
-            private_key: formatPrivateKey(envPrivateKey),
-        };
+        const private_key = formatPrivateKey(envPrivateKey);
+        assertValidPrivateKey(private_key, 'GOOGLE_WALLET_PRIVATE_KEY/GOOGLE_PRIVATE_KEY');
+        cachedCredentials = { client_email: stripQuotes(envEmail), private_key };
+        return cachedCredentials;
     }
+
+    const jsonEnv = credentialsJsonEnv();
+    if (jsonEnv) {
+        cachedCredentials = credentialsFromJson(jsonEnv, 'GOOGLE_APPLICATION_CREDENTIALS_JSON');
+        return cachedCredentials;
+    }
+
     const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
     if (!fs.existsSync(credentialsPath)) {
         throw new Error('Google Wallet credentials: no se encontraron credenciales en variables de entorno ni el archivo google-service-account.json.');
     }
-    const fileContent = fs.readFileSync(credentialsPath, 'utf8');
-    const parsed = JSON.parse(fileContent);
-    if (!parsed.client_email || !parsed.private_key) {
-        throw new Error('El archivo google-service-account.json no contiene client_email o private_key válidos.');
-    }
-    return {
-        client_email: String(parsed.client_email).replace(/^["']|["']$/g, '').trim(),
-        private_key: formatPrivateKey(String(parsed.private_key)),
-    };
+    cachedCredentials = credentialsFromJson(fs.readFileSync(credentialsPath, 'utf8'), 'google-service-account.json');
+    return cachedCredentials;
 }
 
 /**
@@ -72,7 +129,7 @@ export function googleWalletConfigured(): boolean {
         (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim() &&
         (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim()
     );
-    if (hasEnvCreds) return true;
+    if (hasEnvCreds || credentialsJsonEnv()) return true;
 
     const credentialsPath = path.join(process.cwd(), 'google-service-account.json');
     return fs.existsSync(credentialsPath);

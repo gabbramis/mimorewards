@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
-import { findCustomersByMobile, normalizeUruguayMobile } from "@/lib/customer-phone";
+import { cleanUruguayPhone, findCustomersByMobile, normalizeCustomerPhone, normalizeUruguayMobile } from "@/lib/customer-phone";
 
 type RecoverInput = {
   nfcId?: string;
@@ -34,13 +34,14 @@ export async function POST(request: Request) {
     const input = (await request.json()) as RecoverInput;
     const nfcId = clean(input.nfcId);
     const phoneInput = clean(input.phone);
-    const phone = normalizeUruguayMobile(phoneInput);
+    // Normalizar a formato internacional con '+' (ej: +59895063978)
+    const phone = normalizeCustomerPhone(phoneInput) || normalizeUruguayMobile(phoneInput) || cleanUruguayPhone(phoneInput);
 
     if (!nfcId || !phoneInput) {
       return NextResponse.json({ error: "Completá tu número de celular para continuar." }, { status: 400 });
     }
     if (!phone) {
-      return NextResponse.json({ error: "Ingresá un celular uruguayo válido, con o sin +598." }, { status: 400 });
+      return NextResponse.json({ error: "Ingresá un número de celular válido." }, { status: 400 });
     }
 
     const context = await resolveNfcContext(supabase, nfcId);

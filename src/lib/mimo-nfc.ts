@@ -26,13 +26,16 @@ export async function findNfcTag(supabase: any, rawNfcId: string) {
     if (tag) return tag;
   }
 
-  // Fallback: si el parámetro recibido es el slug del comercio en lugar del nfc_id directo
+  // Fallback: si el parámetro recibido es el slug o ID (UUID) del comercio en lugar del nfc_id directo
   for (const candidate of candidates) {
-    const { data: biz } = await supabase
-      .from("businesses")
-      .select("id")
-      .or(`slug.eq.${candidate},slug.ilike.${candidate}`)
-      .maybeSingle();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate);
+    let bizQuery = supabase.from("businesses").select("id");
+    if (isUUID) {
+      bizQuery = bizQuery.or(`id.eq.${candidate},slug.eq.${candidate},slug.ilike.${candidate}`);
+    } else {
+      bizQuery = bizQuery.or(`slug.eq.${candidate},slug.ilike.${candidate}`);
+    }
+    const { data: biz } = await bizQuery.maybeSingle();
     if (biz) {
       const { data: tag } = await supabase
         .from("nfc_tags")
@@ -42,6 +45,7 @@ export async function findNfcTag(supabase: any, rawNfcId: string) {
         .limit(1)
         .maybeSingle();
       if (tag) return tag;
+      return { nfc_id: value, business_id: biz.id, active: true };
     }
   }
 

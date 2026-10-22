@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 import { Search, CreditCard, Send, CheckCircle2, User, Phone, Gift, AlertCircle, QrCode, X, ArrowLeft } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
-import { normalizeUruguayMobile } from '@/lib/customer-phone';
+import { getUruguayMobileVariants, normalizeCustomerPhone, normalizeUruguayMobile } from '@/lib/customer-phone';
 
 export default function CashierTerminal() {
     const router = useRouter();
@@ -33,6 +33,23 @@ export default function CashierTerminal() {
     useEffect(() => {
         async function fetchBusinessSlug() {
             try {
+                if (typeof window !== "undefined") {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const qBizId = urlParams.get("businessId");
+                    if (qBizId) {
+                        const { data: b } = await supabase
+                            .from("businesses")
+                            .select("id, slug")
+                            .eq("id", qBizId)
+                            .maybeSingle();
+                        if (b) {
+                            setBusinessId(b.id);
+                            if (b.slug) setBusinessSlug(b.slug);
+                            return;
+                        }
+                    }
+                }
+
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     const { data: member } = await supabase
@@ -120,14 +137,16 @@ export default function CashierTerminal() {
         try {
             const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
             const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
-            const normalizedPhone = normalizeUruguayMobile(cleanQuery);
+            const variants = getUruguayMobileVariants(cleanQuery);
 
             let orQuery = isUUID
                 ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
                 : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
 
-            if (normalizedPhone && normalizedPhone !== cleanQuery) {
-                orQuery += `,phone.eq.${normalizedPhone}`;
+            for (const v of variants) {
+                if (v !== cleanQuery) {
+                    orQuery += `,phone.eq.${v}`;
+                }
             }
 
             let query = supabase
@@ -190,7 +209,7 @@ export default function CashierTerminal() {
 
             if (!res.ok) throw new Error(result.error);
 
-            setSuccessMessage("¡Sello agregado con éxito!");
+            setSuccessMessage(result.cycleCompleted ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello." : (result.message || "¡Sello agregado con éxito!"));
             setCustomer(prev => prev ? ({
                 ...prev,
                 currentStamps: result.newTotal
@@ -413,10 +432,14 @@ export default function CashierTerminal() {
                                 <button
                                     type="button"
                                     onClick={handleAddStamp}
-                                    disabled={isLoading || customer.currentStamps >= customer.targetStamps}
+                                    disabled={isLoading}
                                     className="w-full h-15 sm:h-16 bg-[#FF1F2D] hover:bg-[#e01825] active:scale-[0.99] text-white rounded-2xl font-black text-base sm:text-lg shadow-lg shadow-red-200 disabled:opacity-40 disabled:shadow-none transition-all flex justify-center items-center gap-2 cursor-pointer"
                                 >
-                                    <span>+1 Sello a la Tarjeta</span>
+                                    <span>
+                                        {customer.currentStamps >= customer.targetStamps
+                                            ? "Comenzar nuevo ciclo (+1 Sello)"
+                                            : "+1 Sello a la Tarjeta"}
+                                    </span>
                                 </button>
 
                                 {customer.currentStamps >= customer.targetStamps && (

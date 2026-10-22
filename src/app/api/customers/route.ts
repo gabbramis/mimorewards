@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveNfcContext, toCustomerView } from "@/lib/mimo-nfc";
 import { createCustomerSession, customerCookieName } from "@/lib/mimo-customer-session";
-import { findCustomersByMobile, getUruguayMobileVariants, normalizeUruguayMobile } from "@/lib/customer-phone";
+import { cleanUruguayPhone, findCustomersByMobile, getUruguayMobileVariants, normalizeCustomerPhone, normalizeUruguayMobile } from "@/lib/customer-phone";
 import { CUSTOMER_CONSENT_VERSION } from "@/lib/customer-consent";
 import { notifyCustomerWalletUpdate } from "@/lib/wallet-notifications";
 
@@ -85,13 +85,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No pudimos registrar tu elección sobre promociones. Intentá de nuevo." }, { status: 400 });
     }
 
-    const phone = normalizeUruguayMobile(rawPhone) || rawPhone;
+    // Normalizar formato de celular para trabajar con número completo con '+'
+    const phone = normalizeCustomerPhone(rawPhone) || normalizeUruguayMobile(rawPhone) || cleanUruguayPhone(rawPhone);
+    if (!phone) {
+      return NextResponse.json({ error: "Ingresá un número de celular válido." }, { status: 400 });
+    }
 
     const context = await resolveNfcContext(supabase, nfcId);
     if (!context.active) return NextResponse.json({ error: "Este programa está pausado." }, { status: 410 });
 
     // 1. Verificación previa anti-duplicados buscando todas las variantes de formato
-    const variants = getUruguayMobileVariants(rawPhone);
+    const variants = getUruguayMobileVariants(phone);
     let existingCustomer: any = null;
 
     // Buscar coincidencia directa priorizando la tarjeta con más sellos acumulados y última actividad

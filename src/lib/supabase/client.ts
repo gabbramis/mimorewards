@@ -1,13 +1,23 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from '@supabase/ssr';
 
-let client = null;
+let client: ReturnType<typeof createBrowserClient> | null = null;
 
 export function createClient() {
   if (!client) {
-    client = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      console.error('Supabase client: NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY no están definidos.');
+      return null as any;
+    }
+
+    try {
+      client = createBrowserClient(url, key);
+    } catch (err) {
+      console.error('Error instanciando createBrowserClient:', err);
+      return null as any;
+    }
   }
   return client;
 }

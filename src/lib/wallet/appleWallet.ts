@@ -195,7 +195,7 @@ export async function createAppleWalletPass(card: AppleCard) {
   const logoSource = remoteLogo || card.logoImage;
   const issuerName = wallet.issuerName || card.businessName;
   const firstName = card.customerName.split(" ")[0] || card.customerName;
-  const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: card.rewardDescription });
+  const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: card.rewardDescription }) || `¡Hola, ${firstName}!`;
   const rewardValue = resolveWalletText(wallet.rewardText || "{proximo_premio}", { nombre: card.customerName, proximo_premio: card.rewardDescription }) || card.rewardDescription;
   const altText = resolveWalletText(wallet.barcodeAltText, { id: card.customerCode });
   const stampsField = { key: "stamps", label: "SELLOS", value: `${card.currentStamps} / ${card.targetStamps}`, changeMessage: "¡Sumaste un sello! Llevás %@ acumulados." };
@@ -227,12 +227,10 @@ export async function createAppleWalletPass(card: AppleCard) {
         foregroundColor: walletColor(card.textColor || '#FFFFFF'),
         labelColor: walletColor(card.accentColor || '#FFF0F0'),
         storeCard: {
-          headerFields: [],
-          primaryFields: headline ? [{ key: "headline", label: "", value: headline }] : [stampsField],
-          secondaryFields: headline
-            ? [stampsField, { key: "reward", label: "RECOMPENSA", value: rewardValue }]
-            : [{ key: "reward", label: "RECOMPENSA", value: rewardValue }],
-          auxiliaryFields: [{ key: "customer", label: "CLIENTE", value: card.customerName }],
+          headerFields: [stampsField],
+          primaryFields: [],
+          secondaryFields: [{ key: "customer", label: "CLIENTE", value: headline }],
+          auxiliaryFields: [{ key: "reward", label: "RECOMPENSA", value: rewardValue }],
           backFields: [
             {
               key: "latest_notification",

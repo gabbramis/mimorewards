@@ -178,27 +178,27 @@ async function buildStoreCard(params: {
 
     // Estructura Store Card
     storeCard: {
-      headerFields: [],
-      primaryFields: [
+      headerFields: [
         {
           key: "stamps",
-          label: "Sellos",
-          value: `${currentStamps} de ${targetStamps}`,
+          label: "SELLOS",
+          value: `${currentStamps} / ${targetStamps}`,
           changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
         },
       ],
+      primaryFields: [],
       secondaryFields: [
         {
-          key: "reward",
-          label: "Premio",
-          value: rewardDescription,
+          key: "customer",
+          label: "CLIENTE",
+          value: customerName.startsWith("¡Hola") ? customerName : `¡Hola, ${customerName.split(" ")[0]}!`,
         },
       ],
       auxiliaryFields: [
         {
-          key: "customer",
-          label: "Cliente",
-          value: customerName,
+          key: "reward",
+          label: "RECOMPENSA",
+          value: rewardDescription,
         },
       ],
       backFields: [
