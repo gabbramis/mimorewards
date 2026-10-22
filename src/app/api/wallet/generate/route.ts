@@ -110,11 +110,17 @@ async function processLogoImages(logoUrl?: string | null): Promise<{
         .png()
         .toBuffer();
 
-      // 2. logo.png: 320x100 px (fit: contain, fondo transparente)
-      const logoBuffer = await sharp(sourceBuffer)
-        .resize(320, 100, {
-          fit: "contain",
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
+      // 2. logo.png: 160x160 px cuadrado perfecto (fit: cover) recortando bordes transparentes
+      let trimmed = sourceBuffer;
+      try {
+        trimmed = await sharp(sourceBuffer).trim().png().toBuffer();
+      } catch {
+        trimmed = sourceBuffer;
+      }
+
+      const logoBuffer = await sharp(trimmed)
+        .resize(160, 160, {
+          fit: "cover",
         })
         .png()
         .toBuffer();
@@ -183,6 +189,7 @@ async function buildStoreCard(params: {
           key: "stamps",
           label: "SELLOS",
           value: `${currentStamps} / ${targetStamps}`,
+          textAlignment: "PKTextAlignmentRight",
           changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
         },
       ],

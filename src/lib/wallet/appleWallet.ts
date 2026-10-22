@@ -198,10 +198,26 @@ export async function createAppleWalletPass(card: AppleCard) {
   const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: card.rewardDescription }) || `¡Hola, ${firstName}!`;
   const rewardValue = resolveWalletText(wallet.rewardText || "{proximo_premio}", { nombre: card.customerName, proximo_premio: card.rewardDescription }) || card.rewardDescription;
   const altText = resolveWalletText(wallet.barcodeAltText, { id: card.customerCode });
-  const stampsField = { key: "stamps", label: "SELLOS", value: `${card.currentStamps} / ${card.targetStamps}`, changeMessage: "¡Sumaste un sello! Llevás %@ acumulados." };
-  const logoImages = logoSource ? {
-    "logo.png": await sharp(logoSource).resize(160, 50, { fit: "contain", background: "#00000000" }).png().toBuffer(),
-    "logo@2x.png": await sharp(logoSource).resize(320, 100, { fit: "contain", background: "#00000000" }).png().toBuffer(),
+  const stampsField = {
+    key: "stamps",
+    label: "SELLOS",
+    value: `${card.currentStamps} / ${card.targetStamps}`,
+    textAlignment: "PKTextAlignmentRight",
+    changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
+  };
+
+  let trimmedLogo = logoSource;
+  if (logoSource) {
+    try {
+      trimmedLogo = await sharp(logoSource).trim().png().toBuffer();
+    } catch {
+      trimmedLogo = logoSource;
+    }
+  }
+
+  const logoImages = trimmedLogo ? {
+    "logo.png": await sharp(trimmedLogo).resize(160, 160, { fit: "cover" }).png().toBuffer(),
+    "logo@2x.png": await sharp(trimmedLogo).resize(320, 320, { fit: "cover" }).png().toBuffer(),
   } : {};
   const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
   const webServiceURL = card.webServiceURL || `${baseUrl}/api/apple-wallet`;
