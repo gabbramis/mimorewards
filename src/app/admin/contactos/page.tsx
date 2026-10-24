@@ -1,14 +1,69 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2, Link2 } from "lucide-react";
+import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2, Link2, User } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
 
+function getInactivityStatus(lastVisitAt?: string | null, createdAt?: string | null) {
+    const visitDate = lastVisitAt || createdAt;
+    if (!visitDate) {
+        return {
+            status: "inactive",
+            label: "Inactivo (+25d)",
+            badgeText: "+25d",
+            borderColor: "border-2 border-red-500",
+            bgColor: "bg-red-50",
+            iconColor: "text-red-500",
+            badgeClass: "bg-red-50 text-red-700 border-red-200",
+            dotColor: "bg-red-500",
+        };
+    }
+    const diffDays = Math.max(0, Math.floor((Date.now() - new Date(visitDate).getTime()) / (1000 * 60 * 60 * 24)));
+    if (diffDays <= 7) {
+        // Verde: 0 a 7 días.
+        return {
+            status: "active",
+            label: "Activo (0-7d)",
+            badgeText: diffDays === 0 ? "Hoy" : diffDays === 1 ? "Ayer" : `Hace ${diffDays}d`,
+            borderColor: "border-2 border-emerald-500",
+            bgColor: "bg-emerald-50",
+            iconColor: "text-emerald-600",
+            badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+            dotColor: "bg-emerald-500",
+        };
+    } else if (diffDays <= 24) {
+        // Gris azulado: 8 a 24 días.
+        return {
+            status: "risk",
+            label: "Riesgo (8-24d)",
+            badgeText: `Hace ${diffDays}d`,
+            borderColor: "border-2 border-slate-400",
+            bgColor: "bg-slate-50",
+            iconColor: "text-slate-600",
+            badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
+            dotColor: "bg-slate-400",
+        };
+    } else {
+        // Rojo: 25 días o más.
+        return {
+            status: "inactive",
+            label: "Inactivo (+25d)",
+            badgeText: `Hace ${diffDays}d`,
+            borderColor: "border-2 border-red-500",
+            bgColor: "bg-red-50",
+            iconColor: "text-red-500",
+            badgeClass: "bg-red-50 text-rose-700 border-rose-200",
+            dotColor: "bg-rose-500",
+        };
+    }
+}
+
 export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMProps = {}) {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "inactive">("all");
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
@@ -135,12 +190,30 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         }
     };
 
-    // OPTIMIZATION: Memoize filtering logic to avoid re-calculating on simple re-renders
-    const filtered = useMemo(() => customers.filter(c =>
-        ((c.first_name + " " + c.last_name).toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.unique_code?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.phone?.includes(searchTerm.toLowerCase()))
-    ), [customers, searchTerm]);
+    // Contadores para chips
+    const counts = useMemo(() => {
+        let active = 0, risk = 0, inactive = 0;
+        customers.forEach((c: any) => {
+            const st = getInactivityStatus(c.last_visit_at, c.created_at);
+            if (st.status === "active") active++;
+            else if (st.status === "risk") risk++;
+            else if (st.status === "inactive") inactive++;
+        });
+        return { all: customers.length, active, risk, inactive };
+    }, [customers]);
+
+    // Filtrado con semáforo y búsqueda
+    const filtered = useMemo(() => customers.filter((c: any) => {
+        const matchesSearch =
+            ((c.first_name + " " + c.last_name).toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (c.unique_code?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (c.phone?.includes(searchTerm.toLowerCase()));
+        if (!matchesSearch) return false;
+
+        if (activeFilter === "all") return true;
+        const st = getInactivityStatus(c.last_visit_at, c.created_at);
+        return st.status === activeFilter;
+    }), [customers, searchTerm, activeFilter]);
 
     return (
         <div className="p-6 sm:p-10 max-w-6xl mx-auto font-sans">
@@ -178,7 +251,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                         {loadError} <button onClick={fetchCustomers} className="underline font-semibold">Reintentar</button>
                     </div>
                 )}
-                <div className="p-5 border-b border-gray-100 flex gap-4 bg-gray-50/50">
+                <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
                     <div className="relative flex-1 max-w-md">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                             <Search size={18} />
@@ -186,10 +259,61 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                         <input
                             type="text"
                             placeholder="Buscar por código CLI, nombre del cliente o teléfono..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm text-gray-900 font-medium"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-sm text-gray-900 font-medium"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
+                    </div>
+
+                    {/* Botones (Tabs) superiores de filtrado por semáforo */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setActiveFilter("all")}
+                            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                                activeFilter === "all"
+                                    ? "bg-gray-900 text-white shadow-xs"
+                                    : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                            }`}
+                        >
+                            Todos ({counts.all})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveFilter("active")}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                                activeFilter === "active"
+                                    ? "bg-emerald-600 text-white shadow-xs"
+                                    : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                        >
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+                            Nuevos / Activos ({counts.active})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveFilter("risk")}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                                activeFilter === "risk"
+                                    ? "bg-slate-700 text-white shadow-xs"
+                                    : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                        >
+                            <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
+                            Riesgo ({counts.risk})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveFilter("inactive")}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                                activeFilter === "inactive"
+                                    ? "bg-rose-600 text-white shadow-xs"
+                                    : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                            }`}
+                        >
+                            <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
+                            Inactivos ({counts.inactive})
+                        </button>
                     </div>
                 </div>
 
@@ -214,14 +338,26 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                         Cargando base de clientes de Supabase...
                                     </td>
                                 </tr>
-                            ) : filtered.map(c => (
+                            ) : filtered.map(c => {
+                                const inactivity = getInactivityStatus(c.last_visit_at, c.created_at);
+                                return (
                                 <tr key={c.id} className="hover:bg-gray-50/80 transition group">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="font-mono text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md border border-gray-200">{c.unique_code}</span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="font-semibold text-gray-900">{c.first_name} {c.last_name}</div>
-                                        <div className="text-gray-400 text-xs mt-0.5 font-medium">{c.phone || "Sin teléfono"}</div>
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
+                                                title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
+                                            >
+                                                <User size={16} className={inactivity.iconColor} strokeWidth={2} />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-gray-900">{c.first_name} {c.last_name}</div>
+                                                <div className="text-gray-400 text-xs mt-0.5 font-medium">{c.phone || "Sin teléfono"}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold">
                                         <span className={c.whatsapp_marketing_opt_in === true ? "text-green-700" : "text-gray-500"}>
@@ -239,7 +375,13 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                         <div className="text-xs text-gray-400 mt-1 font-medium">{c.total_visits || 0} visitas totales</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
-                                        {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'N/A'}
+                                        <div className="flex items-center gap-2">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${inactivity.badgeClass}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
+                                                {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'Sin visitas'}
+                                            </span>
+                                            <span className="text-[11px] text-gray-400">({inactivity.badgeText})</span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                         <div className="flex items-center justify-end gap-2">
@@ -285,7 +427,8 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

@@ -3,16 +3,12 @@ import { notFound } from "next/navigation";
 import {
   Stamp,
   Gift,
-  Users,
-  TrendingUp,
   ArrowRight,
   Clock,
-  Sparkles,
   Smartphone,
   Edit3,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import MerchantRulesEditor from "@/components/merchant/MerchantRulesEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +58,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       .maybeSingle(),
     supabase
       .from("customers")
-      .select("id, total_visits, current_stamps")
+      .select("id, total_visits, current_stamps, last_visit_at, created_at", { count: "exact" })
       .eq("business_id", businessId),
     supabase
       .from("stamp_logs")
@@ -109,20 +105,36 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
     notFound();
   }
 
-  const totalCustomers = totalCustomersCount || 0;
+  const customersList = customersData || [];
+  // 1. Clientes activos: total de clientes únicos asociados a este businessId
+  const totalCustomers = Math.max(
+    typeof totalCustomersCount === "number" ? totalCustomersCount : 0,
+    customersList.length
+  );
+
   const stampsToday = stampsTodayCount || 0;
   const stampsWeek = stampsWeekCount || 0;
   const totalRedeems = totalRedeemsCount || 0;
 
-  // Cálculo de clientes recurrentes (> 1 visita)
-  const customersList = customersData || [];
+  // 2. Clientes inactivos: cuya last_visit_at sea igual o mayor a 25 días atrás
+  const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
+  const inactiveCustomers = customersList.filter((c: any) => {
+    const visitDate = c.last_visit_at || c.created_at;
+    if (!visitDate) return false;
+    const diffMs = now.getTime() - new Date(visitDate).getTime();
+    return diffMs >= TWENTY_FIVE_DAYS_MS;
+  }).length;
+
+  // 3. Tasa de retorno: (clientes_recurrentes / clientes_totales) * 100
+  // Si hay 1 cliente en total y tiene más de 1 visita, debe mostrar 100%, no 0.0%
   const recurrentCustomers = customersList.filter(
-    (c: any) => (c.total_visits || 0) > 1
+    (c: any) => Number(c.total_visits || 0) > 1
   ).length;
+
+  const returnRateRaw =
+    totalCustomers > 0 ? (recurrentCustomers / totalCustomers) * 100 : 0;
   const returnRate =
-    totalCustomers > 0
-      ? ((recurrentCustomers / totalCustomers) * 100).toFixed(1)
-      : "0.0";
+    returnRateRaw % 1 === 0 ? returnRateRaw.toFixed(0) : returnRateRaw.toFixed(1);
 
   // Agrupación por día de la semana para el gráfico (últimos 7 días)
   const daysMap: { [key: string]: { label: string; count: number; date: Date } } = {};
@@ -165,8 +177,8 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* 4 KPI Cards (Limpias sin iconos a la derecha) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 5 KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Sellos Entregados */}
         <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
@@ -218,7 +230,22 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Card 4: Tasa de Retorno */}
+        {/* Card 4: Clientes Inactivos */}
+        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
+          <span className="text-xs font-semibold text-[#737373]">
+            Clientes inactivos
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+              {inactiveCustomers}
+            </div>
+            <p className="mt-2 text-xs text-[#737373]">
+              Sin visitas hace 25+ días
+            </p>
+          </div>
+        </div>
+
+        {/* Card 5: Tasa de Retorno */}
         <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
             Tasa de retorno
@@ -228,88 +255,77 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
               {returnRate}%
             </div>
             <p className="mt-2 text-xs text-[#737373]">
-              {recurrentCustomers} clientes con más de 1 visita
+              {recurrentCustomers} {recurrentCustomers === 1 ? "cliente" : "clientes"} con más de 1 visita
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Gráfico de Actividad & Editor de Reglas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfico de Actividad Semanal (2 cols) */}
-        <div className="lg:col-span-2 rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
-                Actividad semanal
-              </h3>
-              <p className="text-xs text-[#737373] mt-0.5">
-                Volumen de sellos y visitas por día de la semana.
-              </p>
-            </div>
-            <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
-              Últimos 7 días
-            </span>
+      {/* Gráfico de Actividad Semanal */}
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
+              Actividad semanal
+            </h3>
+            <p className="text-xs text-[#737373] mt-0.5">
+              Volumen de sellos y visitas por día de la semana.
+            </p>
           </div>
-
-          {/* Bar Chart */}
-          <div className="mt-6 flex h-48 items-end justify-between gap-3 pt-6 px-2">
-            {chartDays.map((item, idx) => {
-              const heightPercent = Math.max(
-                Math.round((item.count / maxDayCount) * 100),
-                6
-              );
-              const isToday = idx === chartDays.length - 1;
-              const isPeak = item.count === maxDayCount && maxDayCount > 0;
-
-              return (
-                <div
-                  key={idx}
-                  className="group flex flex-1 flex-col items-center gap-2 h-full justify-end"
-                >
-                  <span className="text-[11px] font-bold text-[#1F1F1F] opacity-0 group-hover:opacity-100 transition-opacity">
-                    {item.count}
-                  </span>
-                  <div className="w-full max-w-[40px] flex items-end justify-center h-full">
-                    <div
-                      style={{ height: `${heightPercent}%` }}
-                      className={`w-full rounded-t-xl transition-all duration-300 ${
-                        isPeak
-                          ? "bg-[#FF1F2D] shadow-sm"
-                          : isToday
-                          ? "bg-[#FF7A85]"
-                          : "bg-[#FAD9DC] group-hover:bg-[#FF7A85]"
-                      }`}
-                    />
-                  </div>
-                  <span
-                    className={`text-[11px] font-semibold ${
-                      isToday ? "text-[#FF1F2D]" : "text-[#737373]"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
-              Día con más visitas
-            </span>
-            <span>Total semanal: {stampsWeek} movimientos</span>
-          </div>
+          <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
+            Últimos 7 días
+          </span>
         </div>
 
-        {/* Editor de Reglas del Programa (1 col) */}
-        <MerchantRulesEditor
-          businessId={businessId}
-          initialTarget={business.reward_target || 10}
-          initialDescription={business.reward_description || "Beneficio de regalo"}
-          businessName={business.name}
-        />
+        {/* Bar Chart */}
+        <div className="mt-6 flex h-48 items-end justify-between gap-3 pt-6 px-2">
+          {chartDays.map((item, idx) => {
+            const heightPercent = Math.max(
+              Math.round((item.count / maxDayCount) * 100),
+              6
+            );
+            const isToday = idx === chartDays.length - 1;
+            const isPeak = item.count === maxDayCount && maxDayCount > 0;
+
+            return (
+              <div
+                key={idx}
+                className="group flex flex-1 flex-col items-center gap-2 h-full justify-end"
+              >
+                <span className="text-[11px] font-bold text-[#1F1F1F] opacity-0 group-hover:opacity-100 transition-opacity">
+                  {item.count}
+                </span>
+                <div className="w-full max-w-[40px] flex items-end justify-center h-full">
+                  <div
+                    style={{ height: `${heightPercent}%` }}
+                    className={`w-full rounded-t-xl transition-all duration-300 ${
+                      isPeak
+                        ? "bg-[#FF1F2D] shadow-sm"
+                        : isToday
+                        ? "bg-[#FF7A85]"
+                        : "bg-[#FAD9DC] group-hover:bg-[#FF7A85]"
+                    }`}
+                  />
+                </div>
+                <span
+                  className={`text-[11px] font-semibold ${
+                    isToday ? "text-[#FF1F2D]" : "text-[#737373]"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
+          <span className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
+            Día con más visitas
+          </span>
+          <span>Total semanal: {stampsWeek} movimientos</span>
+        </div>
       </div>
 
       {/* Resumen Rápido: Últimos 5 Movimientos */}

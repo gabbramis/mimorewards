@@ -15,6 +15,7 @@ import {
   X,
   CheckCircle2,
 } from "lucide-react";
+import DatePickerCalendar from "./DatePickerCalendar";
 
 export interface LogItem {
   id: string;
@@ -32,6 +33,8 @@ interface MerchantHistoryClientProps {
   businessName: string;
   rewardDescription: string;
   initialLogs: LogItem[];
+  businessCreatedAt?: string | null;
+  allStampDates?: string[];
 }
 
 function formatDateExact(dateStr: string) {
@@ -70,15 +73,43 @@ export default function MerchantHistoryClient({
   businessName,
   rewardDescription,
   initialLogs,
+  businessCreatedAt,
+  allStampDates,
 }: MerchantHistoryClientProps) {
   const [logs] = useState<LogItem[]>(initialLogs);
   const [dateFilter, setDateFilter] = useState<
-    "all" | "today" | "yesterday" | "7days" | "month"
+    "all" | "today" | "yesterday" | "7days" | "month" | "custom"
   >("7days");
+  const [selectedCustomDate, setSelectedCustomDate] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState<"all" | "stamps" | "redeems">(
     "all"
   );
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Mapa de cantidad de sellos por fecha para el indicador de inactividad del calendario
+  const stampsCountByDate = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (allStampDates && allStampDates.length > 0) {
+      for (const dStr of allStampDates) {
+        const d = new Date(dStr);
+        if (!isNaN(d.getTime())) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          counts[key] = (counts[key] || 0) + 1;
+        }
+      }
+    } else {
+      for (const log of logs) {
+        if (log.method !== "REDEEM") {
+          const d = new Date(log.created_at);
+          if (!isNaN(d.getTime())) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            counts[key] = (counts[key] || 0) + 1;
+          }
+        }
+      }
+    }
+    return counts;
+  }, [allStampDates, logs]);
 
   // Filtrado de logs
   const filteredLogs = useMemo(() => {
@@ -103,6 +134,11 @@ export default function MerchantHistoryClient({
       }
       if (dateFilter === "7days" && logTime < sevenDaysStart) return false;
       if (dateFilter === "month" && logTime < monthStart) return false;
+      if (dateFilter === "custom" && selectedCustomDate) {
+        const logDate = new Date(log.created_at);
+        const logKey = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, "0")}-${String(logDate.getDate()).padStart(2, "0")}`;
+        if (logKey !== selectedCustomDate) return false;
+      }
 
       // Filtro de tipo de acción
       if (actionFilter === "stamps" && log.method === "REDEEM") return false;
@@ -124,7 +160,7 @@ export default function MerchantHistoryClient({
 
       return true;
     });
-  }, [logs, dateFilter, actionFilter, searchQuery]);
+  }, [logs, dateFilter, selectedCustomDate, actionFilter, searchQuery]);
 
   // KPIs del conjunto filtrado
   const kpis = useMemo(() => {
@@ -291,7 +327,10 @@ export default function MerchantHistoryClient({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setDateFilter(tab.id as any)}
+                onClick={() => {
+                  setDateFilter(tab.id as any);
+                  setSelectedCustomDate(null);
+                }}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
                   dateFilter === tab.id
                     ? "bg-[#FF1F2D] text-white shadow-xs"
@@ -301,6 +340,22 @@ export default function MerchantHistoryClient({
                 {tab.label}
               </button>
             ))}
+
+            {/* DatePicker Calendario */}
+            <DatePickerCalendar
+              selectedDate={selectedCustomDate}
+              onSelectDate={(dateStr) => {
+                setSelectedCustomDate(dateStr);
+                setDateFilter("custom");
+              }}
+              onClear={() => {
+                setSelectedCustomDate(null);
+                setDateFilter("7days");
+              }}
+              businessCreatedAt={businessCreatedAt}
+              stampsCountByDate={stampsCountByDate}
+              isActive={dateFilter === "custom"}
+            />
           </div>
 
           {/* Tipo de Acción */}

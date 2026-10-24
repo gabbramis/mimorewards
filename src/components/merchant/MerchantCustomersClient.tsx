@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import {
   Users,
+  User,
   Search,
   Plus,
   Stamp,
@@ -28,6 +29,83 @@ export interface CustomerItem {
   total_visits: number;
   last_visit_at: string | null;
   created_at: string;
+}
+
+export type InactivityStatus = {
+  status: "active" | "risk" | "inactive";
+  days: number;
+  label: string;
+  borderColor: string;
+  bgColor: string;
+  iconColor: string;
+  badgeClass: string;
+  badgeText: string;
+  dotColor: string;
+};
+
+export function getCustomerInactivityStatus(
+  lastVisitAt?: string | null,
+  createdAt?: string | null,
+  nowMs: number = Date.now()
+): InactivityStatus {
+  const visitDate = lastVisitAt || createdAt;
+  if (!visitDate) {
+    return {
+      status: "inactive",
+      days: 999,
+      label: "Inactivos",
+      borderColor: "border-2 border-red-500",
+      bgColor: "bg-red-50",
+      iconColor: "text-red-500",
+      badgeClass: "bg-red-50 text-red-700 border border-red-200",
+      badgeText: "Inactivo (+25 d)",
+      dotColor: "bg-red-500",
+    };
+  }
+
+  const lastMs = new Date(visitDate).getTime();
+  const diffDays = Math.max(0, Math.floor((nowMs - lastMs) / (1000 * 60 * 60 * 24)));
+
+  if (diffDays <= 7) {
+    // Verde: 0 a 7 días.
+    return {
+      status: "active",
+      days: diffDays,
+      label: "Nuevos / Activos",
+      borderColor: "border-2 border-emerald-500",
+      bgColor: "bg-emerald-50",
+      iconColor: "text-emerald-600",
+      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      badgeText: diffDays === 0 ? "Hoy (Activo)" : `Hace ${diffDays}d (Activo)`,
+      dotColor: "bg-emerald-500",
+    };
+  } else if (diffDays <= 24) {
+    // Gris azulado: 8 a 24 días.
+    return {
+      status: "risk",
+      days: diffDays,
+      label: "Riesgo",
+      borderColor: "border-2 border-slate-400",
+      bgColor: "bg-slate-50",
+      iconColor: "text-slate-600",
+      badgeClass: "bg-slate-100 text-slate-700 border border-slate-300",
+      badgeText: `Hace ${diffDays}d (Riesgo)`,
+      dotColor: "bg-slate-400",
+    };
+  } else {
+    // Rojo: 25 días o más.
+    return {
+      status: "inactive",
+      days: diffDays,
+      label: "Inactivos",
+      borderColor: "border-2 border-red-500",
+      bgColor: "bg-red-50",
+      iconColor: "text-red-500",
+      badgeClass: "bg-red-50 text-red-700 border border-red-200",
+      badgeText: `Hace ${diffDays}d (Inactivo)`,
+      dotColor: "bg-red-500",
+    };
+  }
 }
 
 interface MerchantCustomersClientProps {
@@ -61,7 +139,7 @@ export default function MerchantCustomersClient({
   const [customers, setCustomers] = useState<CustomerItem[]>(initialCustomers);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
-    "all" | "ready" | "frequent" | "inactive"
+    "all" | "active" | "risk" | "inactive" | "ready"
   >("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -92,7 +170,6 @@ export default function MerchantCustomersClient({
   // Filtrado y segmentación rápida
   const filteredCustomers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
     return customers.filter((c) => {
       // Búsqueda de texto
@@ -114,17 +191,19 @@ export default function MerchantCustomersClient({
 
       if (!matchesQuery) return false;
 
-      // Filtros rápidos
-      if (activeFilter === "ready") {
-        return c.current_stamps >= rewardTarget;
+      // Filtros del Semáforo
+      const semaforo = getCustomerInactivityStatus(c.last_visit_at, c.created_at, now);
+      if (activeFilter === "active") {
+        return semaforo.status === "active";
       }
-      if (activeFilter === "frequent") {
-        return (c.total_visits || 0) >= 2;
+      if (activeFilter === "risk") {
+        return semaforo.status === "risk";
       }
       if (activeFilter === "inactive") {
-        if (!c.last_visit_at) return true;
-        const lastVisitMs = new Date(c.last_visit_at).getTime();
-        return now - lastVisitMs > thirtyDaysMs;
+        return semaforo.status === "inactive";
+      }
+      if (activeFilter === "ready") {
+        return c.current_stamps >= rewardTarget;
       }
       return true;
     });
@@ -132,24 +211,26 @@ export default function MerchantCustomersClient({
 
   // Contadores para chips
   const counts = useMemo(() => {
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    let ready = 0;
-    let frequent = 0;
+    let active = 0;
+    let risk = 0;
     let inactive = 0;
+    let ready = 0;
 
     customers.forEach((c) => {
+      const semaforo = getCustomerInactivityStatus(c.last_visit_at, c.created_at, now);
+      if (semaforo.status === "active") active++;
+      else if (semaforo.status === "risk") risk++;
+      else if (semaforo.status === "inactive") inactive++;
+
       if (c.current_stamps >= rewardTarget) ready++;
-      if ((c.total_visits || 0) >= 2) frequent++;
-      if (!c.last_visit_at || now - new Date(c.last_visit_at).getTime() > thirtyDaysMs) {
-        inactive++;
-      }
     });
 
     return {
       all: customers.length,
-      ready,
-      frequent,
+      active,
+      risk,
       inactive,
+      ready,
     };
   }, [customers, rewardTarget, now]);
 
@@ -362,18 +443,54 @@ export default function MerchantCustomersClient({
           )}
         </div>
 
-        {/* Chips de Filtros Rápidos */}
+        {/* Chips de Filtros Rápidos (Semáforo de Inactividad) */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveFilter("all")}
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               activeFilter === "all"
-                ? "bg-[#FF1F2D] text-white shadow-xs"
+                ? "bg-[#1F1F1F] text-white shadow-xs"
                 : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
             }`}
           >
             Todos ({counts.all})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("active")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "active"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+            Nuevos / Activos ({counts.active})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("risk")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "risk"
+                ? "bg-slate-700 text-white shadow-xs"
+                : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
+            Riesgo ({counts.risk})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("inactive")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "inactive"
+                ? "bg-rose-600 text-white shadow-xs"
+                : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
+            Inactivos ({counts.inactive})
           </button>
           <button
             type="button"
@@ -386,28 +503,6 @@ export default function MerchantCustomersClient({
           >
             <Gift size={12} />
             Listos para canjear ({counts.ready})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("frequent")}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeFilter === "frequent"
-                ? "bg-[#FF1F2D] text-white shadow-xs"
-                : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
-            }`}
-          >
-            Frecuentes ({counts.frequent})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("inactive")}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeFilter === "inactive"
-                ? "bg-[#FF1F2D] text-white shadow-xs"
-                : "border border-[#D5CFC4] bg-white text-[#737373] hover:border-[#B8B1A4] hover:text-[#1F1F1F]"
-            }`}
-          >
-            Inactivos (+30 días) ({counts.inactive})
           </button>
         </div>
       </div>
@@ -449,17 +544,21 @@ export default function MerchantCustomersClient({
                     100
                   );
                   const isLoading = actionLoadingId === customer.id;
+                  const inactivity = getCustomerInactivityStatus(customer.last_visit_at, customer.created_at, now);
 
                   return (
                     <tr
                       key={customer.id}
                       className="hover:bg-[#FFF9F5] transition-colors"
                     >
-                      {/* Cliente */}
+                      {/* Cliente (Avatar con semáforo e icono SVG de usuario) */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF0F1] text-xs font-bold text-[#FF1F2D] border border-[#FFD9DC]">
-                            {clientName.slice(0, 1).toUpperCase()}
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
+                            title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
+                          >
+                            <User size={16} className={inactivity.iconColor} strokeWidth={2} />
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-[#1F1F1F] leading-snug">
@@ -512,10 +611,16 @@ export default function MerchantCustomersClient({
 
                       {/* Última visita */}
                       <td className="py-4 px-5 text-[#737373] whitespace-nowrap">
-                        <span className="flex items-center gap-1.5 text-xs">
-                          <Clock size={13} className="text-[#A3A3A3]" />
-                          {formatDate(customer.last_visit_at)}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F1F]">
+                            <Clock size={13} className="text-[#A3A3A3]" />
+                            {formatDate(customer.last_visit_at)}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit ${inactivity.badgeClass}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
+                            {inactivity.badgeText}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Acciones Rápidas */}
@@ -644,6 +749,7 @@ export default function MerchantCustomersClient({
                       `${c.first_name || ""} ${c.last_name || ""}`.trim() ||
                       c.phone ||
                       "Cliente";
+                    const cInactivity = getCustomerInactivityStatus(c.last_visit_at, c.created_at, now);
 
                     return (
                       <button
@@ -655,8 +761,8 @@ export default function MerchantCustomersClient({
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-[#FFF9F5] border border-[#D5CFC4] flex items-center justify-center font-bold text-[11px] text-[#FF1F2D]">
-                            {cName.slice(0, 1).toUpperCase()}
+                          <div className={`h-7 w-7 rounded-full ${cInactivity.bgColor} ${cInactivity.borderColor} flex items-center justify-center shrink-0`}>
+                            <User size={13} className={cInactivity.iconColor} strokeWidth={2} />
                           </div>
                           <div>
                             <p className="text-xs font-bold text-[#1F1F1F]">

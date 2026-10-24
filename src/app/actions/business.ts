@@ -5,6 +5,7 @@ import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { availableStamp } from '@/lib/stamp-catalog';
 import { validateEffect } from '@/lib/stamp-image';
 import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
+import { sanitizeWalletConfig } from '@/lib/wallet-config';
 
 export type RegisterBusinessResult = { success: boolean; error?: string };
 
@@ -83,6 +84,16 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   if (imageFile) {
     try { preparedStamp = await prepareStamp(imageFile, effect); }
     catch (error) { return { success: false, error: error instanceof Error ? error.message : 'No se pudo procesar el sello.' }; }
+  }
+
+  let walletConfig = null;
+  const rawWallet = formData.get('walletConfig');
+  if (rawWallet) {
+    try {
+      walletConfig = sanitizeWalletConfig(JSON.parse(String(rawWallet)));
+    } catch {
+      walletConfig = sanitizeWalletConfig(null);
+    }
   }
 
   const baseSlug = slugify(businessName);
@@ -176,6 +187,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
       stamp_completed_url: selected?.completed || null,
       stamp_pending_url: selected?.pending || null,
       stamp_pending_effect: preparedStamp ? effect : null,
+      wallet_config: walletConfig,
     })
     .select("id")
     .single();

@@ -17,10 +17,11 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
   const [
     { data: business },
     { data: logsData, error: logsError },
+    { data: allStampsData },
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_description")
+      .select("id, name, reward_description, created_at")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -41,6 +42,11 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(300),
+    supabase
+      .from("stamp_logs")
+      .select("created_at")
+      .eq("business_id", businessId)
+      .neq("method", "REDEEM"),
   ]);
 
   if (!business) {
@@ -79,6 +85,8 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
         business.reward_description || "Café o recompensa disponible"
       }
       initialLogs={logs}
+      businessCreatedAt={business.created_at}
+      allStampDates={(allStampsData || []).map((s: any) => s.created_at)}
     />
   );
 }

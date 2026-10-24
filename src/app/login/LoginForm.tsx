@@ -119,7 +119,7 @@ export default function LoginForm() {
     };
 
     return (
-        <div className="relative min-h-screen w-full bg-[#FFF6EE] flex flex-col justify-between p-6 sm:p-10 font-sans text-[#1F1F1F] selection:bg-[#FF1F2D] selection:text-white">
+        <div className="fixed inset-0 h-[100dvh] w-[100vw] overflow-y-auto overscroll-none touch-pan-y bg-[#FFF6EE] flex flex-col justify-between p-6 sm:p-10 font-sans text-[#1F1F1F] selection:bg-[#FF1F2D] selection:text-white">
             {/* Botón superior Volver */}
             <div className="w-full max-w-7xl mx-auto">
                 <Link
