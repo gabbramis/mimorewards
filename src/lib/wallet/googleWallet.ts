@@ -35,13 +35,35 @@ function formatPrivateKey(rawKey: string): string {
         .replace(/\\r\\n/g, '\n')
         .replace(/\\n/g, '\n')
         .replace(/\\r/g, '')
-        .replace(/\r/g, '');
+        .replace(/\r/g, '')
+        .trim();
+
+    // Si viene entre comillas residuales
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+        key = key.slice(1, -1).replace(/\\n/g, '\n').trim();
+    }
+
+    // Si ya contiene los delimitadores BEGIN y END, validar si OpenSSL la acepta directamente
+    if (key.includes('-----BEGIN') && key.includes('-----END')) {
+        const candidate = key.endsWith('\n') ? key : `${key}\n`;
+        try {
+            crypto.createPrivateKey({ key: candidate, format: 'pem' });
+            return candidate;
+        } catch {
+            // Si OpenSSL falla con el candidate, continuamos con la normalización de bloques abajo
+        }
+    }
 
     // PEM completo guardado en base64
     if (!key.includes('-----BEGIN') && /^[A-Za-z0-9+/=\s]+$/.test(key)) {
-        const decoded = Buffer.from(key.replace(/\s/g, ''), 'base64').toString('utf8');
-        if (decoded.includes('-----BEGIN')) {
-            key = decoded.replace(/\\n/g, '\n').replace(/\r/g, '');
+        try {
+            const decoded = Buffer.from(key.replace(/\s/g, ''), 'base64').toString('utf8');
+            if (decoded.includes('-----BEGIN')) {
+                const normalized = decoded.replace(/\\n/g, '\n').replace(/\r/g, '').trim();
+                return normalized.endsWith('\n') ? normalized : `${normalized}\n`;
+            }
+        } catch {
+            // No era base64 decodificable
         }
     }
 
@@ -75,7 +97,8 @@ function credentialsFromJson(json: string, source: string): WalletCredentials {
     if (!parsed?.client_email || !parsed?.private_key) {
         throw new Error(`${source} no contiene client_email o private_key válidos.`);
     }
-    const private_key = formatPrivateKey(String(parsed.private_key));
+    const rawKey = String(parsed.private_key)?.replace(/\\n/g, '\n');
+    const private_key = formatPrivateKey(rawKey);
     assertValidPrivateKey(private_key, source);
     return { client_email: stripQuotes(String(parsed.client_email)), private_key };
 }
@@ -95,12 +118,15 @@ function loadCredentials(): WalletCredentials {
     if (cachedCredentials) return cachedCredentials;
 
     const envEmail = (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim();
-    const envPrivateKey = (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim();
+    // 1. Al leer la variable de entorno, transformar saltos de línea literales en saltos reales
+    const rawEnvPrivateKey = process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY;
+    const privateKey = rawEnvPrivateKey?.replace(/\\n/g, '\n');
 
-    if (envEmail && envPrivateKey) {
-        const private_key = formatPrivateKey(envPrivateKey);
-        assertValidPrivateKey(private_key, 'GOOGLE_WALLET_PRIVATE_KEY/GOOGLE_PRIVATE_KEY');
-        cachedCredentials = { client_email: stripQuotes(envEmail), private_key };
+    if (envEmail && privateKey) {
+        const processedPrivateKey = formatPrivateKey(privateKey);
+        assertValidPrivateKey(processedPrivateKey, 'GOOGLE_WALLET_PRIVATE_KEY/GOOGLE_PRIVATE_KEY');
+        // 2. Inyectar la clave procesada en credentials.private_key
+        cachedCredentials = { client_email: stripQuotes(envEmail), private_key: processedPrivateKey };
         return cachedCredentials;
     }
 
