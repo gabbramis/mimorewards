@@ -11,5 +11,8 @@ export function resolveAppleWebServiceURL(requestUrl?: string, override?: string
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.|\[)/.test(host)) {
     throw new Error('Apple Wallet necesita un servicio público; el iPhone no puede actualizarse desde una URL local.');
   }
+  // The production apex redirects at Vercel before Next can handle the request.
+  // Wallet callbacks must go directly to www so Authorization survives the trip.
+  if (host === 'mimorewards.com') url.hostname = 'www.mimorewards.com';
   return url.toString().replace(/\/$/, '');
 }

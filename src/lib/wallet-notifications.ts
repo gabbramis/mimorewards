@@ -22,7 +22,14 @@ export type CustomerNotificationParams = {
 export function scheduleCustomerWalletUpdate(params: CustomerNotificationParams) {
   after(async () => {
     try {
-      await notifyCustomerWalletUpdate(params);
+      const result = await notifyCustomerWalletUpdate(params);
+      console.info('[Wallet Customer Update]', {
+        appleAccepted: result.apple.sent,
+        appleFailed: result.apple.failed,
+        googleUpdated: result.google.success,
+        googleNotSaved: result.google.notFound,
+        googleFailed: Boolean(result.google.error),
+      });
     } catch {
       console.error('[Wallet Notifications] No se pudo completar la actualización de Wallet.');
     }
@@ -78,6 +85,7 @@ export async function notifyCustomerWalletUpdate(params: CustomerNotificationPar
     // 3. Actualización de saldo de Google Wallet, sin mensajes promocionales.
     if (cards && cards.length > 0) {
       for (const card of cards) {
+        if (card.wallet_platform !== 'GOOGLE' && card.wallet_platform !== 'BOTH' && !card.google_wallet_object_id) continue;
         try {
           const gResult = await updateLoyaltyPoints(card.id, currentStamps, {
             targetStamps,

@@ -6,6 +6,8 @@ import { resolveAppleWebServiceURL } from './apple-web-service.ts';
 
 test('Apple callbacks use the actual download origin, independently of a marketing URL', () => {
   assert.equal(resolveAppleWebServiceURL('https://www.mimorewards.com/api/wallet/apple/test'), 'https://www.mimorewards.com/api/apple-wallet');
+  assert.equal(resolveAppleWebServiceURL('https://mimorewards.com/api/wallet/apple/test'), 'https://www.mimorewards.com/api/apple-wallet');
+  assert.equal(resolveAppleWebServiceURL(undefined, 'https://mimorewards.com/api/wallet'), 'https://www.mimorewards.com/api/wallet');
   assert.equal(resolveAppleWebServiceURL('https://preview.example.com/api/wallet/apple/test'), 'https://preview.example.com/api/apple-wallet');
   assert.equal(resolveAppleWebServiceURL(), 'https://www.mimorewards.com/api/apple-wallet');
   assert.equal(resolveAppleWebServiceURL('https://preview.example.com', 'https://www.mimorewards.com/api/wallet/'), 'https://www.mimorewards.com/api/wallet');

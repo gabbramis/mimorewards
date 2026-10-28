@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname, extname } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
+import { EventEmitter } from 'node:events';
 import ts from 'typescript';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -37,12 +38,13 @@ const mocks = {
 test('stamp Wallet updates wait for provider completion in the Next after callback', async () => {
   const callbacks = [];
   const completed = [];
+  let cardPlatform = 'GOOGLE';
   mocks['next/server'] = { after: (callback) => callbacks.push(callback) };
   mocks['@/lib/supabase/admin'] = { createAdminClient: () => ({ from: (table) => {
     const query = {
       select: () => query, eq: () => query,
       maybeSingle: async () => ({ data: { name: 'Pilot' } }),
-      then: (resolve) => Promise.resolve({ data: table === 'loyalty_cards' ? [{ id: 'test-card' }] : null }).then(resolve),
+      then: (resolve) => Promise.resolve({ data: table === 'loyalty_cards' ? [{ id: 'test-card', wallet_platform: cardPlatform }] : null }).then(resolve),
     };
     return query;
   } }) };
@@ -59,6 +61,11 @@ test('stamp Wallet updates wait for provider completion in the Next after callba
   assert.deepEqual(completed, []);
   await callbacks[0]();
   assert.deepEqual(completed, ['apple', 'google']);
+  completed.length = 0;
+  cardPlatform = 'APPLE';
+  notifications.scheduleCustomerWalletUpdate({ customerId: 'test-customer', businessId: 'test-business', currentStamps: 4 });
+  await callbacks[1]();
+  assert.deepEqual(completed, ['apple'], 'Apple-only cards must not attempt a Google API call');
 });
 
 function load(relative) {
@@ -123,7 +130,7 @@ test('actual signed Apple pass preserves proximity and never includes promotiona
       id: 'test-card', customerName: 'Test Customer', customerCode: 'CLI-TEST', businessName: 'Pilot',
       currentStamps: 2, targetStamps: 5, rewardDescription: 'Test reward', locations,
       activeCampaignMessage: 'This promotion must not appear',
-      webServiceURL: 'https://www.mimorewards.com/api/apple-wallet',
+      webServiceURL: 'https://mimorewards.com/api/apple-wallet',
     }));
     assert.deepEqual(pass.locations, [{ latitude: -34.9056557, longitude: -56.1706692, relevantText: 'Local cercano' }]);
     assert.equal(JSON.stringify(pass).includes('changeMessage'), false);
@@ -144,4 +151,29 @@ test('actual signed Apple pass preserves proximity and never includes promotiona
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
   }
+});
+
+test('Wallet APNs updates use an empty payload and background-compatible priority', async () => {
+  const actualHttp2 = require('node:http2');
+  let capturedHeaders;
+  let payload = '';
+  const stream = new EventEmitter();
+  stream.setTimeout = () => stream;
+  stream.write = (chunk) => { payload += chunk; };
+  stream.end = () => queueMicrotask(() => {
+    stream.emit('response', { ':status': 200 });
+    stream.emit('end');
+  });
+  const session = new EventEmitter();
+  session.request = (headers) => { capturedHeaders = headers; return stream; };
+  session.close = () => {};
+  mocks['node:http2'] = { constants: actualHttp2.constants, connect: () => session };
+  mocks['./appleWallet'] = { certificate: () => Buffer.from('test-only'), PASS_TYPE_ID: 'pass.test' };
+  const apns = load('src/lib/wallet/apns.ts');
+  const result = await apns.sendApnsNotification('test-device-token', 'pass.test');
+  assert.equal(result.success, true);
+  assert.equal(capturedHeaders['apns-priority'], '5');
+  assert.equal(capturedHeaders['apns-push-type'], 'background');
+  assert.equal(capturedHeaders['apns-topic'], 'pass.test');
+  assert.equal(payload, '{}');
 });

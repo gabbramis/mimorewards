@@ -75,7 +75,7 @@ export async function sendApnsNotification(
         [http2.constants.HTTP2_HEADER_METHOD]: http2.constants.HTTP2_METHOD_POST,
         [http2.constants.HTTP2_HEADER_PATH]: `/3/device/${pushToken}`,
         "apns-topic": passTopic,
-        "apns-priority": "10",
+        "apns-priority": "5",
         "apns-push-type": "background",
       });
 

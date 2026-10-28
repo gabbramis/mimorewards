@@ -30,12 +30,13 @@ export async function GET(
     // 1. Validar cabecera Authorization: ApplePass <token>
     const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("ApplePass ")) {
+      console.warn('[Apple Wallet Pass Update]', { status: 401, reason: 'missing_authorization', host: new URL(request.url).host });
       return new Response(null, { status: 401 });
     }
 
     const token = authHeader.replace(/^ApplePass\s+/, "").trim();
     if (!verifyPassAuthToken(serialNumber, token)) {
-      console.warn(`[Apple Wallet] Invalid auth token for pass serial: ${serialNumber}`);
+      console.warn('[Apple Wallet Pass Update]', { status: 401, reason: 'invalid_authentication', host: new URL(request.url).host });
       return new Response(null, { status: 401 });
     }
 
