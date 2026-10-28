@@ -10,8 +10,8 @@ function seeded(value: string) {
 }
 
 /** QR real; PDF417 y Aztec son representaciones orientativas con la forma del formato. */
-export default function WalletBarcode({ format, value, size = 96 }: { format: BarcodeFormat; value: string; size?: number }) {
-  if (format === 'QR') return <QRCode value={value || ' '} size={size} />;
+export default function WalletBarcode({ format, value, size = 200, className = "" }: { format: BarcodeFormat; value: string; size?: number; className?: string }) {
+  if (format === 'QR') return <QRCode value={value || ' '} size={size} className={`min-w-[200px] min-h-[200px] ${className}`} />;
   const rand = seeded(`${format}:${value}`);
 
   if (format === 'PDF417') {

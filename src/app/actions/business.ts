@@ -188,6 +188,8 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
       stamp_pending_url: selected?.pending || null,
       stamp_pending_effect: preparedStamp ? effect : null,
       wallet_config: walletConfig,
+      registro_subtitulo: String(formData.get('registroSubtitulo') ?? '').trim().slice(0, 60) || 'TU TARJETA EMPIEZA ACÁ',
+      registro_titulo: String(formData.get('registroTitulo') ?? '').trim().slice(0, 80) || 'Cada visita cuenta.',
     })
     .select("id")
     .single();

@@ -116,6 +116,8 @@ export default function CrearComercioForm() {
     formData.set("primaryColor", design.primaryColor);
     formData.set("cardTextColor", design.textColor);
     formData.set("cardAccentColor", design.accentColor);
+    formData.set("registroSubtitulo", design.registroSubtitulo);
+    formData.set("registroTitulo", design.registroTitulo);
     formData.set("stampSource", design.source || "");
     formData.set("stampCatalogId", design.catalogId || "");
     formData.set("stampEffect", JSON.stringify(design.effect));

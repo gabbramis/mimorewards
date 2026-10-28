@@ -10,6 +10,7 @@ import AppleWalletButton from "@/components/AppleWalletButton";
 import GoogleWalletButton from "@/components/GoogleWalletButton";
 import { useDevicePlatform } from "@/hooks/useDevicePlatform";
 import { COUNTRY_CODES, formatCustomerSubmitPhone } from "@/lib/customer-phone";
+import QRCode from "react-qr-code";
 
 export type CustomerView = {
   id: string;
@@ -75,7 +76,8 @@ function StampGrid({ customer, context }: { customer: CustomerView; context: Nfc
 
 function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView; context: NfcContext; celebrate: boolean }) {
   const completed = customer.currentStamps >= customer.targetStamps;
-  return <div className={`cx-card ${celebrate ? "cx-card-celebrate" : ""}`}>
+  const qrValue = customer.uniqueCode || customer.id || "CLI-000000";
+  return <div className={`cx-card w-full ${celebrate ? "cx-card-celebrate" : ""}`}>
     <div className="cx-card-top">
       <span className="cx-card-label">TARJETA DE BENEFICIOS</span>
     </div>
@@ -86,7 +88,25 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
     <div className="cx-card-progress"><strong>{customer.currentStamps}<span> / {customer.targetStamps}</span></strong><span>sellos</span></div>
     <StampGrid customer={customer} context={context} />
     <div className="cx-card-reward"><Gift size={17} aria-hidden="true" /><span><small>{completed ? "PREMIO DISPONIBLE" : "TU PRÓXIMO PREMIO"}</small><strong>{context.rewardDescription}</strong></span></div>
-    <div className="cx-card-bottom"><span>{customer.firstName} {customer.lastName}</span><span>{customer.uniqueCode}</span></div>
+    
+    {/* Código QR grande para escaneo en caja */}
+    <div className="my-5 flex flex-col items-center justify-center">
+      <div className="w-52 h-52 mx-auto flex items-center justify-center rounded-2xl bg-white p-2 shadow-md border border-white/20">
+        <QRCode
+          value={qrValue}
+          size={200}
+          level="M"
+          className="min-w-[200px] min-h-[200px]"
+        />
+      </div>
+      {customer.uniqueCode && (
+        <span className="mt-2.5 text-xs font-mono font-bold tracking-widest text-center" style={{ color: "var(--cx-card-text)" }}>
+          {customer.uniqueCode}
+        </span>
+      )}
+    </div>
+
+    <div className="cx-card-bottom"><span>{customer.firstName} {customer.lastName}</span></div>
   </div>;
 }
 
@@ -271,7 +291,12 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     window.location.href = passUrl;
   }
 
-  const theme = context ? { "--cx-card": context.primaryColor, "--cx-card-text": context.textColor, "--cx-card-accent": context.accentColor, "--cx-brand": readableBrand(context.primaryColor) } as CSSProperties : undefined;
+  const theme = context ? {
+    "--cx-card": context.primaryColor,
+    "--cx-card-text": context.textColor,
+    "--cx-card-accent": context.accentColor,
+    "--cx-brand": readableBrand(context.primaryColor),
+  } as CSSProperties : undefined;
   const visibleCustomer = customer;
   const statusMessage = visibleCustomer ? messageFor(stampStatus, visibleCustomer.firstName) : null;
   const rewardReady = Boolean(visibleCustomer && visibleCustomer.currentStamps >= visibleCustomer.targetStamps);
@@ -282,7 +307,7 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
 
   return <PageTag className={`cx-page ${preview ? "cx-preview" : ""}`} style={theme}>
     <div className="cx-shell">
-      <header className="cx-header">
+      <header className="cx-header w-full max-w-md mx-auto px-5">
         <div className="cx-identity">
           <span className="cx-logo">{context?.businessLogo ? <img src={context.businessLogo} alt="" /> : context?.businessName ? context.businessName.slice(0, 1).toUpperCase() : <span className="cx-skeleton cx-skeleton-logo" />}</span>
           <span className="cx-identity-name">{context?.businessName || "Tu comercio"}<small>PROGRAMA DE BENEFICIOS</small></span>
@@ -291,79 +316,72 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       </header>
 
       {phase === "loading" ? <LoadingView /> : phase === "unavailable" ? <section className="cx-state cx-unavailable"><span className="cx-state-icon"><LockKeyhole size={22} /></span><h1>Este programa no está disponible</h1><p>{error || "Pedile al comercio un enlace válido para sumarte."}</p></section> : context && <div className="cx-content" aria-live="polite">
-        {phase === "register" && <>
-          <div className="cx-heading"><span className="cx-overline">TU TARJETA EMPIEZA ACÁ</span><h1>Cada visita<br /><em>cuenta.</em></h1></div>
-          <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
-            {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
-            <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>
-            <PhoneInputField
-              label="Celular"
-              value={form.phone}
-              onChange={val => updateField("phone", val)}
-              countryCode={countryCode}
-              onCountryChange={setCountryCode}
-              disabled={preview}
-            />
-            <InputField label="Fecha de nacimiento" name="birthdate" value={form.birthdate} onChange={updateField} type="date" autoComplete="bday" disabled={preview} />
-            <div className="cx-consents">
-              <label className="cx-consent"><input type="checkbox" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required disabled={preview} /><span>Acepto los <Link href="/terminos" target="_blank" rel="noopener noreferrer">Términos de uso</Link> y la <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</Link> para crear mi tarjeta. <strong>Obligatorio.</strong></span></label>
-              <label className="cx-consent"><input type="checkbox" checked={whatsappMarketingOptIn} onChange={event => setWhatsappMarketingOptIn(event.target.checked)} disabled={preview} /><span>Quiero recibir promociones y novedades de {context.businessName} por WhatsApp al celular que registré. Puedo retirar esta autorización cuando quiera. <strong>Opcional.</strong></span></label>
+        {phase === "register" && (
+          <div className="w-full max-w-md mx-auto px-5">
+            <div className="cx-heading">
+              <span className="cx-overline" style={{ color: "#111827" }}>TU TARJETA EMPIEZA ACÁ</span>
+              <h1 style={{ color: "#111827" }}>Cada visita cuenta.</h1>
             </div>
-            <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Creando tu tarjeta…" : <>Crear mi tarjeta <ArrowRight size={18} /></>}</button>
-          </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("recover"); setError(""); }}>¿Ya tenés tarjeta? Recuperala</button></section>
-          <p className="cx-privacy"><LockKeyhole size={13} /> Usamos tus datos para tu tarjeta. Las promociones requieren tu autorización.</p>
-        </>}
+            <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
+              {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
+              <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>
+              <PhoneInputField
+                label="Celular"
+                value={form.phone}
+                onChange={val => updateField("phone", val)}
+                countryCode={countryCode}
+                onCountryChange={setCountryCode}
+                disabled={preview}
+              />
+              <InputField label="Fecha de nacimiento" name="birthdate" value={form.birthdate} onChange={updateField} type="date" autoComplete="bday" disabled={preview} />
+              <div className="cx-consents">
+                <label className="cx-consent"><input type="checkbox" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required disabled={preview} /><span>Acepto los <Link href="/terminos" target="_blank" rel="noopener noreferrer">Términos de uso</Link> y la <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</Link> para crear mi tarjeta. <strong>Obligatorio.</strong></span></label>
+                <label className="cx-consent"><input type="checkbox" checked={whatsappMarketingOptIn} onChange={event => setWhatsappMarketingOptIn(event.target.checked)} disabled={preview} /><span>Quiero recibir promociones y novedades de {context.businessName} por WhatsApp al celular que registré. Puedo retirar esta autorización cuando quiera. <strong>Opcional.</strong></span></label>
+              </div>
+              <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Creando tu tarjeta…" : <>Crear mi tarjeta <ArrowRight size={18} /></>}</button>
+            </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("recover"); setError(""); }}>¿Ya tenés tarjeta? Recuperala</button></section>
+            <p className="cx-privacy"><LockKeyhole size={13} /> Usamos tus datos para tu tarjeta. Las promociones requieren tu autorización.</p>
+          </div>
+        )}
 
-        {phase === "recover" && <>
-          <div className="cx-heading"><span className="cx-overline">QUÉ BUENO VERTE OTRA VEZ</span><h1>Volvé a<br /><em>tu tarjeta.</em></h1><p>Ingresá el celular que usaste en {context.businessName}.</p></div>
-          <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, true)}>
+        {phase === "recover" && (
+          <div className="w-full max-w-md mx-auto px-5">
+            <div className="cx-heading"><span className="cx-overline">QUÉ BUENO VERTE OTRA VEZ</span><h1>Volvé a<br /><em>tu tarjeta.</em></h1><p>Ingresá el celular que usaste en {context.businessName}.</p></div>
+            <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, true)}>
+              {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
+              <PhoneInputField
+                label="Celular"
+                value={form.phone}
+                onChange={val => updateField("phone", val)}
+                countryCode={countryCode}
+                onCountryChange={setCountryCode}
+                disabled={preview}
+              />
+              
+              <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Buscando tu tarjeta…" : <>Recuperar tarjeta <ArrowRight size={18} /></>}</button>
+            </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>
+          </div>
+        )}
+
+        {isCard && visibleCustomer && (
+          <div className="w-full max-w-md mx-auto px-5">
+            <div className="cx-heading cx-card-heading">
+              <span className="cx-overline">
+                {rewardReady ? "¡OBJETIVO CUMPLIDO!" : returning ? "TU TARJETA DIGITAL" : "¡YA SOS PARTE!"}
+              </span>
+              <h1>
+                {stageMessage?.title || (rewardReady ? "Tu premio te espera." : returning ? `Hola, ${visibleCustomer.firstName}.` : "Ya sos parte.")}
+              </h1>
+              <p>
+                {stageMessage?.detail || (rewardReady ? `Mostrá tu tarjeta en ${context.businessName} para canjear ${context.rewardDescription}.` : returning ? "Seguí sumando. Tu próximo mimo está más cerca." : "Tu primer sello ya está en la tarjeta.")}
+              </p>
+            </div>
+            <LoyaltyCard customer={visibleCustomer} context={context} celebrate={celebrate || phase === "stamp"} />
+            {localNotice && !stageMessage && <p className="cx-alert cx-alert-success" role="status"><Check size={16} /> {localNotice}</p>}
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
-            <PhoneInputField
-              label="Celular"
-              value={form.phone}
-              onChange={val => updateField("phone", val)}
-              countryCode={countryCode}
-              onCountryChange={setCountryCode}
-              disabled={preview}
-            />
-            
-            <button className="cx-button cx-button-primary" type="submit" disabled={busy || preview}>{busy ? "Buscando tu tarjeta…" : <>Recuperar tarjeta <ArrowRight size={18} /></>}</button>
-          </FormTag><button className="cx-text-button" type="button" disabled={preview} onClick={() => { setPhase("register"); setError(""); }}>Registrarme por primera vez</button></section>
-        </>}
-
-        {isCard && visibleCustomer && <>
-          <div className="cx-heading cx-card-heading"><span className="cx-overline">{rewardReady ? "¡OBJETIVO CUMPLIDO!" : returning ? "TU TARJETA DIGITAL" : "¡YA SOS PARTE!"}</span><h1>{stageMessage?.title || (rewardReady ? "Tu premio te espera." : returning ? `Hola, ${visibleCustomer.firstName}.` : "Ya sos parte.")}</h1><p>{stageMessage?.detail || (rewardReady ? `Mostrá tu tarjeta en ${context.businessName} para canjear ${context.rewardDescription}.` : returning ? "Seguí sumando. Tu próximo mimo está más cerca." : "Tu primer sello ya está en la tarjeta.")}</p></div>
-          <LoyaltyCard customer={visibleCustomer} context={context} celebrate={celebrate || phase === "stamp"} />
-          {localNotice && !stageMessage && <p className="cx-alert cx-alert-success" role="status"><Check size={16} /> {localNotice}</p>}
-          {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
-          <div className="cx-card-actions">
-            {/* Si el usuario entra desde iOS: ÚNICAMENTE Apple Wallet */}
-            {platform === "ios" && (
-              <AppleWalletButton
-                href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
-                onClick={openAppleWallet}
-                loading={appleWalletBusy}
-                loadingText="Generando pase…"
-                disabled={preview || appleWalletBusy}
-                className="w-full"
-              />
-            )}
-
-            {/* Si el usuario entra desde Android: ÚNICAMENTE Google Wallet */}
-            {platform === "android" && (
-              <GoogleWalletButton
-                href={preview ? undefined : googleWalletUrl}
-                onClick={openGoogleWallet}
-                loading={walletBusy}
-                loadingText="Abriendo Google Wallet…"
-                disabled={preview || walletBusy}
-                className="w-full"
-              />
-            )}
-
-            {/* Si entra desde Desktop / Computadora o plataforma no identificada: mostrar ambos botones */}
-            {(platform === "desktop" || platform === "unknown") && (
-              <>
+            <div className="cx-card-actions">
+              {/* Si el usuario entra desde iOS: ÚNICAMENTE Apple Wallet */}
+              {platform === "ios" && (
                 <AppleWalletButton
                   href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
                   onClick={openAppleWallet}
@@ -372,6 +390,10 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
                   disabled={preview || appleWalletBusy}
                   className="w-full"
                 />
+              )}
+
+              {/* Si el usuario entra desde Android: ÚNICAMENTE Google Wallet */}
+              {platform === "android" && (
                 <GoogleWalletButton
                   href={preview ? undefined : googleWalletUrl}
                   onClick={openGoogleWallet}
@@ -380,13 +402,35 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
                   disabled={preview || walletBusy}
                   className="w-full"
                 />
-              </>
-            )}
-            <p className="cx-wallet-note">Podés guardar tu tarjeta en tu teléfono o abrirla desde este enlace cuando quieras.</p>
+              )}
+
+              {/* Si entra desde Desktop / Computadora o plataforma no identificada: mostrar ambos botones */}
+              {(platform === "desktop" || platform === "unknown") && (
+                <>
+                  <AppleWalletButton
+                    href={preview ? undefined : `/api/wallet/apple/${encodeURIComponent(visibleCustomer.id)}`}
+                    onClick={openAppleWallet}
+                    loading={appleWalletBusy}
+                    loadingText="Generando pase…"
+                    disabled={preview || appleWalletBusy}
+                    className="w-full"
+                  />
+                  <GoogleWalletButton
+                    href={preview ? undefined : googleWalletUrl}
+                    onClick={openGoogleWallet}
+                    loading={walletBusy}
+                    loadingText="Abriendo Google Wallet…"
+                    disabled={preview || walletBusy}
+                    className="w-full"
+                  />
+                </>
+              )}
+              <p className="cx-wallet-note">Podés guardar tu tarjeta en tu teléfono o abrirla desde este enlace cuando quieras.</p>
+            </div>
           </div>
-        </>}
+        )}
       </div>}
-      <footer className="cx-footer">Powered by <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="Mimo Rewards" /></footer>
+      <footer className="cx-footer w-full max-w-md mx-auto px-5">Powered by <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="Mimo Rewards" /></footer>
     </div>
   </PageTag>;
 }

@@ -135,10 +135,10 @@ export default function AdminCajaQrClient() {
     }
   }
 
-  // URL pública del QR para sumar sellos
-  const baseUrl = origin || process.env.NEXT_PUBLIC_MIMO_SITE_URL || "";
+  // URL pública del QR para sumar sellos (siempre producción)
+  const baseUrl = process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com";
   const publicSlug = business?.slug || "";
-  const qrUrl = publicSlug ? `${baseUrl}/t/${publicSlug}` : "";
+  const qrUrl = publicSlug ? `https://mimorewards.com/t/${publicSlug}` : "";
 
   // Botón "Actualizar QR"
   function handleRefreshQr() {

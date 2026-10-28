@@ -9,6 +9,7 @@ import {
   Edit3,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import CounterQrCard from "@/components/merchant/CounterQrCard";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_target, reward_description, primary_color, active, slug")
+      .select("id, name, reward_target, reward_description, primary_color, active, slug, plan_type")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -160,6 +161,9 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const chartDays = Object.values(daysMap);
   const maxDayCount = Math.max(...chartDays.map((d) => d.count), 1);
 
+  // URL del QR del mostrador (siempre apunta al dominio de producción)
+  const qrUrl = `https://mimorewards.com/t/${business.slug || business.id}`;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Title & Breadcrumb */}
@@ -222,7 +226,15 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
-              {totalCustomers}
+              {business.plan_type === "inicial" ? (
+                <>
+                  <span className="text-xs font-medium text-[#737373]">Clientes: </span>
+                  {totalCustomers}
+                  <span className="text-xs font-medium text-[#737373]"> / 100 (Plan Inicial)</span>
+                </>
+              ) : (
+                totalCustomers
+              )}
             </div>
             <p className="mt-2 text-xs text-[#737373]">
               Registrados en esta sucursal
@@ -261,70 +273,85 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Gráfico de Actividad Semanal */}
-      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
-              Actividad semanal
-            </h3>
-            <p className="text-xs text-[#737373] mt-0.5">
-              Volumen de sellos y visitas por día de la semana.
-            </p>
-          </div>
-          <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
-            Últimos 7 días
-          </span>
-        </div>
-
-        {/* Bar Chart */}
-        <div className="mt-6 flex h-48 items-end justify-between gap-3 pt-6 px-2">
-          {chartDays.map((item, idx) => {
-            const heightPercent = Math.max(
-              Math.round((item.count / maxDayCount) * 100),
-              6
-            );
-            const isToday = idx === chartDays.length - 1;
-            const isPeak = item.count === maxDayCount && maxDayCount > 0;
-
-            return (
-              <div
-                key={idx}
-                className="group flex flex-1 flex-col items-center gap-2 h-full justify-end"
-              >
-                <span className="text-[11px] font-bold text-[#1F1F1F] opacity-0 group-hover:opacity-100 transition-opacity">
-                  {item.count}
-                </span>
-                <div className="w-full max-w-[40px] flex items-end justify-center h-full">
-                  <div
-                    style={{ height: `${heightPercent}%` }}
-                    className={`w-full rounded-t-xl transition-all duration-300 ${
-                      isPeak
-                        ? "bg-[#FF1F2D] shadow-sm"
-                        : isToday
-                        ? "bg-[#FF7A85]"
-                        : "bg-[#FAD9DC] group-hover:bg-[#FF7A85]"
-                    }`}
-                  />
-                </div>
-                <span
-                  className={`text-[11px] font-semibold ${
-                    isToday ? "text-[#FF1F2D]" : "text-[#737373]"
-                  }`}
-                >
-                  {item.label}
-                </span>
+      {/* Gráfico de Actividad Semanal & QR del Mostrador */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          {/* Gráfico de Actividad Semanal */}
+          <div className="h-full flex flex-col justify-between rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
+                  Actividad semanal
+                </h3>
+                <p className="text-xs text-[#737373] mt-0.5">
+                  Volumen de sellos y visitas por día de la semana.
+                </p>
               </div>
-            );
-          })}
+              <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
+                Últimos 7 días
+              </span>
+            </div>
+
+            {/* Bar Chart */}
+            <div className="mt-6 flex h-48 items-end justify-between gap-3 pt-6 px-2">
+              {chartDays.map((item, idx) => {
+                const heightPercent = Math.max(
+                  Math.round((item.count / maxDayCount) * 100),
+                  6
+                );
+                const isToday = idx === chartDays.length - 1;
+                const isPeak = item.count === maxDayCount && maxDayCount > 0;
+
+                return (
+                  <div
+                    key={idx}
+                    className="group flex flex-1 flex-col items-center gap-2 h-full justify-end"
+                  >
+                    <span className="text-[11px] font-bold text-[#1F1F1F] opacity-0 group-hover:opacity-100 transition-opacity">
+                      {item.count}
+                    </span>
+                    <div className="w-full max-w-[40px] flex items-end justify-center h-full">
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className={`w-full rounded-t-xl transition-all duration-300 ${
+                          isPeak
+                            ? "bg-[#FF1F2D] shadow-sm"
+                            : isToday
+                            ? "bg-[#FF7A85]"
+                            : "bg-[#FAD9DC] group-hover:bg-[#FF7A85]"
+                        }`}
+                      />
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        isToday ? "text-[#FF1F2D]" : "text-[#737373]"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
+              <span className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
+                Día con más visitas
+              </span>
+              <span>Total semanal: {stampsWeek} movimientos</span>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
-          <span className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
-            Día con más visitas
-          </span>
-          <span>Total semanal: {stampsWeek} movimientos</span>
+        <div className="lg:col-span-1">
+          {/* Tu QR para el mostrador */}
+          <CounterQrCard
+            businessId={business.id}
+            businessSlug={business.slug}
+            businessName={business.name}
+            qrUrl={qrUrl}
+          />
         </div>
       </div>
 

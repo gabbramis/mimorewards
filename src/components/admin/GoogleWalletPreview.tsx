@@ -69,9 +69,11 @@ export default function GoogleWalletPreview({ businessName, logoUrl, primaryColo
         </div>
 
         {/* Escaneo */}
-        <div className="mx-4 mt-5 flex flex-col items-center rounded-[16px] bg-white px-4 py-4 text-[#1f1f1f]">
-          <WalletBarcode format={wallet.barcodeFormat} value={code} size={120} />
-          {altText && <span className="mt-2 text-[12px] font-medium tracking-[.06em]">{altText}</span>}
+        <div className="mx-4 mt-5 flex flex-col items-center rounded-2xl bg-white p-3 text-[#1f1f1f]">
+          <div className="w-52 h-52 mx-auto flex items-center justify-center">
+            <WalletBarcode format={wallet.barcodeFormat} value={code} size={200} />
+          </div>
+          {altText && <span className="mt-2 text-xs font-mono font-bold tracking-wider text-center">{altText}</span>}
         </div>
       </article>
       <p className="mx-auto mt-5 max-w-[280px] text-center text-[11px] leading-4 text-gray-500">Vista orientativa. Google Wallet usa el fondo, logo y banner; los textos se ajustan según el dispositivo.</p>

@@ -85,9 +85,11 @@ export default function AppleWalletPreview({ businessName, logoUrl, completedUrl
 
         {/* Pie: QR sobre contenedor blanco */}
         <div className="px-4 pb-4">
-          <div className="flex flex-col items-center rounded-[12px] bg-white px-4 py-3.5 text-[#111]">
-            <WalletBarcode format={wallet.barcodeFormat} value={code} size={110} />
-            {altText && <span className="mt-2 text-[12px] font-normal tracking-[.08em]">{altText}</span>}
+          <div className="flex flex-col items-center rounded-2xl bg-white p-3 text-[#111]">
+            <div className="w-52 h-52 mx-auto flex items-center justify-center">
+              <WalletBarcode format={wallet.barcodeFormat} value={code} size={200} />
+            </div>
+            {altText && <span className="mt-2 text-xs font-mono font-bold tracking-wider text-center">{altText}</span>}
           </div>
         </div>
       </article>

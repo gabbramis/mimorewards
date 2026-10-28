@@ -9,8 +9,11 @@ export type NfcContext = {
   primaryColor: string;
   textColor: string;
   accentColor: string;
+  backgroundColor?: string;
   stampCompletedUrl: string;
   stampPendingUrl: string;
+  registroSubtitulo?: string;
+  registroTitulo?: string;
 };
 
 export async function findNfcTag(supabase: any, rawNfcId: string) {
@@ -87,7 +90,7 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
 
   let { data: business, error: businessError } = await supabase
     .from("businesses")
-    .select("id, name, logo_url, reward_target, reward_description, active, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url")
+    .select("id, name, logo_url, reward_target, reward_description, active, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, registro_subtitulo, registro_titulo")
     .eq("id", businessId)
     .maybeSingle();
   if (businessError) {
@@ -109,8 +112,11 @@ export async function resolveNfcContext(supabase: any, rawNfcId: string): Promis
     primaryColor: business?.primary_color || "#FF1F2D",
     textColor: business?.card_text_color || "#FFFFFF",
     accentColor: business?.card_accent_color || "#FFFFFF",
+    backgroundColor: business?.primary_color || "#FF1F2D",
     stampCompletedUrl: business?.stamp_completed_url || "",
     stampPendingUrl: business?.stamp_pending_url || "",
+    registroSubtitulo: business?.registro_subtitulo || "TU TARJETA EMPIEZA ACÁ",
+    registroTitulo: business?.registro_titulo || "Cada visita cuenta.",
   };
 }
 

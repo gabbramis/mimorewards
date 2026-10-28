@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
   Megaphone,
+  QrCode,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -51,6 +52,12 @@ export default function MerchantShell({
       exact: true,
     },
     {
+      href: `/comercio/${businessId}/escaner`,
+      label: "Escáner",
+      icon: QrCode,
+      exact: false,
+    },
+    {
       href: `/comercio/${businessId}/clientes`,
       label: "Clientes",
       icon: Users,
@@ -69,9 +76,8 @@ export default function MerchantShell({
 
   const handleCopyCardLink = async () => {
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
       const slugOrId = businessSlug || businessId;
-      const cardUrl = `${origin}/t/${slugOrId}`;
+      const cardUrl = `https://mimorewards.com/t/${slugOrId}`;
       await navigator.clipboard.writeText(cardUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
