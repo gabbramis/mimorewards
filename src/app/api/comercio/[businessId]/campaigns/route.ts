@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessBusiness } from "@/lib/authz";
-import { broadcastWalletCampaign, cancelActiveCampaign } from "@/lib/wallet-notifications";
+import { cancelActiveCampaign } from "@/lib/wallet-notifications";
 
 export const runtime = "nodejs";
 
@@ -99,81 +99,15 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ businessId: string }> }
 ) {
-  try {
-    const { businessId } = await params;
-    if (!(await canAccessBusiness(businessId))) {
-      return NextResponse.json({ error: "No tenés permiso para este comercio." }, { status: 403 });
-    }
-
-    const body = await request.json().catch(() => ({}));
-    const type = String(body.campaignType || "CUSTOM").toUpperCase();
-
-    const supabase: any = createAdminClient();
-    const { data: business } = await supabase
-      .from("businesses")
-      .select("id, name")
-      .eq("id", businessId)
-      .maybeSingle();
-
-    if (!business) {
-      return NextResponse.json({ error: "Comercio no encontrado." }, { status: 404 });
-    }
-
-    let campaignName = String(body.campaignName || "").trim();
-    let message = String(body.message || "").trim();
-    let stampMultiplier = 1;
-    let expiresAt: string | null = null;
-
-    if (type === "2X_WEEKEND" || type === "FINDE_2X1") {
-      campaignName = campaignName || "Finde 2x1 en Sellos";
-      stampMultiplier = 2;
-      expiresAt = getNextSundayEnd();
-      message = message || `¡Finde 2x1 en ${business.name}! Todas tus visitas de este fin de semana suman doble sello.`;
-    } else if (type === "HAPPY_HOUR") {
-      campaignName = campaignName || "Happy Hour de Sellos (4 horas)";
-      stampMultiplier = 2;
-      expiresAt = getFourHoursLater();
-      message = message || `¡Happy Hour en ${business.name}! Pasate en las próximas 4 horas y sumá doble sello.`;
-    } else if (type === "QUICK_PROMO" || type === "AVISO_RAPIDO") {
-      campaignName = campaignName || "Aviso / Promo Rápida";
-      stampMultiplier = 1;
-      // Expira en 24 horas para que el mensaje no quede permanente en pass.json
-      expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      if (!message) {
-        return NextResponse.json({ error: "Debes escribir o seleccionar un mensaje para la notificación." }, { status: 400 });
-      }
-    } else {
-      campaignName = campaignName || "Promoción Especial";
-      stampMultiplier = Number(body.stampMultiplier || 1);
-      expiresAt = body.expiresAt ? new Date(body.expiresAt).toISOString() : null;
-      if (!message) {
-        return NextResponse.json({ error: "Falta el mensaje de la notificación push." }, { status: 400 });
-      }
-    }
-
-    const result = await broadcastWalletCampaign({
-      businessId,
-      campaignName,
-      campaignType: type,
-      message,
-      stampMultiplier,
-      expiresAt,
-    });
-
-    return NextResponse.json({
-      success: true,
-      result,
-      message: "Campaña activada y notificación push enviada a Apple Wallet y Google Wallet.",
-    });
-  } catch (error: any) {
-    console.error("Error activating campaign:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo activar la campaña." }, { status: 500 });
+  const { businessId } = await params;
+  if (!(await canAccessBusiness(businessId))) {
+    return NextResponse.json({ error: "No tenés permiso para este comercio." }, { status: 403 });
   }
+  return NextResponse.json({ error: "Los envíos promocionales y las automatizaciones están deshabilitados durante el piloto de Wallet." }, { status: 409 });
 }
-
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ businessId: string }> }

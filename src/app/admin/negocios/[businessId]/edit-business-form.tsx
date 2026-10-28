@@ -119,11 +119,11 @@ export default function EditBusinessForm({ business }: { business: Business }) {
         parts.push(`Google Wallet: ${payload.google.error}`);
       }
       if (payload.apple?.configured) {
-        parts.push(`Apple Wallet: ${payload.apple.sent} pases notificados`);
+        parts.push(`Apple Wallet: ${payload.apple.sent} solicitudes aceptadas, ${payload.apple.failed} fallidas`);
       } else {
         parts.push(`Apple Wallet: ${payload.apple?.devicesFound || 0} dispositivos registrados (certificados APNs pendientes)`);
       }
-      setSyncInfo(`Sincronización completada: ${parts.join(' · ')}.`);
+      setSyncInfo(`Resultado de sincronización: ${parts.join(' · ')}. La aceptación no confirma entrega ni visualización.`);
     } catch {
       setError('Error de conexión al sincronizar tarjetas.');
     } finally {
@@ -138,6 +138,7 @@ export default function EditBusinessForm({ business }: { business: Business }) {
           <ArrowLeft size={16} /> Negocios
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900">Editar {business.name}</h1>
+        <Link href={`/admin/negocios/${business.id}/comunicaciones/geolocalizacion`} className="mt-2 inline-block text-sm font-semibold text-[#FF1F2D]">Comunicaciones y geolocalización →</Link>
         <p className="mt-1 text-sm text-gray-500">Los cambios se aplican únicamente al guardar.</p>
       </div>
       <div className="flex items-center gap-2 sm:gap-3 sm:pt-6">

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readWalletLocations } from '@/lib/wallet/location-store';
 import {
   appleWalletConfigured,
   createAppleWalletPass,
   storedImage,
   verifyPassAuthToken,
+  PASS_TYPE_ID,
 } from "@/lib/wallet/appleWallet";
 
 export const runtime = "nodejs";
@@ -22,6 +24,7 @@ export async function GET(
 ) {
   try {
     const { passTypeIdentifier, serialNumber } = await params;
+    if (passTypeIdentifier !== PASS_TYPE_ID) return new Response(null, { status: 404 });
 
     // 1. Validar cabecera Authorization: ApplePass <token>
     const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
@@ -109,6 +112,7 @@ export async function GET(
 
     // 6. Generar el pase .pkpass actualizado con activeCampaignMessage
     const passBuffer = await createAppleWalletPass({
+      locations: await readWalletLocations(card.business_id),
       id: card.id,
       customerName: `${customer.first_name} ${customer.last_name || ""}`.trim(),
       customerCode: customer.unique_code,

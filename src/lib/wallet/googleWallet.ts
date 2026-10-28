@@ -6,6 +6,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import crypto from 'node:crypto';
 import { googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
+import { readWalletLocations } from './location-store';
+import { googleMerchantLocations } from './locations';
 
 export interface WalletCredentials {
     client_email: string;
@@ -216,6 +218,7 @@ export async function createOrUpdateLoyaltyClass(
     const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
 
     const loyaltyClassPayload: Record<string, unknown> = {
+        merchantLocations: googleMerchantLocations(await readWalletLocations(businessId)),
         id: classId,
         issuerName,
         programName: issuerName,
@@ -300,6 +303,7 @@ export async function patchGoogleWalletLoyaltyClass(
     const walletobjects = google.walletobjects({ version: 'v1', auth: authClient as any });
 
     const patchPayload: Record<string, unknown> = {
+        merchantLocations: googleMerchantLocations(await readWalletLocations(businessId)),
         issuerName,
         programName: issuerName,
         hexBackgroundColor: params.hexBackgroundColor || '#10B981',
@@ -431,8 +435,6 @@ export function generateSavePassUrl(
             loyaltyObjects: [loyaltyObject]
         }
     };
-
-    console.log("Generando JWT con claims:\n", JSON.stringify(claims, null, 2));
 
     const token = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
 

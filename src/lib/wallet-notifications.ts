@@ -2,11 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCustomerPassUpdate, sendBusinessCampaignPush } from "@/lib/wallet/apns";
-import {
-  updateLoyaltyPoints,
-  broadcastGoogleWalletClassMessage,
-  getGoogleClassId,
-} from "@/lib/wallet/googleWallet";
+import { updateLoyaltyPoints } from "@/lib/wallet/googleWallet";
 import { updateWalletTemplate, type WalletTemplateSyncResult } from "@/lib/wallet/sync-template";
 
 export { updateWalletTemplate, type WalletTemplateSyncResult };
@@ -36,7 +32,7 @@ export type CampaignBroadcastParams = {
  * Se dispara al sumar sellos o canjear recompensas.
  */
 export async function notifyCustomerWalletUpdate(params: CustomerNotificationParams) {
-  const { customerId, businessId, currentStamps, targetStamps, notificationMessage } = params;
+  const { customerId, businessId, currentStamps, targetStamps } = params;
   const supabase: any = createAdminClient();
 
   const results = {
@@ -67,15 +63,14 @@ export async function notifyCustomerWalletUpdate(params: CustomerNotificationPar
       console.error("[Wallet Notifications] Error notifying Apple Wallet:", appleErr?.message);
     }
 
-    // 3. Notificación y actualización para Google Wallet (PATCH + TEXT_AND_NOTIFY)
+    // 3. Actualización de saldo de Google Wallet, sin mensajes promocionales.
     if (cards && cards.length > 0) {
       for (const card of cards) {
         try {
-          const defaultMsg = notificationMessage || `¡Sumaste sellos! Llevás ${currentStamps}${targetStamps ? ` de ${targetStamps}` : ""} en ${businessName}.`;
           const gResult = await updateLoyaltyPoints(card.id, currentStamps, {
             targetStamps,
             businessName,
-            notificationMessage: defaultMsg,
+            // Updating balances does not need a promotional message or consume a push quota.
           });
 
           if (gResult.success) {
@@ -100,97 +95,11 @@ export async function notifyCustomerWalletUpdate(params: CustomerNotificationPar
 }
 
 /**
- * Servicio unificado para transmitir campañas y notificaciones push simultáneas a Apple Wallet y Google Wallet
- * Actualiza la campaña activa del comercio y registra el envío en push_campaigns_log.
+ * No habilitar campañas hasta incorporar consentimiento, destinatarios y cuotas.
  */
-export async function broadcastWalletCampaign(params: CampaignBroadcastParams) {
-  const { businessId, campaignName, campaignType, message, stampMultiplier = 1, expiresAt } = params;
-  const supabase: any = createAdminClient();
-
-  // 1. Obtener comercio
-  const { data: business, error: bError } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("id", businessId)
-    .maybeSingle();
-
-  if (bError || !business) {
-    throw new Error("Comercio no encontrado.");
-  }
-
-  // 2. Actualizar configuración de campaña en la tabla businesses
-  const { error: updateError } = await supabase
-    .from("businesses")
-    .update({
-      active_campaign_name: campaignName,
-      active_campaign_message: message,
-      stamp_multiplier: stampMultiplier,
-      campaign_expires_at: expiresAt || null,
-    })
-    .eq("id", businessId);
-
-  if (updateError) {
-    console.error("[Wallet Notifications] Error actualizando businesses:", updateError);
-    throw new Error("No se pudo activar la campaña en la base de datos.");
-  }
-
-  // 3. Disparo masivo a Apple Wallet vía APNs (notifica a todos los dispositivos registrados en wallet_registrations)
-  let appleSent = 0;
-  if (params.targetChannels !== "google_only") {
-    try {
-      const applePush = await sendBusinessCampaignPush(businessId);
-      appleSent = applePush.sent;
-    } catch (appleErr: any) {
-      console.error("[Wallet Notifications] Fallo enviando push APNs:", appleErr?.message);
-    }
-  }
-
-  // 4. Disparo masivo a Google Wallet (LoyaltyClass.addMessage con TEXT_AND_NOTIFY)
-  let googleSent = 0;
-  try {
-    // Contar usuarios que tienen Google Wallet vinculado
-    const { count } = await supabase
-      .from("customers")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .or("wallet_platform.eq.GOOGLE,wallet_platform.eq.BOTH,google_wallet_object_id.not.is.null,google_object_id.not.is.null");
-
-    googleSent = count || 0;
-
-    const gResult = await broadcastGoogleWalletClassMessage(
-      businessId,
-      campaignName || business.name,
-      message
-    );
-
-    if (!gResult.success) {
-      console.warn("[Wallet Notifications] Falló broadcast a Google Wallet class:", gResult.error);
-    }
-  } catch (googleErr: any) {
-    console.error("[Wallet Notifications] Fallo broadcast Google Wallet:", googleErr?.message);
-  }
-
-  // 5. Registrar en push_campaigns_log
-  try {
-    await supabase.from("push_campaigns_log").insert({
-      business_id: businessId,
-      campaign_type: campaignType,
-      message,
-      apple_devices_notified: appleSent,
-      google_passes_notified: googleSent,
-    });
-  } catch (logErr: any) {
-    console.error("[Wallet Notifications] Error insertando en push_campaigns_log:", logErr);
-  }
-
-  return {
-    success: true,
-    campaignName,
-    appleSent,
-    googleSent,
-  };
+export async function broadcastWalletCampaign(_params: CampaignBroadcastParams): Promise<never> {
+  throw new Error('Los envíos promocionales están deshabilitados durante el piloto de Wallet.');
 }
-
 /**
  * Finaliza la campaña activa de un comercio y regresa el multiplicador a 1
  */

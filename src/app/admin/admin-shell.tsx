@@ -11,6 +11,7 @@ import { useBusiness } from "@/contexts/BusinessContext";
 const internalNavItems = [
     ["/admin", "Dashboard", LayoutDashboard],
     ["/admin/negocios", "Negocios", Store],
+    ["/admin/comunicaciones", "Comunicaciones", Megaphone],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/configuracion", "Configuración", Sliders],
 ] as const;

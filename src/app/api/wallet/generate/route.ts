@@ -6,6 +6,10 @@ import { createCanvas } from "@napi-rs/canvas";
 import { PKPass } from "passkit-generator";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrUpdateLoyaltyClass, generateSavePassUrl, getGoogleObjectId } from "@/lib/wallet/googleWallet";
+import { cookies } from 'next/headers';
+import { customerCookieName, readCustomerSession } from '@/lib/mimo-customer-session';
+import { isSuperadmin } from '@/lib/authz';
+import { certificateEnvironment } from '@/lib/wallet/apple-certificates';
 
 export const runtime = "nodejs";
 
@@ -31,7 +35,7 @@ function parseEnvCertificate(rawVal: string): Buffer {
 
 function loadCertificate(fileName: string, envVarName: string): Buffer {
   // 1. Variables de entorno (producción Vercel)
-  const envVal = process.env[envVarName] || process.env[`${envVarName}_BASE64`];
+  const envVal = certificateEnvironment(envVarName);
   if (envVal) {
     return parseEnvCertificate(envVal);
   }
@@ -273,13 +277,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: "No se encontró el cliente solicitado." }, { status: 404 });
       }
 
+      const cookieStore = await cookies();
+      if (readCustomerSession(cookieStore.get(customerCookieName(customer.business_id))?.value) !== customer.id) {
+        return NextResponse.json({ success: false, error: 'Abrí primero tu tarjeta en este celular.' }, { status: 403 });
+      }
+
       const { data: business, error: businessError } = await supabase
         .from("businesses")
-        .select("id, name, logo_url, reward_target, primary_color, reward_description, wallet_config")
+        .select("id, name, active, logo_url, reward_target, primary_color, reward_description, wallet_config")
         .eq("id", customer.business_id)
         .maybeSingle();
 
-      if (businessError || !business) {
+      if (businessError || !business || business.active === false) {
         console.warn("[Google Wallet] Comercio no encontrado para cliente:", customer.id);
         return NextResponse.json({ success: false, error: "No se encontró el comercio asociado." }, { status: 404 });
       }
@@ -361,6 +370,8 @@ export async function POST(request: Request) {
       }
     }
 
+    // Legacy arbitrary sample generation is restricted to the superadmin.
+    if (!await isSuperadmin()) return NextResponse.json({ error: 'Usá tu tarjeta para agregarla a Wallet.' }, { status: 403 });
     // Extracción dinámica del body
     const customerName = String(body.customerName || body.cliente || body.nombre || "Cliente Mimo").trim();
     const currentStamps = Number(body.currentStamps ?? body.sellos ?? 0);
@@ -419,6 +430,7 @@ export async function POST(request: Request) {
  * ?cliente=Franco&sellos=4&meta=10&comercio=CafeCentral&premio=1%20Cafe%20gratis&logoUrl=https://...
  */
 export async function GET(request: Request) {
+  if (!await isSuperadmin()) return NextResponse.json({ error: 'Prueba disponible solo para el superadmin.' }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
 

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createOrUpdateLoyaltyClass, generateSavePassUrl } from '@/lib/wallet/googleWallet';
+import { isSuperadmin } from '@/lib/authz';
 
 export async function GET() {
+    if (!await isSuperadmin()) return NextResponse.json({ error: 'Prueba disponible solo para el superadmin.' }, { status: 403 });
     try {
         const businessId = 'demo-local';
         const businessName = 'Mimo Café';

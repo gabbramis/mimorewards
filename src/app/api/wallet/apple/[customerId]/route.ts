@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession } from "@/lib/mimo-customer-session";
 import { appleWalletConfigured, createAppleWalletPass, storedImage } from "@/lib/wallet/appleWallet";
+import { readWalletLocations } from '@/lib/wallet/location-store';
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,7 @@ export async function GET(
     const supabase: any = createAdminClient();
     const { data: customer, error: customerError } = await supabase
       .from("customers")
-      .select("id, business_id, first_name, last_name, unique_code, current_stamps")
+      .select("id, business_id, first_name, last_name, unique_code, current_stamps, wallet_platform")
       .eq("id", customerId)
       .maybeSingle();
 
@@ -72,6 +73,7 @@ export async function GET(
     ]);
 
     const pass = await createAppleWalletPass({
+      locations: await readWalletLocations(customer.business_id),
       id: card.id,
       customerName: `${customer.first_name} ${customer.last_name || ""}`.trim(),
       customerCode: customer.unique_code,

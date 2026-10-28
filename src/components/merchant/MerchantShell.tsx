@@ -15,7 +15,6 @@ import {
   X,
   ChevronRight,
   Megaphone,
-  Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,6 +25,7 @@ interface MerchantShellProps {
   businessSlug?: string | null;
   businessLogo?: string | null;
   isActive?: boolean;
+  showCommunications?: boolean;
 }
 
 export default function MerchantShell({
@@ -35,6 +35,7 @@ export default function MerchantShell({
   businessSlug,
   businessLogo,
   isActive = true,
+  showCommunications = false,
 }: MerchantShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -61,12 +62,9 @@ export default function MerchantShell({
       icon: History,
       exact: false,
     },
-    {
-      href: `/comercio/${businessId}/automatizaciones`,
-      label: "Automatizaciones",
-      icon: Zap,
-      exact: false,
-    },
+    ...(showCommunications ? [{
+      href: `/comercio/${businessId}/comunicaciones`, label: 'Comunicaciones', icon: Megaphone, exact: false,
+    }] : []),
   ];
 
   const handleCopyCardLink = async () => {

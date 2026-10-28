@@ -4,6 +4,7 @@ import { canAccessBusiness, getCurrentAccess } from "@/lib/authz";
 import MerchantShell from "@/components/merchant/MerchantShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BusinessProvider } from "@/contexts/BusinessContext";
+import { getWalletLocationAccess } from '@/lib/wallet/location-store';
 
 export default async function MerchantLayout({
   children,
@@ -30,6 +31,10 @@ export default async function MerchantLayout({
   }
 
   if (!business) redirect("/login");
+  const locationAccess = await getWalletLocationAccess(businessId);
+  const { data: pilot } = locationAccess.allowed
+    ? await supabase.from('businesses').select('wallet_locations_enabled').eq('id', businessId).maybeSingle()
+    : { data: null };
 
   return (
     <BusinessProvider
@@ -43,6 +48,7 @@ export default async function MerchantLayout({
         businessSlug={business.slug}
         businessLogo={business.logo_url}
         isActive={business.active}
+        showCommunications={locationAccess.allowed && (locationAccess.superadmin || pilot?.wallet_locations_enabled === true)}
       >
         {children}
       </MerchantShell>

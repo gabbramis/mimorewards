@@ -100,7 +100,7 @@ export async function updateWalletTemplate(businessId: string): Promise<WalletTe
     }
 
     // Se considera exitoso a nivel global si al menos una plataforma actualizó o no hubo errores fatales
-    result.success = (result.google.success || !result.google.error) && (result.apple.sent > 0 || !result.apple.configured || result.apple.devicesFound === 0);
+    result.success = result.google.success && result.apple.configured && result.apple.failed === 0;
 
     console.log(`[Wallet Template Sync] Sincronización finalizada para ${businessId}:`, {
       googleSuccess: result.google.success,

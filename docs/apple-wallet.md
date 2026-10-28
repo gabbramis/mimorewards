@@ -16,4 +16,6 @@ Después de publicar, verificá la descarga de un pase real desde un iPhone. El 
 
 ## Sellos
 
-Cada descarga toma los sellos actuales de la base de datos. Para reflejar cambios en un pase ya instalado, el usuario puede volver a descargarlo; Mimo emite el mismo número de serie para esa tarjeta. Las actualizaciones automáticas dentro de Wallet requieren agregar un web service y notificaciones push de Apple, todavía pendientes.
+Cada descarga toma los sellos actuales de la base de datos. Mimo emite el mismo número de serie para esa tarjeta. El repositorio incluye el web service de actualización y el envío de push vacío por APNs; su funcionamiento requiere validación en el entorno publicado y en un iPhone real. La existencia del código o de certificados locales no confirma entrega.
+
+La configuración de cercanía, los permisos y la cola del piloto se describen en [Comunicaciones: piloto](comunicaciones-piloto.md). Los pases no utilizan mensajes de cambio para promociones.

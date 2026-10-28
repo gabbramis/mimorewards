@@ -8,6 +8,8 @@ import sharp from "sharp";
 
 import crypto from "node:crypto";
 import { appleBarcodeFormat, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
+import { certificateEnvironment } from './apple-certificates';
+import { applePassLocations, type WalletLocation } from './locations';
 
 export const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER || "pass.com.mimorewards.loyalty";
 export const TEAM_ID = process.env.APPLE_TEAM_IDENTIFIER || "K4TTF9N96K";
@@ -29,6 +31,7 @@ export type AppleCard = {
   webServiceURL?: string;
   authenticationToken?: string;
   activeCampaignMessage?: string | null;
+  locations?: WalletLocation[];
   /** Configuración JSONB de `businesses.wallet_config` (se valida internamente). */
   wallet?: unknown;
 };
@@ -49,7 +52,8 @@ export async function fetchPublicImage(url: string | null | undefined): Promise<
 }
 
 export function generatePassAuthToken(cardId: string): string {
-  const secret = process.env.WALLET_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "mimo-apple-wallet-auth-key";
+  const secret = process.env.WALLET_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error('Falta el secreto de autenticación de Wallet.');
   return crypto.createHmac("sha256", secret).update(cardId).digest("hex");
 }
 
@@ -61,7 +65,7 @@ export function verifyPassAuthToken(cardId: string, token: string): boolean {
 }
 
 export function certificate(envName: string, fileName: string): Buffer {
-  const envVal = process.env[envName] || process.env[`${envName}_BASE64`];
+  const envVal = certificateEnvironment(envName);
   if (envVal) {
     let cleaned = envVal.trim().replace(/\\n/g, "\n");
     if (!cleaned.includes("-----BEGIN") && /^[A-Za-z0-9+/=\s]+$/.test(cleaned)) {
@@ -121,9 +125,9 @@ function icon(size: number) {
 
 export function appleWalletConfigured() {
   if (
-    (process.env.APPLE_WWDR_CERT || process.env.APPLE_WALLET_WWDR_CERT_BASE64) &&
-    (process.env.APPLE_SIGNER_CERT || process.env.APPLE_WALLET_SIGNER_CERT_BASE64) &&
-    (process.env.APPLE_PRIVATE_KEY || process.env.APPLE_WALLET_SIGNER_KEY_BASE64)
+    certificateEnvironment('APPLE_WWDR_CERT') &&
+    certificateEnvironment('APPLE_SIGNER_CERT') &&
+    certificateEnvironment('APPLE_PRIVATE_KEY')
   ) {
     return true;
   }
@@ -228,7 +232,6 @@ export async function createAppleWalletPass(card: AppleCard) {
     label: "SELLOS",
     value: `${card.currentStamps} / ${card.targetStamps}`,
     textAlignment: "PKTextAlignmentRight",
-    changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
   };
 
   let trimmedLogo = logoSource;
@@ -267,6 +270,7 @@ export async function createAppleWalletPass(card: AppleCard) {
         serialNumber: card.id,
         webServiceURL,
         authenticationToken,
+        locations: applePassLocations(card.locations ?? []),
         organizationName: "Mimo Rewards",
         description: `Tarjeta de beneficios de ${card.businessName}`,
         logoText: issuerName,
@@ -279,12 +283,6 @@ export async function createAppleWalletPass(card: AppleCard) {
           secondaryFields: [{ key: "customer", label: "CLIENTE", value: headline }],
           auxiliaryFields: [{ key: "reward", label: "RECOMPENSA", value: rewardValue }],
           backFields: [
-            {
-              key: "latest_notification",
-              label: "Novedades",
-              value: card.activeCampaignMessage || "Programa de beneficios activo",
-              changeMessage: "%@",
-            },
             {
               key: "about",
               label: "Acerca de esta tarjeta",
