@@ -14,10 +14,15 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Necesitás iniciar sesión para sumar un sello desde el panel." }, { status: 401 });
 
     const body = await request.json();
-    const identifier = String(body.identifier || "").trim();
-    const method = String(body.method || "MANUAL").toUpperCase();
+    const identifier = String(body.identifier || body.customerId || body.clientId || "").trim();
+    let method = String(body.method || "MANUAL").trim().toUpperCase();
+    if (method === "QR_SCAN" || method === "QRSCAN") {
+      method = "QR";
+    } else if (method === "NFC_SCAN" || method === "NFCSCAN") {
+      method = "NFC";
+    }
     if (!identifier) return NextResponse.json({ error: "Falta el identificador del cliente." }, { status: 400 });
-    if (!['QR', 'MANUAL'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
+    if (!['QR', 'MANUAL', 'NFC'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
 
     const supabase: any = createAdminClient();
     const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
@@ -159,8 +164,12 @@ export async function POST(request: Request) {
         ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello."
         : "Sello sumado correctamente.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding stamp:", error);
-    return NextResponse.json({ error: "No se pudo sumar el sello." }, { status: 500 });
+    const rawError = error?.message || error?.details || (typeof error === "object" ? JSON.stringify(error) : String(error));
+    return NextResponse.json({
+      error: rawError || "No se pudo sumar el sello.",
+      details: error?.details || error?.hint || error?.code || null,
+    }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import {
   CheckCircle2,
@@ -23,19 +23,61 @@ interface CashierScannerProps {
 type ScanStatus = "idle" | "scanning" | "detected" | "processing" | "success" | "error";
 
 export default function CashierScanner({
-  businessId,
+  businessId: propBusinessId,
   onStampSuccess,
   onClose,
   className = "",
 }: CashierScannerProps) {
   const [status, setStatus] = useState<ScanStatus>("scanning");
   const [clientId, setClientId] = useState<string>("");
+  const [resolvedCustomerId, setResolvedCustomerId] = useState<string>("");
   const [clientDisplayName, setClientDisplayName] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [currentStamps, setCurrentStamps] = useState<number | null>(null);
+  const [activeBusinessId, setActiveBusinessId] = useState<string>(propBusinessId || "");
 
   const supabase = createClient();
+
+  // Autoresolver el businessId si no vino por props
+  useEffect(() => {
+    if (propBusinessId) {
+      setActiveBusinessId(propBusinessId);
+      return;
+    }
+    async function resolveBusiness() {
+      try {
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const bParam = params.get("businessId");
+          if (bParam) {
+            setActiveBusinessId(bParam);
+            return;
+          }
+          const match = window.location.pathname.match(/\/comercio\/([^/]+)/);
+          if (match && match[1]) {
+            setActiveBusinessId(match[1]);
+            return;
+          }
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: member } = await supabase
+            .from("business_members")
+            .select("business_id")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle();
+          if (member?.business_id) {
+            setActiveBusinessId(member.business_id);
+          }
+        }
+      } catch (err) {
+        console.warn("No se pudo resolver el businessId:", err);
+      }
+    }
+    resolveBusiness();
+  }, [propBusinessId, supabase]);
 
   // Función auxiliar para extraer el ID si el QR contiene una URL completa
   const parseQrContent = (rawText: string): string => {
@@ -86,10 +128,10 @@ export default function CashierScanner({
     try {
       let query = supabase
         .from("customers")
-        .select("id, first_name, last_name, unique_code, current_stamps");
+        .select("id, first_name, last_name, unique_code, current_stamps, business_id");
 
-      if (businessId) {
-        query = query.eq("business_id", businessId);
+      if (activeBusinessId) {
+        query = query.eq("business_id", activeBusinessId);
       }
 
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
@@ -102,6 +144,10 @@ export default function CashierScanner({
         const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
         setClientDisplayName(fullName || data.unique_code || idOrCode);
         setCurrentStamps(typeof data.current_stamps === "number" ? data.current_stamps : null);
+        setResolvedCustomerId(data.id);
+        if (!activeBusinessId && data.business_id) {
+          setActiveBusinessId(data.business_id);
+        }
         return data.id;
       }
     } catch (err) {
@@ -109,7 +155,7 @@ export default function CashierScanner({
     }
     setClientDisplayName(idOrCode);
     return idOrCode;
-  }, [businessId, supabase]);
+  }, [activeBusinessId, supabase]);
 
   // Callback de detección de QR con @yudiel/react-qr-scanner
   const handleScanSuccess = useCallback(async (rawText: string) => {
@@ -138,6 +184,7 @@ export default function CashierScanner({
     setErrorMessage("");
     setStatus("scanning");
     setClientId("");
+    setResolvedCustomerId("");
     setClientDisplayName("");
     setCurrentStamps(null);
     setIsPaused(false);
@@ -145,26 +192,43 @@ export default function CashierScanner({
 
   // 5. Conexión: Función handleAddStamp armada para conectar con Supabase / API
   const handleAddStamp = async (targetClientId: string) => {
-    if (!targetClientId) return;
+    const idToSend = resolvedCustomerId || targetClientId;
+    if (!idToSend) return;
     setStatus("processing");
     setErrorMessage("");
 
     try {
-      // 1. Llamada a la API de sellos de Mimo
+      // 1. Llamada a la API de sellos de Mimo con method 'QR'
       const response = await fetch("/api/stamps/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          identifier: targetClientId,
-          businessId: businessId || undefined,
-          method: "QR_SCAN",
+          identifier: idToSend,
+          clientId: idToSend,
+          customerId: resolvedCustomerId || undefined,
+          businessId: activeBusinessId || undefined,
+          method: "QR",
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        const text = await response.text().catch(() => "");
+        data = { error: text || `HTTP ${response.status} ${response.statusText}` };
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "No se pudo sumar el sello.");
+        const rawErrMsg =
+          data?.error ||
+          data?.message ||
+          data?.details ||
+          (typeof data === "string" ? data : JSON.stringify(data)) ||
+          `HTTP Error ${response.status}`;
+        const errorObj = new Error(rawErrMsg);
+        (errorObj as any).response = { data, status: response.status, statusText: response.statusText };
+        throw errorObj;
       }
 
       // Si fue exitoso:
@@ -174,13 +238,18 @@ export default function CashierScanner({
       setCurrentStamps(newTotal);
 
       if (onStampSuccess) {
-        onStampSuccess(targetClientId, newTotal);
+        onStampSuccess(idToSend, newTotal);
       }
     } catch (err: any) {
-      console.error("Error al sumar sello:", err);
-      setErrorMessage(
-        err?.message || "Ocurrió un error al registrar el sello en la base de datos."
-      );
+      console.error("Fallo exacto en backend:", err);
+      const rawError =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        (typeof err === "object" ? JSON.stringify(err) : String(err)) ||
+        "Error desconocido al procesar";
+
+      setErrorMessage(String(rawError));
       setStatus("detected"); // Permite reintentar
     }
   };
@@ -305,7 +374,7 @@ export default function CashierScanner({
             </div>
 
             {errorMessage && (
-              <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-xl">
+              <p className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl break-words whitespace-pre-wrap">
                 {errorMessage}
               </p>
             )}
