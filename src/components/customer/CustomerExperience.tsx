@@ -10,6 +10,7 @@ import AppleWalletButton from "@/components/AppleWalletButton";
 import GoogleWalletButton from "@/components/GoogleWalletButton";
 import { useDevicePlatform } from "@/hooks/useDevicePlatform";
 import { COUNTRY_CODES, formatCustomerSubmitPhone } from "@/lib/customer-phone";
+import QRCode from "react-qr-code";
 
 export type CustomerView = {
   id: string;
@@ -75,6 +76,7 @@ function StampGrid({ customer, context }: { customer: CustomerView; context: Nfc
 
 function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView; context: NfcContext; celebrate: boolean }) {
   const completed = customer.currentStamps >= customer.targetStamps;
+  const qrValue = customer.uniqueCode || customer.id || "CLI-000000";
   return <div className={`cx-card w-full ${celebrate ? "cx-card-celebrate" : ""}`}>
     <div className="cx-card-top">
       <span className="cx-card-label">TARJETA DE BENEFICIOS</span>
@@ -86,7 +88,25 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
     <div className="cx-card-progress"><strong>{customer.currentStamps}<span> / {customer.targetStamps}</span></strong><span>sellos</span></div>
     <StampGrid customer={customer} context={context} />
     <div className="cx-card-reward"><Gift size={17} aria-hidden="true" /><span><small>{completed ? "PREMIO DISPONIBLE" : "TU PRÓXIMO PREMIO"}</small><strong>{context.rewardDescription}</strong></span></div>
-    <div className="cx-card-bottom"><span>{customer.firstName} {customer.lastName}</span><span>{customer.uniqueCode}</span></div>
+    
+    {/* Código QR grande para escaneo en caja */}
+    <div className="my-5 flex flex-col items-center justify-center">
+      <div className="w-52 h-52 mx-auto flex items-center justify-center rounded-2xl bg-white p-2 shadow-md border border-white/20">
+        <QRCode
+          value={qrValue}
+          size={200}
+          level="M"
+          className="min-w-[200px] min-h-[200px]"
+        />
+      </div>
+      {customer.uniqueCode && (
+        <span className="mt-2.5 text-xs font-mono font-bold tracking-widest text-center" style={{ color: "var(--cx-card-text)" }}>
+          {customer.uniqueCode}
+        </span>
+      )}
+    </div>
+
+    <div className="cx-card-bottom"><span>{customer.firstName} {customer.lastName}</span></div>
   </div>;
 }
 
