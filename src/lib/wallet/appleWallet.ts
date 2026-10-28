@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import { appleBarcodeFormat, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
 import { certificateEnvironment } from './apple-certificates';
 import { applePassLocations, type WalletLocation } from './locations';
+import { resolveAppleWebServiceURL } from './apple-web-service';
 
 export const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER || "pass.com.mimorewards.loyalty";
 export const TEAM_ID = process.env.APPLE_TEAM_IDENTIFIER || "K4TTF9N96K";
@@ -253,8 +254,7 @@ export async function createAppleWalletPass(card: AppleCard) {
       .png()
       .toBuffer(),
   } : {};
-  const baseUrl = (process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com").replace(/\/$/, "");
-  const webServiceURL = card.webServiceURL || `${baseUrl}/api/apple-wallet`;
+  const webServiceURL = resolveAppleWebServiceURL(undefined, card.webServiceURL || process.env.APPLE_WALLET_WEB_SERVICE_URL);
   const authenticationToken = card.authenticationToken || generatePassAuthToken(card.id);
 
   const pass = new PKPass(

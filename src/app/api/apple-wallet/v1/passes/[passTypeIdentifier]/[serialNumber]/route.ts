@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readWalletLocations } from '@/lib/wallet/location-store';
+import { resolveAppleWebServiceURL } from '@/lib/wallet/apple-web-service';
 import {
   appleWalletConfigured,
   createAppleWalletPass,
@@ -112,6 +113,7 @@ export async function GET(
 
     // 6. Generar el pase .pkpass actualizado con activeCampaignMessage
     const passBuffer = await createAppleWalletPass({
+      webServiceURL: resolveAppleWebServiceURL(request.url, process.env.APPLE_WALLET_WEB_SERVICE_URL),
       locations: await readWalletLocations(card.business_id),
       id: card.id,
       customerName: `${customer.first_name} ${customer.last_name || ""}`.trim(),

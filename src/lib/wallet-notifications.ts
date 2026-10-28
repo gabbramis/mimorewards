@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from 'next/server';
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCustomerPassUpdate, sendBusinessCampaignPush } from "@/lib/wallet/apns";
@@ -16,6 +17,17 @@ export type CustomerNotificationParams = {
   notificationMessage?: string;
   businessName?: string;
 };
+
+/** Keep provider work alive after responding to the stamp/redeem request. */
+export function scheduleCustomerWalletUpdate(params: CustomerNotificationParams) {
+  after(async () => {
+    try {
+      await notifyCustomerWalletUpdate(params);
+    } catch {
+      console.error('[Wallet Notifications] No se pudo completar la actualización de Wallet.');
+    }
+  });
+}
 
 export type CampaignBroadcastParams = {
   businessId: string;

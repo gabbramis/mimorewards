@@ -24,6 +24,7 @@ export async function POST(
     const authToken = getAuthToken(request);
 
     if (!authToken || !verifyPassAuthToken(serialNumber, authToken)) {
+      console.warn('[Apple Wallet Registration]', { status: 401, reason: 'invalid_authentication' });
       return new Response(null, { status: 401 });
     }
 
@@ -74,7 +75,7 @@ export async function POST(
       );
 
     if (upsertRegErr) {
-      console.error("[Apple Wallet] Error guardando registro en wallet_registrations:", upsertRegErr);
+      console.error('[Apple Wallet Registration]', { status: 500, reason: 'registration_storage_failed', code: upsertRegErr.code });
       return new Response(null, { status: 500 });
     }
 
@@ -120,6 +121,7 @@ export async function POST(
     }
 
     // 200 si ya estaba registrado, 201 si es un nuevo registro
+    console.info('[Apple Wallet Registration]', { status: existing ? 200 : 201, reason: 'registered' });
     return new Response(null, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error("[Apple Wallet] Error en registro de dispositivo:", error);

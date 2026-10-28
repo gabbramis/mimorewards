@@ -34,6 +34,33 @@ const mocks = {
   googleapis: { google: { auth: { GoogleAuth: class { async getClient() { return {}; } } }, walletobjects: () => googleAPI } },
 };
 
+test('stamp Wallet updates wait for provider completion in the Next after callback', async () => {
+  const callbacks = [];
+  const completed = [];
+  mocks['next/server'] = { after: (callback) => callbacks.push(callback) };
+  mocks['@/lib/supabase/admin'] = { createAdminClient: () => ({ from: (table) => {
+    const query = {
+      select: () => query, eq: () => query,
+      maybeSingle: async () => ({ data: { name: 'Pilot' } }),
+      then: (resolve) => Promise.resolve({ data: table === 'loyalty_cards' ? [{ id: 'test-card' }] : null }).then(resolve),
+    };
+    return query;
+  } }) };
+  mocks['@/lib/wallet/apns'] = {
+    sendCustomerPassUpdate: async () => { await Promise.resolve(); completed.push('apple'); return { sent: 1, failed: 0 }; },
+  };
+  mocks['@/lib/wallet/googleWallet'] = {
+    updateLoyaltyPoints: async () => { await Promise.resolve(); completed.push('google'); return { success: true }; },
+  };
+  mocks['@/lib/wallet/sync-template'] = { updateWalletTemplate: async () => ({}) };
+  const notifications = load('src/lib/wallet-notifications.ts');
+  notifications.scheduleCustomerWalletUpdate({ customerId: 'test-customer', businessId: 'test-business', currentStamps: 3 });
+  assert.equal(callbacks.length, 1);
+  assert.deepEqual(completed, []);
+  await callbacks[0]();
+  assert.deepEqual(completed, ['apple', 'google']);
+});
+
 function load(relative) {
   const filename = resolve(root, relative);
   if (cache.has(filename)) return cache.get(filename).exports;
@@ -96,9 +123,11 @@ test('actual signed Apple pass preserves proximity and never includes promotiona
       id: 'test-card', customerName: 'Test Customer', customerCode: 'CLI-TEST', businessName: 'Pilot',
       currentStamps: 2, targetStamps: 5, rewardDescription: 'Test reward', locations,
       activeCampaignMessage: 'This promotion must not appear',
+      webServiceURL: 'https://www.mimorewards.com/api/apple-wallet',
     }));
     assert.deepEqual(pass.locations, [{ latitude: -34.9056557, longitude: -56.1706692, relevantText: 'Local cercano' }]);
     assert.equal(JSON.stringify(pass).includes('changeMessage'), false);
+    assert.equal(pass.webServiceURL, 'https://www.mimorewards.com/api/apple-wallet');
     assert.equal(JSON.stringify(pass).includes('This promotion must not appear'), false);
     assert.equal(apple.verifyPassAuthToken('test-card', pass.authenticationToken), true);
 

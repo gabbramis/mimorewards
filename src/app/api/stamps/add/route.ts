@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessBusiness } from "@/lib/authz";
-import { notifyCustomerWalletUpdate } from "@/lib/wallet-notifications";
+import { scheduleCustomerWalletUpdate } from "@/lib/wallet-notifications";
 import { normalizeUruguayMobile, cleanUruguayPhone, getUruguayMobileVariants } from "@/lib/customer-phone";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     });
 
     // Notificar a los dispositivos Apple Wallet y Google Wallet registrados
-    notifyCustomerWalletUpdate({
+    scheduleCustomerWalletUpdate({
       customerId: customer.id,
       businessId: customer.business_id,
       currentStamps: newStamps,
@@ -149,8 +149,6 @@ export async function POST(request: Request) {
       notificationMessage: isFull
         ? `¡Tarjeta completada! Comenzaste un nuevo ciclo con 1 de ${maxStamps} sellos.`
         : `¡Sumaste sellos! Llevás ${newStamps} de ${maxStamps}.`,
-    }).catch((pushErr) => {
-      console.error("[Wallet Notifications] Error triggering wallet push:", pushErr);
     });
 
     return NextResponse.json({

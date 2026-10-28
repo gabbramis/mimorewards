@@ -4,11 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession } from "@/lib/mimo-customer-session";
 import { appleWalletConfigured, createAppleWalletPass, storedImage } from "@/lib/wallet/appleWallet";
 import { readWalletLocations } from '@/lib/wallet/location-store';
+import { resolveAppleWebServiceURL } from '@/lib/wallet/apple-web-service';
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ customerId: string }> },
 ) {
   const { customerId } = await params;
@@ -73,6 +74,7 @@ export async function GET(
     ]);
 
     const pass = await createAppleWalletPass({
+      webServiceURL: resolveAppleWebServiceURL(request.url, process.env.APPLE_WALLET_WEB_SERVICE_URL),
       locations: await readWalletLocations(customer.business_id),
       id: card.id,
       customerName: `${customer.first_name} ${customer.last_name || ""}`.trim(),

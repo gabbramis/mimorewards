@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWalletLocations, applePassLocations, googleMerchantLocations, canManageWalletLocations } from './locations.ts';
 import { certificateEnvironment } from './apple-certificates.ts';
+import { resolveAppleWebServiceURL } from './apple-web-service.ts';
+
+test('Apple callbacks use the actual download origin, independently of a marketing URL', () => {
+  assert.equal(resolveAppleWebServiceURL('https://www.mimorewards.com/api/wallet/apple/test'), 'https://www.mimorewards.com/api/apple-wallet');
+  assert.equal(resolveAppleWebServiceURL('https://preview.example.com/api/wallet/apple/test'), 'https://preview.example.com/api/apple-wallet');
+  assert.equal(resolveAppleWebServiceURL(), 'https://www.mimorewards.com/api/apple-wallet');
+  assert.equal(resolveAppleWebServiceURL('https://preview.example.com', 'https://www.mimorewards.com/api/wallet/'), 'https://www.mimorewards.com/api/wallet');
+});
+
+test('Apple callbacks reject local, insecure and malformed URLs instead of issuing a broken service link', () => {
+  for (const value of ['http://localhost:3000/api/apple-wallet', 'https://localhost/api/apple-wallet', 'https://127.0.0.1/api/apple-wallet', 'https://10.0.0.1/api/apple-wallet', 'https://172.16.0.1/api/apple-wallet', 'https://wallet.local/api/apple-wallet', 'https://user:secret@example.com/wallet', 'https://example.com/wallet?token=x', 'https://example.com/wallet#test', 'invalid']) {
+    assert.throws(() => resolveAppleWebServiceURL(undefined, value));
+  }
+});
 
 const location = (overrides = {}) => ({
   id: '11111111-1111-4111-8111-111111111111', name: 'Coffe Dreams', address: 'Dirección de prueba',

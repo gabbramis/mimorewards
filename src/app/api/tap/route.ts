@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession, readTapTestToken } from "@/lib/mimo-customer-session";
 import { findNfcTag } from "@/lib/mimo-nfc";
-import { notifyCustomerWalletUpdate } from "@/lib/wallet-notifications";
+import { scheduleCustomerWalletUpdate } from "@/lib/wallet-notifications";
 
 type TapResult = {
   accepted: boolean;
@@ -62,14 +62,12 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
   const result = firstResult(data);
 
   if (result?.accepted) {
-    notifyCustomerWalletUpdate({
+    scheduleCustomerWalletUpdate({
       customerId,
       businessId: tag.business_id,
       currentStamps: result.current_stamps,
       targetStamps: result.target_stamps,
       notificationMessage: `¡Sumaste sellos! Llevás ${result.current_stamps} de ${result.target_stamps}.`,
-    }).catch((pushErr) => {
-      console.error("[Wallet Notifications] Error triggering pass update push on NFC tap:", pushErr);
     });
   }
 

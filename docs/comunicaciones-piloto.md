@@ -36,6 +36,10 @@ Los endpoints de generación de muestras requieren superadmin; el endpoint de si
 
 La configuración de proveedor presente no verifica firma válida, certificado vigente, permisos de emisor Google, instalación o funcionamiento de APNs. APNs y Google deben validarse desde el entorno publicado y en dispositivos reales.
 
+Los pases Apple usan como servicio el origen HTTPS real desde el que se descargan, más `/api/apple-wallet`, para evitar depender de una URL de marketing o del dominio sin `www` que redirige. Si se requiere un servicio fijo, configurar `APPLE_WALLET_WEB_SERVICE_URL` con una URL HTTPS pública completa sin `/v1` ni redirecciones. Los pases que ya se instalaron conservan su URL anterior hasta recibir una versión nueva: después de desplegar esta corrección, volver a agregarlos/actualizarlos desde Safari antes de probar sellos. El trabajo de actualización por sellos, canjes y altas usa `after()` para completar las llamadas al proveedor después de responder; sigue sin ser una cola durable de sellos.
+
+Si Wallet no cambia el saldo, verificar primero que el iPhone figure en `wallet_registrations` para el negocio. Los logs del servidor etiquetados `[Apple Wallet Registration]` distinguen registro aceptado, autenticación rechazada y error de almacenamiento sin imprimir el token del dispositivo ni la credencial del pase. Un contador de registros en cero impide dar por validada la actualización automática.
+
 Verificación de solo lectura del entorno conectado (27 de octubre de 2026): se encontró el negocio activo **Coffe & Dreams**, slug `coffe-dreams`, ID `918af233-f7fd-445f-8de0-d3fcab60c1f4`. Después de que el usuario aplicó la migración, se confirmó la disponibilidad de las columnas de habilitación, las tablas y la función de resumen de la migración 020. El agente no aplicó cambios remotos. Esta comprobación no reemplaza la prueba funcional de guardado y sincronización publicada.
 
 ## Prueba sin NFC físico
