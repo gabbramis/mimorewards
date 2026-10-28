@@ -69,9 +69,8 @@ export default function MerchantShell({
 
   const handleCopyCardLink = async () => {
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
       const slugOrId = businessSlug || businessId;
-      const cardUrl = `${origin}/t/${slugOrId}`;
+      const cardUrl = `https://mimorewards.com/t/${slugOrId}`;
       await navigator.clipboard.writeText(cardUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);

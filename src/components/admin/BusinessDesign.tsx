@@ -224,7 +224,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   walletUploadUrl?: string;
 }) {
   const locked = planType === 'inicial';
-  type SectionId = 'identidad' | 'contenido' | 'codigo' | 'sellos' | 'registro' | 'preview';
+  type SectionId = 'identidad' | 'contenido' | 'codigo' | 'sellos' | 'preview';
   const [activeSection, setActiveSection] = useState<SectionId | null>('identidad');
   const toggleSection = (section: SectionId) => setActiveSection(current => (current === section ? null : section));
   const [walletTab, setWalletTab] = useState<'apple' | 'google'>('apple');
@@ -273,7 +273,6 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const isContenido = activeSection === 'contenido';
   const isCodigo = activeSection === 'codigo';
   const isSellos = activeSection === 'sellos';
-  const isRegistro = activeSection === 'registro';
   const isPreview = activeSection === 'preview';
   const logoError = wallet?.logoUrl && !isHttpsUrl(wallet.logoUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
   const bannerError = wallet?.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
@@ -687,35 +686,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           )}
         </section>
 
-        {/* Pantalla de Registro */}
-        <SectionShell
-          number={walletEditable ? '05' : '03'} id="pantalla-registro" title="Pantalla de Registro"
-          subtitle="Textos de bienvenida que ve el cliente al afiliarse."
-          icon={<TypeIcon size={16} />}
-          active={isRegistro} onActivate={() => toggleSection('registro')}
-          summary={<span className="max-w-[160px] truncate text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{value.registroTitulo || 'Sin título'}</span>}
-        >
-          <TextField
-            label="Subtítulo (texto pequeño superior)"
-            value={value.registroSubtitulo}
-            onChange={registroSubtitulo => update({ registroSubtitulo })}
-            placeholder="TU TARJETA EMPIEZA ACÁ"
-            maxLength={60}
-            hint="Si lo dejás vacío se usa «TU TARJETA EMPIEZA ACÁ»."
-            disabled={disabled}
-          />
-          <TextField
-            label="Título principal"
-            value={value.registroTitulo}
-            onChange={registroTitulo => update({ registroTitulo })}
-            placeholder="Cada visita cuenta."
-            maxLength={80}
-            hint="Se muestra con el color principal de tu marca. Si lo dejás vacío se usa «Cada visita cuenta.»."
-            disabled={disabled}
-          />
-        </SectionShell>
-
-        {/* 03 Vista previa del cliente */}
+        {/* 05 Vista previa del cliente */}
         <section
           className={`rounded-2xl transition-all duration-200 overflow-hidden ${
             isPreview
@@ -729,7 +700,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isPreview ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
               }`}>
-                {walletEditable ? '06' : '04'}
+                {walletEditable ? '05' : '03'}
               </span>
               <div>
                 <div className="flex items-center gap-2">
