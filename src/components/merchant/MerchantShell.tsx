@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
   Megaphone,
+  QrCode,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -49,6 +50,12 @@ export default function MerchantShell({
       label: "Dashboard",
       icon: LayoutDashboard,
       exact: true,
+    },
+    {
+      href: `/comercio/${businessId}/escaner`,
+      label: "Escáner",
+      icon: QrCode,
+      exact: false,
     },
     {
       href: `/comercio/${businessId}/clientes`,

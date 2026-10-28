@@ -45,6 +45,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
     const navItems = mode === "merchant" && businessId
         ? [
             [`/comercio/${businessId}`, "Dashboard", LayoutDashboard],
+            [`/comercio/${businessId}/escaner`, "Escáner", QrCode],
             [`/comercio/${businessId}/clientes`, "Clientes", Users],
             [`/comercio/${businessId}/historial`, "Historial de movimientos", History],
         ] as const
