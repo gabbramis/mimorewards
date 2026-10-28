@@ -37,10 +37,13 @@ export default function CashierScanner({
   const [clientDisplayName, setClientDisplayName] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
+  const [cameraErrorType, setCameraErrorType] = useState<"permission" | "not_readable" | "general" | null>(null);
+  const [isResettingCamera, setIsResettingCamera] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [currentStamps, setCurrentStamps] = useState<number | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const observerRef = useRef<MutationObserver | null>(null);
   const scannerContainerId = "cashier-qr-scanner-view";
   const supabase = createClient();
 
@@ -150,19 +153,74 @@ export default function CashierScanner({
     await lookupCustomerDetails(detectedId);
   }, [status, isPaused, lookupCustomerDetails]);
 
+  // 1. Atributos del Video (Crucial para iOS/Safari):
+  // Safari bloquea la reproducción y deja la pantalla en negro si el video no tiene playsInline, autoPlay y muted
+  const injectVideoAttributes = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const container = document.getElementById(scannerContainerId);
+    if (!container) return;
+    const videos = container.querySelectorAll("video");
+    videos.forEach((video) => {
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+      video.setAttribute("autoplay", "true");
+      video.setAttribute("muted", "true");
+      video.playsInline = true;
+      video.autoplay = true;
+      video.muted = true;
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+    });
+  }, [scannerContainerId]);
+
+  // Observer para inyectar los atributos en cuanto html5-qrcode agregue el elemento <video>
+  const setupVideoObserver = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const container = document.getElementById(scannerContainerId);
+    if (!container) return;
+
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    injectVideoAttributes();
+
+    const observer = new MutationObserver(() => {
+      injectVideoAttributes();
+    });
+
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["playsinline", "webkit-playsinline", "autoplay", "muted"],
+    });
+
+    observerRef.current = observer;
+  }, [injectVideoAttributes, scannerContainerId]);
+
   // Iniciar la cámara trasera con html5-qrcode
   const startCamera = useCallback(async () => {
     setCameraError("");
+    setCameraErrorType(null);
     setStatus("scanning");
     setIsPaused(false);
     setClientId("");
     setClientDisplayName("");
     setCurrentStamps(null);
 
-    // Asegurar que el elemento exista en DOM
-    await new Promise((r) => setTimeout(r, 100));
+    // 3. Tiempo de Montaje: retraso de 300ms para darle tiempo a Safari de renderizar el contenedor antes de inyectar el video
+    await new Promise((r) => setTimeout(r, 300));
 
     try {
+      const container = document.getElementById(scannerContainerId);
+      if (!container) {
+        throw new Error("No se encontró el contenedor de escaneo en la pantalla.");
+      }
+
+      setupVideoObserver();
+
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(scannerContainerId, {
           formatsToSupport: [
@@ -183,6 +241,7 @@ export default function CashierScanner({
         } catch {
           // ignore
         }
+        injectVideoAttributes();
         return;
       }
 
@@ -200,16 +259,16 @@ export default function CashierScanner({
       };
 
       try {
-        // Intentar primero con cámara trasera (environment)
+        // 2. Forzar Cámara Trasera: pedir explícitamente facingMode: "environment" (evitando { exact: "environment" })
         await qrCode.start(
           { facingMode: "environment" },
           config,
           onScanSuccess,
           undefined
         );
-      } catch (err) {
-        console.warn("Fallo cámara trasera, intentando con cámara por defecto:", err);
-        // Fallback a cualquier cámara disponible (ej: webcam de desktop o frontal)
+      } catch (err: any) {
+        console.warn("Fallo cámara trasera o no disponible, intentando con facingMode user:", err);
+        // Fallback a cámara frontal/disponible si el dispositivo no tiene trasera o falla el selector
         await qrCode.start(
           { facingMode: "user" },
           config,
@@ -217,25 +276,105 @@ export default function CashierScanner({
           undefined
         );
       }
+
+      // Inyección inmediata y verificación periódica inicial de atributos
+      injectVideoAttributes();
+      let checks = 0;
+      const interval = setInterval(() => {
+        injectVideoAttributes();
+        checks += 1;
+        if (checks >= 8) clearInterval(interval);
+      }, 150);
+
     } catch (err: any) {
       console.error("Error al acceder a la cámara:", err);
-      setCameraError(
-        err?.message || "No se pudo acceder a la cámara. Verificá los permisos del navegador."
-      );
+
+      const errName = err?.name || "";
+      const errMsg = String(err?.message || err || "");
+      const isNotAllowed =
+        errName === "NotAllowedError" ||
+        errName === "PermissionDeniedError" ||
+        errMsg.toLowerCase().includes("permission") ||
+        errMsg.toLowerCase().includes("notallowed");
+
+      const isNotReadable =
+        errName === "NotReadableError" ||
+        errName === "TrackStartError" ||
+        errMsg.toLowerCase().includes("notreadable") ||
+        errMsg.toLowerCase().includes("could not start video source");
+
+      // 4. Reinicio de Permisos: Manejo específico de NotReadableError y NotAllowedError
+      if (isNotAllowed) {
+        setCameraErrorType("permission");
+        setCameraError(
+          "Permiso de cámara denegado. Habilitá el acceso a la cámara en los ajustes de Safari para escanear."
+        );
+      } else if (isNotReadable) {
+        setCameraErrorType("not_readable");
+        setCameraError(
+          "La cámara está bloqueada o en uso por otra app/pestaña de iOS. Tocá el botón para reinicializarla limpiamente."
+        );
+      } else {
+        setCameraErrorType("general");
+        setCameraError(
+          errMsg || "No se pudo acceder a la cámara. Verificá los permisos del navegador."
+        );
+      }
+
       setStatus("error");
     }
-  }, [onScanSuccess]);
+  }, [onScanSuccess, scannerContainerId, setupVideoObserver, injectVideoAttributes]);
 
-  // Detener la cámara limpiamente
+  // Detener la cámara limpiamente y liberar hardware en iOS/Safari
   const stopCamera = useCallback(async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch (err) {
-        console.warn("Error al detener la cámara:", err);
-      }
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
     }
-  }, []);
+
+    if (typeof document !== "undefined") {
+      const container = document.getElementById(scannerContainerId);
+      const videos = container?.querySelectorAll("video");
+      videos?.forEach((video) => {
+        if (video.srcObject) {
+          try {
+            const stream = video.srcObject as MediaStream;
+            stream.getTracks().forEach((track) => {
+              track.stop();
+            });
+            video.srcObject = null;
+          } catch {}
+        }
+      });
+    }
+
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+      } catch (err) {
+        console.warn("Error al detener html5-qrcode:", err);
+      }
+      scannerRef.current = null;
+    }
+  }, [scannerContainerId]);
+
+  // 4. Reinicio de Permisos y cámara limpia
+  const handleCleanRestart = async () => {
+    setIsResettingCamera(true);
+    setCameraError("");
+    setCameraErrorType(null);
+    try {
+      await stopCamera();
+      // Pausa para que iOS libere el hardware de la cámara
+      await new Promise((r) => setTimeout(r, 400));
+      await startCamera();
+    } finally {
+      setIsResettingCamera(false);
+    }
+  };
 
   // Reiniciar escaneo para escanear otro cliente
   const handleScanAgain = async () => {
@@ -249,6 +388,7 @@ export default function CashierScanner({
     if (scannerRef.current && scannerRef.current.isScanning) {
       try {
         scannerRef.current.resume();
+        injectVideoAttributes();
         return;
       } catch (err) {
         console.warn("Error al resumir cámara, reiniciando:", err);
@@ -299,10 +439,18 @@ export default function CashierScanner({
     }
   };
 
-  // Inicializar cámara al montar el componente
+  // 3. Tiempo de Montaje: Inicializar cámara con retraso (300ms) al montar el componente
   useEffect(() => {
-    startCamera();
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        startCamera();
+      }
+    }, 300);
+
     return () => {
+      isMounted = false;
+      clearTimeout(timer);
       stopCamera();
     };
   }, [startCamera, stopCamera]);
@@ -395,21 +543,36 @@ export default function CashierScanner({
             </div>
           )}
 
-          {/* Overlay: Error de permisos o cámara */}
+          {/* Overlay: Error de permisos o cámara con opción de reinicio limpio */}
           {status === "error" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-[#1F1F1F]/90 text-white text-center">
-              <AlertTriangle size={36} className="text-[#FF1F2D] mb-3" />
-              <p className="text-xs font-semibold leading-relaxed mb-4">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-5 bg-[#1F1F1F]/95 text-white text-center z-20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10 text-[#FF1F2D] mb-2.5 border border-red-500/20">
+                <AlertTriangle size={24} />
+              </div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white mb-1">
+                {cameraErrorType === "permission"
+                  ? "Permiso de cámara"
+                  : cameraErrorType === "not_readable"
+                  ? "Cámara no disponible"
+                  : "Error de cámara"}
+              </h4>
+              <p className="text-xs text-gray-300 leading-relaxed mb-4 max-w-[260px]">
                 {cameraError || "No se pudo activar la cámara trasera."}
               </p>
               <button
                 type="button"
-                onClick={startCamera}
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-black px-4 py-2 text-xs font-bold hover:bg-gray-100 transition active:scale-95 cursor-pointer"
+                onClick={handleCleanRestart}
+                disabled={isResettingCamera}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] text-white px-4 py-2.5 text-xs font-extrabold shadow-md hover:bg-[#e01826] transition active:scale-95 cursor-pointer disabled:opacity-50"
               >
-                <RefreshCw size={14} />
-                Reintentar
+                <RefreshCw size={13} className={isResettingCamera ? "animate-spin" : ""} />
+                <span>{isResettingCamera ? "Reinicializando..." : "Reiniciar cámara limpiamente"}</span>
               </button>
+              {cameraErrorType === "permission" && (
+                <p className="mt-3 text-[10px] text-gray-400 max-w-[240px] leading-tight">
+                  En Safari: tocá <strong>aA</strong> en la barra de direcciones → <em>Configuración del sitio web</em> → <em>Cámara: Permitir</em>.
+                </p>
+              )}
             </div>
           )}
         </div>
