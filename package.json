@@ -17,6 +17,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "@types/qrcode": "^1.5.6",
+    "@yudiel/react-qr-scanner": "^2.6.0",
     "framer-motion": "^13.4.4",
     "googleapis": "^185.0.0",
     "html5-qrcode": "^2.3.8",
