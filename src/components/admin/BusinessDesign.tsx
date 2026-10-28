@@ -15,12 +15,14 @@ export type DesignValue = {
   source: 'collection' | 'custom' | 'logo' | null;
   catalogId: string | null; completedUrl: string | null; pendingUrl: string | null;
   effect: PendingEffect; customFile: File | null;
+  registroSubtitulo: string; registroTitulo: string;
 };
 
 export const emptyDesign: DesignValue = {
   primaryColor: '#FF1F2D', textColor: '#FFFFFF', accentColor: '#FFFFFF',
   source: null, catalogId: null, completedUrl: null, pendingUrl: null,
   effect: defaultPendingEffect, customFile: null,
+  registroSubtitulo: 'TU TARJETA EMPIEZA ACÁ', registroTitulo: 'Cada visita cuenta.',
 };
 
 function contrastRatio(foreground: string, background: string) {
@@ -108,6 +110,10 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{children}</span>;
 }
 
+function ProBadge() {
+  return <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">⭐ Exclusivo Plan Pro</span>;
+}
+
 /** Sube un PNG al endpoint indicado (sin límite de peso propio) y devuelve su URL pública. Permite pegar una URL externa como alternativa. */
 function ImageUploadField({ label, kind, url, onChange, endpoint, disabled, round, error, hint, placeholder }: {
   label: string; kind: 'logo' | 'banner'; url: string; onChange: (url: string) => void; endpoint?: string;
@@ -173,7 +179,6 @@ function SectionShell({ number, id, title, subtitle, icon, active, onActivate, s
 }) {
   return (
     <section
-      onClick={onActivate}
       className={`rounded-2xl transition-all duration-200 overflow-hidden ${
         active
           ? 'border-2 border-[#FF1F2D] bg-white p-6 shadow-md ring-4 ring-red-500/5'
@@ -181,7 +186,7 @@ function SectionShell({ number, id, title, subtitle, icon, active, onActivate, s
       }`}
       aria-labelledby={id}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex cursor-pointer items-center justify-between" onClick={onActivate}>
         <div className="flex items-center gap-3">
           <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${active ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'}`}>{number}</span>
           <div>
@@ -208,7 +213,9 @@ function SectionShell({ number, id, title, subtitle, icon, active, onActivate, s
   );
 }
 
-export function BusinessDesign({ value, onChange, logoPreview, businessName, rewardTarget, rewardDescription, disabled, wallet, onWalletChange, walletUploadUrl }: {
+export function BusinessDesign({ value, onChange, logoPreview, businessName, rewardTarget, rewardDescription, disabled, wallet, onWalletChange, walletUploadUrl, planType }: {
+  /** Plan del comercio. Con 'inicial' se bloquean colores, logo personalizado e ícono del sello. */
+  planType?: string;
   value: DesignValue; onChange: (next: DesignValue) => void; logoPreview: string | null; businessName: string;
   rewardTarget: number; rewardDescription: string; disabled: boolean;
   /** Configuración de Apple/Google Wallet. Si no se informa, se ocultan los campos específicos de wallet. */
@@ -216,7 +223,10 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   /** Endpoint POST para subir el logo/banner de Wallet. Si falta, solo se permite pegar URLs. */
   walletUploadUrl?: string;
 }) {
-  const [activeSection, setActiveSection] = useState<'identidad' | 'contenido' | 'codigo' | 'sellos' | 'preview'>('identidad');
+  const locked = planType === 'inicial';
+  type SectionId = 'identidad' | 'contenido' | 'codigo' | 'sellos' | 'registro' | 'preview';
+  const [activeSection, setActiveSection] = useState<SectionId | null>('identidad');
+  const toggleSection = (section: SectionId) => setActiveSection(current => (current === section ? null : section));
   const [walletTab, setWalletTab] = useState<'apple' | 'google'>('apple');
   const walletEditable = !!wallet && !!onWalletChange;
   const patchWallet = (part: Partial<WalletConfig>) => { if (wallet && onWalletChange) onWalletChange({ ...wallet, ...part }); };
@@ -249,8 +259,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const previewContext: NfcContext = useMemo(() => ({
     nfcId: 'PREVIEW', businessId: 'preview', businessName: businessName || 'Tu negocio', businessLogo: logoPreview || '', active: true,
     rewardTarget: target, rewardDescription: rewardDescription || 'Tu recompensa', primaryColor: value.primaryColor,
-    textColor: value.textColor, accentColor: value.accentColor, stampCompletedUrl: completed || '', stampPendingUrl: pending || '',
-  }), [businessName, logoPreview, target, rewardDescription, value.primaryColor, value.textColor, value.accentColor, completed, pending]);
+    textColor: value.textColor, accentColor: value.accentColor, backgroundColor: value.primaryColor, stampCompletedUrl: completed || '', stampPendingUrl: pending || '',
+    registroSubtitulo: value.registroSubtitulo, registroTitulo: value.registroTitulo,
+  }), [businessName, logoPreview, target, rewardDescription, value.primaryColor, value.textColor, value.accentColor, value.registroSubtitulo, value.registroTitulo, completed, pending]);
   const previewCustomer: CustomerView = useMemo(() => ({
     id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: 'CLI-12345',
     currentStamps: previewStage === 'reward' ? target : previewStage === 'stamp' ? Math.max(1, progress) : progress,
@@ -262,6 +273,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const isContenido = activeSection === 'contenido';
   const isCodigo = activeSection === 'codigo';
   const isSellos = activeSection === 'sellos';
+  const isRegistro = activeSection === 'registro';
   const isPreview = activeSection === 'preview';
   const logoError = wallet?.logoUrl && !isHttpsUrl(wallet.logoUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
   const bannerError = wallet?.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
@@ -273,7 +285,6 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
 
         {/* 01 Identidad visual */}
         <section
-          onClick={() => setActiveSection('identidad')}
           className={`rounded-2xl transition-all duration-200 overflow-hidden ${
             isIdentidad
               ? 'border-2 border-[#FF1F2D] bg-white p-6 shadow-md ring-4 ring-red-500/5'
@@ -281,7 +292,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           }`}
           aria-labelledby="identidad-visual"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex cursor-pointer items-center justify-between" onClick={() => toggleSection('identidad')}>
             <div className="flex items-center gap-3">
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isIdentidad ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
@@ -365,7 +376,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                   <div className="space-y-4 border-t border-gray-100 pt-5">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900">Banner / imagen destacada</h3>
+                        <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">Banner / imagen destacada{locked && <ProBadge />}</h3>
                         <p className="text-xs text-gray-500">Apple Wallet: stripImage · Google Wallet: heroImage.</p>
                       </div>
                       <button
@@ -373,7 +384,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                         role="switch"
                         aria-checked={wallet.bannerEnabled}
                         aria-label="Activar banner horizontal"
-                        disabled={disabled}
+                        disabled={disabled || locked}
                         onClick={e => { e.stopPropagation(); patchWallet({ bannerEnabled: !wallet.bannerEnabled }); }}
                         className={`relative h-6 w-11 shrink-0 rounded-full transition ${wallet.bannerEnabled ? 'bg-[#FF1F2D]' : 'bg-gray-300'} disabled:opacity-50`}
                       >
@@ -392,7 +403,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                           url={wallet.bannerUrl}
                           onChange={bannerUrl => patchWallet({ bannerUrl })}
                           endpoint={walletUploadUrl}
-                          disabled={disabled}
+                          disabled={disabled || locked}
                           error={bannerError}
                           placeholder="https://tudominio.com/banner.png"
                           hint="Imagen horizontal. En Apple se muestra detrás de los sellos."
@@ -413,7 +424,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               number="02" id="contenido-textos" title="Contenido y textos de la tarjeta"
               subtitle="Titular principal y texto de la recompensa."
               icon={<TypeIcon size={16} />}
-              active={isContenido} onActivate={() => setActiveSection('contenido')}
+              active={isContenido} onActivate={() => toggleSection('contenido')}
               summary={<span className="max-w-[160px] truncate text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{wallet.headline || 'Sin titular'}</span>}
             >
               <TextField
@@ -445,7 +456,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               number="03" id="codigo-escaneo" title="Código de escaneo y lectura"
               subtitle="Formato del código y texto visible debajo."
               icon={<ScanLine size={16} />}
-              active={isCodigo} onActivate={() => setActiveSection('codigo')}
+              active={isCodigo} onActivate={() => toggleSection('codigo')}
               summary={<span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{BARCODE_OPTIONS.find(o => o.value === wallet.barcodeFormat)?.label}</span>}
             >
               <label className="block text-sm font-semibold text-gray-700">
@@ -478,7 +489,6 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
 
         {/* Diseño de los sellos */}
         <section
-          onClick={() => setActiveSection('sellos')}
           className={`rounded-2xl transition-all duration-200 overflow-hidden ${
             isSellos
               ? 'border-2 border-[#FF1F2D] bg-white p-6 shadow-md ring-4 ring-red-500/5'
@@ -486,7 +496,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           }`}
           aria-labelledby="diseno-sellos"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex cursor-pointer items-center justify-between" onClick={() => toggleSection('sellos')}>
             <div className="flex items-center gap-3">
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isSellos ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
@@ -527,7 +537,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                   <button
                     key={source}
                     type="button"
-                    disabled={disabled}
+                    disabled={disabled || (locked && source !== 'collection')}
                     aria-pressed={value.source === source}
                     onClick={(e) => { e.stopPropagation(); update({ source, effect: source === 'logo' ? defaultPendingEffect : value.effect }); }}
                     className={`rounded-xl border p-3 text-left text-sm font-semibold transition ${
@@ -537,6 +547,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     }`}
                   >
                     {label}
+                    {locked && source !== 'collection' && <span className="mt-1.5 block"><ProBadge /></span>}
                   </button>
                 ))}
               </div>
@@ -597,7 +608,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     <input
                       type="file"
                       accept="image/png"
-                      disabled={disabled}
+                      disabled={disabled || locked}
                       onChange={e => { const file = e.target.files?.[0] || null; update({ customFile: file }); setPreview(null); }}
                       className="mt-2 block w-full rounded-xl border border-gray-200 p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-red-50 file:px-3 file:py-2 file:font-semibold file:text-[#FF1F2D]"
                     />
@@ -676,9 +687,36 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           )}
         </section>
 
+        {/* Pantalla de Registro */}
+        <SectionShell
+          number={walletEditable ? '05' : '03'} id="pantalla-registro" title="Pantalla de Registro"
+          subtitle="Textos de bienvenida que ve el cliente al afiliarse."
+          icon={<TypeIcon size={16} />}
+          active={isRegistro} onActivate={() => toggleSection('registro')}
+          summary={<span className="max-w-[160px] truncate text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{value.registroTitulo || 'Sin título'}</span>}
+        >
+          <TextField
+            label="Subtítulo (texto pequeño superior)"
+            value={value.registroSubtitulo}
+            onChange={registroSubtitulo => update({ registroSubtitulo })}
+            placeholder="TU TARJETA EMPIEZA ACÁ"
+            maxLength={60}
+            hint="Si lo dejás vacío se usa «TU TARJETA EMPIEZA ACÁ»."
+            disabled={disabled}
+          />
+          <TextField
+            label="Título principal"
+            value={value.registroTitulo}
+            onChange={registroTitulo => update({ registroTitulo })}
+            placeholder="Cada visita cuenta."
+            maxLength={80}
+            hint="Se muestra con el color principal de tu marca. Si lo dejás vacío se usa «Cada visita cuenta.»."
+            disabled={disabled}
+          />
+        </SectionShell>
+
         {/* 03 Vista previa del cliente */}
         <section
-          onClick={() => setActiveSection('preview')}
           className={`rounded-2xl transition-all duration-200 overflow-hidden ${
             isPreview
               ? 'border-2 border-[#FF1F2D] bg-white p-6 shadow-md ring-4 ring-red-500/5'
@@ -686,12 +724,12 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           }`}
           aria-labelledby="vista-previa"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex cursor-pointer items-center justify-between" onClick={() => toggleSection('preview')}>
             <div className="flex items-center gap-3">
               <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition ${
                 isPreview ? 'bg-[#FF1F2D] text-white shadow-xs' : 'bg-gray-100 text-gray-700'
               }`}>
-                {walletEditable ? '05' : '03'}
+                {walletEditable ? '06' : '04'}
               </span>
               <div>
                 <div className="flex items-center gap-2">
@@ -839,9 +877,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
 
       </div>
 
-      {/* Columna Derecha: Previsualización en vivo fija (Sticky) */}
-      <div className="lg:col-span-5 lg:sticky lg:top-6 space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      {/* Columna Derecha: Previsualización en vivo fija (Sticky e independiente) */}
+      <div className="lg:col-span-5 lg:sticky lg:top-6 self-start w-full space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit max-h-[calc(100vh-3rem)] overflow-y-auto">
           {/* Header de la previsualización */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div className="flex items-center gap-2">

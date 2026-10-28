@@ -48,6 +48,22 @@ function readableBrand(hex: string) {
   return "#232421";
 }
 
+function renderRegistrationTitle(rawTitle?: string) {
+  const title = (rawTitle || "Cada visita cuenta.").trim();
+  const lastSpaceIndex = title.lastIndexOf(" ");
+  if (lastSpaceIndex === -1) {
+    return <span style={{ color: "#111827" }}>{title}</span>;
+  }
+  const firstPart = title.slice(0, lastSpaceIndex);
+  const secondPart = title.slice(lastSpaceIndex + 1);
+  return (
+    <>
+      <span style={{ color: "#111827" }}>{firstPart} </span>
+      <span style={{ color: "var(--cx-brand)" }}>{secondPart}</span>
+    </>
+  );
+}
+
 function messageFor(status: string | null, firstName: string) {
   if (status === "success") return { title: `¡Un sello más, ${firstName}!`, detail: "Tu tarjeta ya está actualizada.", tone: "success" };
   if (status === "cooldown") return { title: "Tu visita ya está registrada", detail: "Hay una espera de 3 horas entre sellos. Tu progreso está a salvo.", tone: "neutral" };
@@ -271,7 +287,14 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     window.location.href = passUrl;
   }
 
-  const theme = context ? { "--cx-card": context.primaryColor, "--cx-card-text": context.textColor, "--cx-card-accent": context.accentColor, "--cx-brand": readableBrand(context.primaryColor) } as CSSProperties : undefined;
+  const cardBg = context?.backgroundColor || context?.primaryColor;
+  const theme = context ? {
+    "--cx-card": context.primaryColor,
+    "--cx-card-text": context.textColor,
+    "--cx-card-accent": context.accentColor,
+    "--cx-brand": readableBrand(context.primaryColor),
+    backgroundColor: cardBg,
+  } as CSSProperties : undefined;
   const visibleCustomer = customer;
   const statusMessage = visibleCustomer ? messageFor(stampStatus, visibleCustomer.firstName) : null;
   const rewardReady = Boolean(visibleCustomer && visibleCustomer.currentStamps >= visibleCustomer.targetStamps);
@@ -292,7 +315,10 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
 
       {phase === "loading" ? <LoadingView /> : phase === "unavailable" ? <section className="cx-state cx-unavailable"><span className="cx-state-icon"><LockKeyhole size={22} /></span><h1>Este programa no está disponible</h1><p>{error || "Pedile al comercio un enlace válido para sumarte."}</p></section> : context && <div className="cx-content" aria-live="polite">
         {phase === "register" && <>
-          <div className="cx-heading"><span className="cx-overline">TU TARJETA EMPIEZA ACÁ</span><h1>Cada visita<br /><em>cuenta.</em></h1></div>
+          <div className="cx-heading">
+            <span className="cx-overline" style={{ color: "var(--cx-brand)" }}>{context.registroSubtitulo || "TU TARJETA EMPIEZA ACÁ"}</span>
+            <h1>{renderRegistrationTitle(context.registroTitulo)}</h1>
+          </div>
           <section className="cx-form-card"><FormTag className="cx-form-fields" onSubmit={preview ? undefined : event => submit(event as FormEvent<HTMLFormElement>, false)}>
             {error && <p className="cx-alert cx-alert-error" role="alert">{error}</p>}
             <div className="cx-field-pair"><InputField label="Nombre" name="firstName" value={form.firstName} onChange={updateField} placeholder="Tu nombre" autoComplete="given-name" disabled={preview} /><InputField label="Apellido" name="lastName" value={form.lastName} onChange={updateField} placeholder="Tu apellido" autoComplete="family-name" disabled={preview} /></div>

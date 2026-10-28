@@ -53,7 +53,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_target, reward_description, primary_color, active, slug")
+      .select("id, name, reward_target, reward_description, primary_color, active, slug, plan_type")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -222,7 +222,15 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           </span>
           <div className="mt-3">
             <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
-              {totalCustomers}
+              {business.plan_type === "inicial" ? (
+                <>
+                  <span className="text-xs font-medium text-[#737373]">Clientes: </span>
+                  {totalCustomers}
+                  <span className="text-xs font-medium text-[#737373]"> / 100 (Plan Inicial)</span>
+                </>
+              ) : (
+                totalCustomers
+              )}
             </div>
             <p className="mt-2 text-xs text-[#737373]">
               Registrados en esta sucursal

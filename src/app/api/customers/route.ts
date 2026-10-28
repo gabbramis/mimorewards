@@ -24,6 +24,35 @@ function makeUniqueCode() {
   return `CLI-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
+const PLAN_CUSTOMER_LIMITS: Record<string, number | null> = {
+  inicial: 100,
+  pro: null,
+  black: null,
+};
+const PLAN_LIMIT_ERROR = "El comercio ha alcanzado el límite de clientes de su plan. Contacte al administrador.";
+
+/** Devuelve true si el comercio puede afiliar un cliente nuevo según su plan. */
+async function canAddCustomer(supabase: any, businessId: string): Promise<boolean> {
+  const { data: business, error } = await supabase
+    .from("businesses")
+    .select("plan_type")
+    .eq("id", businessId)
+    .single();
+  if (error) throw error;
+
+  const planType = business?.plan_type ?? "inicial";
+  const limit = planType in PLAN_CUSTOMER_LIMITS ? PLAN_CUSTOMER_LIMITS[planType] : PLAN_CUSTOMER_LIMITS.inicial;
+  if (limit === null) return true;
+
+  const { count, error: countError } = await supabase
+    .from("customers")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId);
+  if (countError) throw countError;
+
+  return (count ?? 0) < limit;
+}
+
 async function creditStamp(supabase: any, customer: any, context: any, idempotencyKey: string) {
   const { data, error } = await supabase.rpc("record_loyalty_stamp", {
     p_customer_id: customer.id,
@@ -142,7 +171,12 @@ export async function POST(request: Request) {
       }, customer.id, context.businessId);
     }
 
-    // 3. Flujo de registro nuevo (con inserción segura y manejo de concurrencia)
+    // 3. Verificación del límite de clientes según el plan del comercio
+    if (!(await canAddCustomer(supabase, context.businessId))) {
+      return NextResponse.json({ error: PLAN_LIMIT_ERROR, code: "PLAN_LIMIT_REACHED" }, { status: 403 });
+    }
+
+    // 4. Flujo de registro nuevo (con inserción segura y manejo de concurrencia)
     const acceptedAt = new Date().toISOString();
     let createdCustomer: any = null;
 

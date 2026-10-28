@@ -35,6 +35,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
     const primaryColor = color(data.get('primaryColor'));
     const textColor = color(data.get('cardTextColor'));
     const accentColor = color(data.get('cardAccentColor'));
+    const registroSubtitulo = String(data.get('registroSubtitulo') ?? '').trim().slice(0, 60) || 'TU TARJETA EMPIEZA ACÁ';
+    const registroTitulo = String(data.get('registroTitulo') ?? '').trim().slice(0, 80) || 'Cada visita cuenta.';
     if (!name || name.length > 120 || !Number.isInteger(rewardTarget) || rewardTarget < 4 || rewardTarget > 15 || !primaryColor || !textColor || !accentColor) {
       return NextResponse.json({ error: 'Revisá el nombre, los colores y la meta de 4 a 15 sellos.' }, { status: 400 });
     }
@@ -99,6 +101,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
       stamp_source: source || null, stamp_catalog_id: selectedId, stamp_completed_url: completedUrl, stamp_pending_url: pendingUrl,
       stamp_pending_effect: source === 'custom' || source === 'logo' ? effect : null,
       wallet_config: walletConfig,
+      registro_subtitulo: registroSubtitulo, registro_titulo: registroTitulo,
     }).eq('id', businessId).select('id, name').single();
     if (updateError || !updated) throw updateError || new Error('No se pudo actualizar el negocio.');
 

@@ -1,10 +1,28 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X, Minus, Trash2, Link2, User } from "lucide-react";
+import {
+    Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X,
+    Minus, Trash2, Link2, User, ArrowLeft, Store, Building2, ChevronRight, Loader2
+} from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
+
+type Business = {
+    id: string;
+    name: string;
+    logo_url?: string | null;
+    reward_target?: number;
+    reward_description?: string;
+    primary_color?: string | null;
+    active?: boolean;
+    plan_type?: string;
+};
+
+function initials(name: string) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "?";
+}
 
 function getInactivityStatus(lastVisitAt?: string | null, createdAt?: string | null) {
     const visitDate = lastVisitAt || createdAt;
@@ -60,39 +78,61 @@ function getInactivityStatus(lastVisitAt?: string | null, createdAt?: string | n
     }
 }
 
-export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMProps = {}) {
+export function ContactsCRM({ businessId: initialBusinessId, merchantMode = false }: ContactsCRMProps = {}) {
     const router = useRouter();
+    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(true);
+    const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
+    const [businessSearchTerm, setBusinessSearchTerm] = useState("");
+
     const [searchTerm, setSearchTerm] = useState("");
     const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "inactive">("all");
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [loadError, setLoadError] = useState(null);
-    const [stampSuccessId, setStampSuccessId] = useState(null);
-    const [toastMessage, setToastMessage] = useState(null);
-    const [testLinkLoadingId, setTestLinkLoadingId] = useState(null);
-    const [redeemLoadingId, setRedeemLoadingId] = useState(null);
-    const [testLinks, setTestLinks] = useState({});
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [stampSuccessId, setStampSuccessId] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [testLinkLoadingId, setTestLinkLoadingId] = useState<string | null>(null);
+    const [redeemLoadingId, setRedeemLoadingId] = useState<string | null>(null);
+    const [testLinks, setTestLinks] = useState<Record<string, string>>({});
 
     // Edit Mode states
     const [isEditMode, setIsEditMode] = useState(false);
-    const [editingCustomer, setEditingCustomer] = useState(null);
+    const [editingCustomer, setEditingCustomer] = useState<any>(null);
 
     const supabase = createClient();
-    const getTargetStamps = (customer) => customer.businesses?.reward_target || 10;
+    const getTargetStamps = (customer: any) => customer.businesses?.reward_target || selectedBusiness?.reward_target || 10;
 
-    const showToast = (msg) => {
+    const showToast = (msg: string) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 3000);
     };
+
+    const fetchBusinesses = useCallback(async () => {
+        setIsLoadingBusinesses(true);
+        try {
+            const response = await fetch('/api/admin/businesses', { cache: 'no-store' });
+            const payload = await response.json();
+            if (response.ok) {
+                const list: Business[] = payload.businesses || [];
+                setBusinesses(list);
+                if (initialBusinessId) {
+                    const found = list.find(b => b.id === initialBusinessId);
+                    if (found) setSelectedBusiness(found);
+                }
+            }
+        } catch (err) {
+            console.error("Error al cargar negocios:", err);
+        } finally {
+            setIsLoadingBusinesses(false);
+        }
+    }, [initialBusinessId]);
 
     const fetchCustomers = useCallback(async () => {
         setIsLoading(true);
         setLoadError(null);
         try {
-            const url = businessId
-                ? `/api/admin/customers?businessId=${encodeURIComponent(businessId)}`
-                : '/api/admin/customers';
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await fetch('/api/admin/customers', { cache: 'no-store' });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || 'No se pudo cargar la lista de clientes.');
             setCustomers(payload.customers || []);
@@ -101,17 +141,43 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         } finally {
             setIsLoading(false);
         }
-    }, [businessId]);
+    }, []);
 
     useEffect(() => {
-        // Hydrate the customer table once the client has mounted.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchBusinesses();
         fetchCustomers();
-    }, [fetchCustomers]);
+    }, [fetchBusinesses, fetchCustomers]);
 
-    const handleManualStamp = async (id, currentStamps, targetStamps) => {
+    // Conteo de clientes por negocio
+    const customerCountsByBusiness = useMemo(() => {
+        const counts = new Map<string, number>();
+        customers.forEach((c: any) => {
+            if (c.business_id) {
+                counts.set(c.business_id, (counts.get(c.business_id) || 0) + 1);
+            }
+        });
+        return counts;
+    }, [customers]);
+
+    // Comercios filtrados por búsqueda en la Vista 1
+    const filteredBusinesses = useMemo(() => {
+        const query = businessSearchTerm.trim().toLowerCase();
+        if (!query) return businesses;
+        return businesses.filter(b => b.name?.toLowerCase().includes(query));
+    }, [businesses, businessSearchTerm]);
+
+    // Negocio activo actual
+    const currentBusiness = selectedBusiness || (initialBusinessId ? businesses.find(b => b.id === initialBusinessId) : null);
+
+    // Clientes exclusivos del negocio seleccionado
+    const businessCustomers = useMemo(() => {
+        if (!currentBusiness) return [];
+        return customers.filter((c: any) => c.business_id === currentBusiness.id);
+    }, [customers, currentBusiness]);
+
+    const handleManualStamp = async (id: string, currentStamps: number, targetStamps: number) => {
         // Optimistic UI update
-        setCustomers(customers.map(c => {
+        setCustomers(customers.map((c: any) => {
             if (c.id === id) {
                 return { ...c, current_stamps: Math.min(targetStamps, currentStamps + 1) };
             }
@@ -150,7 +216,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         }, 2000);
     };
 
-    const handleRedeem = async (id) => {
+    const handleRedeem = async (id: string) => {
         if (!window.confirm('¿Confirmás el canje de la recompensa?')) return;
         setRedeemLoadingId(id);
         try {
@@ -161,7 +227,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || 'No se pudo canjear la recompensa.');
-            setCustomers(current => current.map(customer => customer.id === id ? { ...customer, current_stamps: payload.currentStamps ?? 0 } : customer));
+            setCustomers((current: any) => current.map((customer: any) => customer.id === id ? { ...customer, current_stamps: payload.currentStamps ?? 0 } : customer));
             showToast(payload.message || 'Recompensa canjeada correctamente.');
         } catch (redeemError) {
             showToast(redeemError instanceof Error ? redeemError.message : 'No se pudo canjear la recompensa.');
@@ -170,7 +236,7 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         }
     };
 
-    const handleTestTapLink = async (customerId) => {
+    const handleTestTapLink = async (customerId: string) => {
         setTestLinkLoadingId(customerId);
         try {
             const response = await fetch('/api/admin/test-tap-link', {
@@ -190,20 +256,20 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         }
     };
 
-    // Contadores para chips
+    // Contadores para chips basados en el negocio seleccionado
     const counts = useMemo(() => {
         let active = 0, risk = 0, inactive = 0;
-        customers.forEach((c: any) => {
+        businessCustomers.forEach((c: any) => {
             const st = getInactivityStatus(c.last_visit_at, c.created_at);
             if (st.status === "active") active++;
             else if (st.status === "risk") risk++;
             else if (st.status === "inactive") inactive++;
         });
-        return { all: customers.length, active, risk, inactive };
-    }, [customers]);
+        return { all: businessCustomers.length, active, risk, inactive };
+    }, [businessCustomers]);
 
     // Filtrado con semáforo y búsqueda
-    const filtered = useMemo(() => customers.filter((c: any) => {
+    const filtered = useMemo(() => businessCustomers.filter((c: any) => {
         const matchesSearch =
             ((c.first_name + " " + c.last_name).toLowerCase().includes(searchTerm.toLowerCase())) ||
             (c.unique_code?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -213,10 +279,10 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
         if (activeFilter === "all") return true;
         const st = getInactivityStatus(c.last_visit_at, c.created_at);
         return st.status === activeFilter;
-    }), [customers, searchTerm, activeFilter]);
+    }), [businessCustomers, searchTerm, activeFilter]);
 
     return (
-        <div className="p-6 sm:p-10 max-w-6xl mx-auto font-sans">
+        <div className="w-full px-4 sm:px-8 py-6 font-sans">
             {toastMessage && (
                 <div className="fixed top-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 flex items-center gap-2 animate-in slide-in-from-top-2">
                     <CheckCircle2 className="text-green-400 w-4 h-4" />
@@ -224,225 +290,422 @@ export function ContactsCRM({ businessId, merchantMode = false }: ContactsCRMPro
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-8">
+            {/* VISTA 1: LISTA / GRILLA DE NEGOCIOS (selectedBusiness === null) */}
+            {!currentBusiness ? (
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Directorio de Clientes</h1>
-                    <p className="text-gray-500 text-sm mt-1.5 font-medium">Gestiona tu base de clientes y sella manualmente aquellos sin batería.</p>
-                </div>
-                <div className="flex gap-3 items-center">
-                    {!merchantMode && <button
-                        onClick={() => setIsEditMode(!isEditMode)}
-                        className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition shadow-sm border ${isEditMode ? 'bg-gray-900 text-white border-gray-900 ring-2 ring-gray-900 ring-offset-2' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                    >
-                        <Settings size={18} className={isEditMode ? "animate-spin-slow" : ""} />
-                        {isEditMode ? 'Editando...' : 'Modo Edición'}
-                    </button>}
-                    <button onClick={fetchCustomers} className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-sm">
-                        <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} />
-                        Refrescar
-                    </button>
-                    {businessId && <a href={`/t/${businessId}`} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm"><UserPlus size={18} /> Alta</a>}
-                </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                {loadError && (
-                    <div role="alert" className="p-4 border-b border-red-100 bg-red-50 text-red-700 text-sm font-medium">
-                        {loadError} <button onClick={fetchCustomers} className="underline font-semibold">Reintentar</button>
-                    </div>
-                )}
-                <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
-                    <div className="relative flex-1 max-w-md">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                            <Search size={18} />
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Directorio de Clientes</h1>
+                            <p className="text-gray-500 text-sm mt-1.5 font-medium">
+                                Seleccioná un comercio para ver y gestionar su base de clientes.
+                            </p>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Buscar por código CLI, nombre del cliente o teléfono..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-sm text-gray-900 font-medium"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+                        <div className="flex items-center gap-3">
+                            <div className="relative w-full sm:w-64">
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={businessSearchTerm}
+                                    onChange={(e) => setBusinessSearchTerm(e.target.value)}
+                                    placeholder="Buscar comercio…"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-sm text-gray-900"
+                                />
+                            </div>
+                            <button
+                                onClick={() => { fetchBusinesses(); fetchCustomers(); }}
+                                className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-xs"
+                                title="Actualizar datos"
+                            >
+                                <RefreshCcw size={16} className={isLoadingBusinesses ? "animate-spin" : ""} />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Botones (Tabs) superiores de filtrado por semáforo */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("all")}
-                            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                                activeFilter === "all"
-                                    ? "bg-gray-900 text-white shadow-xs"
-                                    : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
-                            }`}
-                        >
-                            Todos ({counts.all})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("active")}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                                activeFilter === "active"
-                                    ? "bg-emerald-600 text-white shadow-xs"
-                                    : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            }`}
-                        >
-                            <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
-                            Nuevos / Activos ({counts.active})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("risk")}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                                activeFilter === "risk"
-                                    ? "bg-slate-700 text-white shadow-xs"
-                                    : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            }`}
-                        >
-                            <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
-                            Riesgo ({counts.risk})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("inactive")}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                                activeFilter === "inactive"
-                                    ? "bg-rose-600 text-white shadow-xs"
-                                    : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                            }`}
-                        >
-                            <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
-                            Inactivos ({counts.inactive})
-                        </button>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider">
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">CÓDIGO</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">CLIENTE</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">PROMOS WHATSAPP</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">CUMPLEAÑOS</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">PROGRESO</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100">ÚLTIMA VISITA</th>
-                                <th className="px-6 py-4 font-bold border-b border-gray-100 text-right">ACCIONES</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {isLoading && customers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-500">
-                                        <RefreshCcw size={24} className="animate-spin mx-auto mb-2 text-gray-300" />
-                                        Cargando base de clientes de Supabase...
-                                    </td>
-                                </tr>
-                            ) : filtered.map(c => {
-                                const inactivity = getInactivityStatus(c.last_visit_at, c.created_at);
+                    {isLoadingBusinesses ? (
+                        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+                            <Loader2 size={32} className="animate-spin mb-3 text-[#FF1F2D]" />
+                            <p className="text-sm font-medium">Cargando comercios…</p>
+                        </div>
+                    ) : businesses.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-20 text-center">
+                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-[#FF1F2D]">
+                                <Store size={32} strokeWidth={1.8} />
+                            </div>
+                            <h2 className="text-lg font-bold text-gray-900">No hay comercios registrados</h2>
+                            <p className="mt-1 text-sm text-gray-500 max-w-sm">
+                                Creá tu primer comercio para poder asociar y gestionar clientes.
+                            </p>
+                        </div>
+                    ) : filteredBusinesses.length === 0 ? (
+                        <div className="flex flex-col items-center py-16 text-center text-gray-500">
+                            <Search size={32} className="mb-2 text-gray-300" />
+                            <p className="font-semibold text-gray-900">Sin resultados para &ldquo;{businessSearchTerm}&rdquo;</p>
+                            <button onClick={() => setBusinessSearchTerm("")} className="mt-2 text-xs font-semibold text-[#FF1F2D] hover:underline">
+                                Limpiar búsqueda
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {filteredBusinesses.map((b) => {
+                                const totalClients = customerCountsByBusiness.get(b.id) || 0;
                                 return (
-                                <tr key={c.id} className="hover:bg-gray-50/80 transition group">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="font-mono text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md border border-gray-200">{c.unique_code}</span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
-                                                title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
-                                            >
-                                                <User size={16} className={inactivity.iconColor} strokeWidth={2} />
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold text-gray-900">{c.first_name} {c.last_name}</div>
-                                                <div className="text-gray-400 text-xs mt-0.5 font-medium">{c.phone || "Sin teléfono"}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold">
-                                        <span className={c.whatsapp_marketing_opt_in === true ? "text-green-700" : "text-gray-500"}>
-                                            {c.whatsapp_marketing_opt_in === true ? "Autorizadas" : "No autorizadas"}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{c.birthdate}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                        <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${Math.min(100, (c.current_stamps / getTargetStamps(c)) * 100)}%` }}></div>
-                                            </div>
-                                    <span className="text-xs font-bold text-gray-700 w-8">{c.current_stamps}/{getTargetStamps(c)}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-400 mt-1 font-medium">{c.total_visits || 0} visitas totales</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${inactivity.badgeClass}`}>
-                                                <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
-                                                {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'Sin visitas'}
-                                            </span>
-                                            <span className="text-[11px] text-gray-400">({inactivity.badgeText})</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {isEditMode ? (
-                                                <button
-                                                    onClick={() => setEditingCustomer({ ...c })}
-                                                    className="inline-flex items-center justify-center gap-1.5 text-blue-700 text-sm font-bold bg-blue-50 hover:bg-blue-100 border border-transparent hover:border-blue-200 px-4 py-2 rounded-xl transition-all shadow-sm"
-                                                    title="Editar Cliente"
-                                                >
-                                                    <Edit3 size={16} /> Editar
-                                                </button>
-                                            ) : stampSuccessId === c.id ? (
-                                                <span className="inline-flex items-center justify-center gap-1.5 text-green-700 text-sm font-bold bg-green-100 px-4 py-2 rounded-xl transition-all">
-                                                    <CheckCircle2 size={16} /> ¡Agregado!
-                                                </span>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleTestTapLink(c.id)}
-                                                        disabled={testLinkLoadingId === c.id}
-                                                        className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-                                                        title="Genera un enlace temporal que usa el flujo NFC real"
-                                                    >
-                                                        <Link2 size={14} /> {testLinkLoadingId === c.id ? 'Creando…' : 'Link prueba'}
-                                                    </button>
-                                                    {testLinks[c.id] && <a href={testLinks[c.id]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">Abrir</a>}
-                                                    {c.current_stamps >= getTargetStamps(c) && <button
-                                                        onClick={() => handleRedeem(c.id)}
-                                                        disabled={redeemLoadingId === c.id}
-                                                        className="bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                                                    >
-                                                        {redeemLoadingId === c.id ? 'Canjeando…' : 'Canjear'}
-                                                    </button>}
-                                                    <button
-                                                        onClick={() => handleManualStamp(c.id, c.current_stamps, getTargetStamps(c))}
-                                                        disabled={c.current_stamps >= getTargetStamps(c)}
-                                                        className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-3 py-2 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                                                    >
-                                                        +1 Manual
-                                                    </button>
+                                    <div
+                                        key={b.id}
+                                        onClick={() => {
+                                            setSelectedBusiness(b);
+                                            setSearchTerm("");
+                                            setActiveFilter("all");
+                                        }}
+                                        className="group relative flex flex-col justify-between p-5 rounded-2xl border border-gray-200 bg-white hover:border-[#FF1F2D] hover:shadow-md transition-all duration-150 cursor-pointer"
+                                    >
+                                        <div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    {b.logo_url ? (
+                                                        <img
+                                                            src={b.logo_url}
+                                                            alt={b.name}
+                                                            className="h-12 w-12 rounded-xl object-cover border border-gray-200 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="h-12 w-12 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs text-base"
+                                                            style={{ backgroundColor: b.primary_color || "#FF1F2D" }}
+                                                        >
+                                                            {initials(b.name)}
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-bold text-gray-900 group-hover:text-[#FF1F2D] text-base truncate transition-colors">
+                                                            {b.name}
+                                                        </h3>
+                                                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                                                            {b.reward_target || 10} sellos · {b.reward_description || "Beneficio"}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            )}
+                                                <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                                    b.active !== false ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"
+                                                }`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${b.active !== false ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                                    {b.active !== false ? "Activo" : "Inactivo"}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
+                                                <span className="font-semibold text-gray-500">
+                                                    Clientes registrados:
+                                                </span>
+                                                <span className="font-bold text-gray-900 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
+                                                    {totalClients} {totalClients === 1 ? "cliente" : "clientes"}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
+
+                                        <div className="mt-4 pt-3 flex items-center justify-between text-xs font-semibold text-[#FF1F2D]">
+                                            <span>Ver clientes del comercio</span>
+                                            <ChevronRight size={16} className="transition-transform group-hover:translate-x-1" />
+                                        </div>
+                                    </div>
                                 );
                             })}
-                        </tbody>
-                    </table>
-                </div>
-
-                {!isLoading && !loadError && filtered.length === 0 && (
-                    <div className="p-12 text-center flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-4">
-                            <Search size={32} />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">Sin clientes registrados</h3>
-                        <p className="text-gray-500 font-medium max-w-sm mt-1">No hay clientes por ahora. Usa el botón &quot;Ver App Registro&quot; para dar de alta tu primer cliente con Supabase.</p>
+                    )}
+                </div>
+            ) : (
+                /* VISTA 2: CLIENTES DEL NEGOCIO SELECCIONADO */
+                <div>
+                    {/* Botón Volver a negocios */}
+                    {!initialBusinessId && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelectedBusiness(null);
+                                setSearchTerm("");
+                            }}
+                            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-[#FF1F2D] transition-colors mb-5 group cursor-pointer"
+                        >
+                            <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                            <span>← Volver a negocios</span>
+                        </button>
+                    )}
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                {currentBusiness.logo_url && (
+                                    <img
+                                        src={currentBusiness.logo_url}
+                                        alt={currentBusiness.name}
+                                        className="h-10 w-10 rounded-xl object-cover border border-gray-200 shadow-2xs"
+                                    />
+                                )}
+                                <div>
+                                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                                        Clientes de {currentBusiness.name}
+                                    </h1>
+                                    <p className="text-gray-500 text-xs sm:text-sm mt-0.5 font-medium">
+                                        Gestiona tu base de clientes y sella manualmente aquellos sin batería.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2.5 items-center flex-wrap">
+                            {!merchantMode && (
+                                <button
+                                    onClick={() => setIsEditMode(!isEditMode)}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs border ${
+                                        isEditMode
+                                            ? 'bg-gray-900 text-white border-gray-900 ring-2 ring-gray-900 ring-offset-1'
+                                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <Settings size={15} className={isEditMode ? "animate-spin-slow" : ""} />
+                                    {isEditMode ? 'Editando...' : 'Modo Edición'}
+                                </button>
+                            )}
+                            <button
+                                onClick={fetchCustomers}
+                                className="bg-white border border-gray-200 text-gray-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 hover:bg-gray-50 transition shadow-xs"
+                            >
+                                <RefreshCcw size={15} className={isLoading ? "animate-spin" : ""} />
+                                Refrescar
+                            </button>
+                            <a
+                                href={`/t/${currentBusiness.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-xs"
+                            >
+                                <UserPlus size={15} /> Alta cliente
+                            </a>
+                        </div>
                     </div>
-                )}
-            </div>
+
+                    {loadError && (
+                        <div role="alert" className="mb-4 p-3.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-medium">
+                            {loadError} <button onClick={fetchCustomers} className="underline font-semibold ml-1">Reintentar</button>
+                        </div>
+                    )}
+
+                    {/* Toolbar de Filtros y Búsqueda (sin marco de tarjeta) */}
+                    <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="relative flex-1 max-w-md">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                <Search size={16} />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Buscar por código CLI, nombre del cliente o teléfono..."
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-xs sm:text-sm text-gray-900 font-medium"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Botones de filtrado por semáforo */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("all")}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                    activeFilter === "all"
+                                        ? "bg-gray-900 text-white shadow-xs"
+                                        : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                                }`}
+                            >
+                                Todos ({counts.all})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("active")}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                    activeFilter === "active"
+                                        ? "bg-emerald-600 text-white shadow-xs"
+                                        : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                }`}
+                            >
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Nuevos / Activos ({counts.active})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("risk")}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                    activeFilter === "risk"
+                                        ? "bg-slate-700 text-white shadow-xs"
+                                        : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                }`}
+                            >
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                Riesgo ({counts.risk})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("inactive")}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                    activeFilter === "inactive"
+                                        ? "bg-rose-600 text-white shadow-xs"
+                                        : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                }`}
+                            >
+                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                Inactivos ({counts.inactive})
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Tabla Full-Width con scroll horizontal y padding compacto py-2 */}
+                    <div className="overflow-x-auto w-full border-t border-b border-gray-200">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/70 text-gray-500 text-[11px] uppercase tracking-wider border-b border-gray-200">
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CÓDIGO</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CLIENTE</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">PROMOS WHATSAPP</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CUMPLEAÑOS</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">PROGRESO</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap">ÚLTIMA VISITA</th>
+                                    <th className="px-4 py-2 font-bold whitespace-nowrap text-right">ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {isLoading && businessCustomers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-xs">
+                                            <RefreshCcw size={20} className="animate-spin mx-auto mb-2 text-gray-300" />
+                                            Cargando clientes de este comercio…
+                                        </td>
+                                    </tr>
+                                ) : filtered.map((c: any) => {
+                                    const inactivity = getInactivityStatus(c.last_visit_at, c.created_at);
+                                    return (
+                                        <tr key={c.id} className="hover:bg-gray-50/70 transition group">
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <span className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">
+                                                    {c.unique_code}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div
+                                                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
+                                                        title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
+                                                    >
+                                                        <User size={13} className={inactivity.iconColor} strokeWidth={2.2} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-semibold text-gray-900 text-xs leading-tight">
+                                                            {c.first_name} {c.last_name}
+                                                        </div>
+                                                        <div className="text-gray-400 text-[11px] font-medium leading-tight mt-0.5">
+                                                            {c.phone || "Sin teléfono"}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-xs font-semibold">
+                                                <span className={c.whatsapp_marketing_opt_in === true ? "text-emerald-700" : "text-gray-400"}>
+                                                    {c.whatsapp_marketing_opt_in === true ? "Autorizadas" : "No autorizadas"}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 font-medium">
+                                                {c.birthdate || "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                                        <div
+                                                            className="h-full bg-blue-500 transition-all duration-300"
+                                                            style={{ width: `${Math.min(100, (c.current_stamps / getTargetStamps(c)) * 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-gray-700">
+                                                        {c.current_stamps}/{getTargetStamps(c)}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[10px] text-gray-400 font-medium mt-0.5 leading-tight">
+                                                    {c.total_visits || 0} visitas totales
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 font-medium">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${inactivity.badgeClass}`}>
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
+                                                        {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'Sin visitas'}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">({inactivity.badgeText})</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    {isEditMode ? (
+                                                        <button
+                                                            onClick={() => setEditingCustomer({ ...c })}
+                                                            className="inline-flex items-center justify-center gap-1 text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-all"
+                                                            title="Editar Cliente"
+                                                        >
+                                                            <Edit3 size={13} /> Editar
+                                                        </button>
+                                                    ) : stampSuccessId === c.id ? (
+                                                        <span className="inline-flex items-center justify-center gap-1 text-green-700 text-xs font-bold bg-green-100 px-2.5 py-1 rounded-lg transition-all">
+                                                            <CheckCircle2 size={13} /> ¡Agregado!
+                                                        </span>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <button
+                                                                onClick={() => handleTestTapLink(c.id)}
+                                                                disabled={testLinkLoadingId === c.id}
+                                                                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 px-2 py-1 rounded-lg text-xs font-semibold transition-colors"
+                                                                title="Genera un enlace temporal que usa el flujo NFC real"
+                                                            >
+                                                                <Link2 size={13} /> {testLinkLoadingId === c.id ? '…' : 'Link prueba'}
+                                                            </button>
+                                                            {testLinks[c.id] && (
+                                                                <a href={testLinks[c.id]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">
+                                                                    Abrir
+                                                                </a>
+                                                            )}
+                                                            {c.current_stamps >= getTargetStamps(c) && (
+                                                                <button
+                                                                    onClick={() => handleRedeem(c.id)}
+                                                                    disabled={redeemLoadingId === c.id}
+                                                                    className="bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+                                                                >
+                                                                    {redeemLoadingId === c.id ? 'Canjeando…' : 'Canjear'}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleManualStamp(c.id, c.current_stamps, getTargetStamps(c))}
+                                                                disabled={c.current_stamps >= getTargetStamps(c)}
+                                                                className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+                                                            >
+                                                                +1 Manual
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {!isLoading && !loadError && filtered.length === 0 && (
+                        <div className="py-12 text-center flex flex-col items-center justify-center">
+                            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-2">
+                                <Search size={24} />
+                            </div>
+                            <h3 className="text-base font-bold text-gray-900 mb-0.5">Sin clientes en este comercio</h3>
+                            <p className="text-gray-500 text-xs font-medium max-w-sm">
+                                Este comercio aún no tiene clientes afiliados o no hay coincidencias con la búsqueda actual.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* MODAL DE EDICIÓN */}
             {editingCustomer && (

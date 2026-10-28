@@ -13,7 +13,8 @@ type Business = {
   id: string; name: string; logo_url: string | null; active: boolean; reward_target: number; reward_description: string | null;
   primary_color: string | null; card_text_color: string | null; card_accent_color: string | null;
   stamp_source: DesignValue['source']; stamp_catalog_id: string | null; stamp_completed_url: string | null;
-  stamp_pending_url: string | null; stamp_pending_effect: unknown; wallet_config: unknown;
+  stamp_pending_url: string | null; stamp_pending_effect: unknown; wallet_config: unknown; plan_type?: string | null;
+  registro_subtitulo?: string | null; registro_titulo?: string | null;
 };
 
 export default function EditBusinessForm({ business }: { business: Business }) {
@@ -21,7 +22,7 @@ export default function EditBusinessForm({ business }: { business: Business }) {
   const initial = useMemo(() => ({
     name: business.name, active: business.active, rewardTarget: business.reward_target || 10,
     rewardDescription: business.reward_description || '', logoUrl: business.logo_url,
-    design: { ...emptyDesign, primaryColor: business.primary_color || emptyDesign.primaryColor, textColor: business.card_text_color || '#FFFFFF', accentColor: business.card_accent_color || '#FFFFFF', source: business.stamp_source, catalogId: business.stamp_catalog_id, completedUrl: business.stamp_completed_url, pendingUrl: business.stamp_pending_url, effect: validateEffect(business.stamp_pending_effect) } as DesignValue,
+    design: { ...emptyDesign, primaryColor: business.primary_color || emptyDesign.primaryColor, textColor: business.card_text_color || '#FFFFFF', accentColor: business.card_accent_color || '#FFFFFF', source: business.stamp_source, catalogId: business.stamp_catalog_id, completedUrl: business.stamp_completed_url, pendingUrl: business.stamp_pending_url, effect: validateEffect(business.stamp_pending_effect), registroSubtitulo: business.registro_subtitulo || emptyDesign.registroSubtitulo, registroTitulo: business.registro_titulo || emptyDesign.registroTitulo } as DesignValue,
     wallet: sanitizeWalletConfig(business.wallet_config),
   }), [business]);
   const [name, setName] = useState(initial.name);
@@ -85,6 +86,7 @@ export default function EditBusinessForm({ business }: { business: Business }) {
     const data = new FormData();
     data.set('name', name.trim()); data.set('active', String(active)); data.set('rewardTarget', String(rewardTarget)); data.set('rewardDescription', rewardDescription.trim());
     data.set('primaryColor', design.primaryColor); data.set('cardTextColor', design.textColor); data.set('cardAccentColor', design.accentColor);
+    data.set('registroSubtitulo', design.registroSubtitulo); data.set('registroTitulo', design.registroTitulo);
     data.set('stampSource', design.source || ''); data.set('stampCatalogId', design.catalogId || ''); data.set('stampEffect', JSON.stringify(design.effect));
     data.set('walletConfig', JSON.stringify(wallet));
     if (logoFile) data.set('logo', logoFile);
@@ -268,6 +270,7 @@ export default function EditBusinessForm({ business }: { business: Business }) {
       onWalletChange={setWallet}
       walletUploadUrl={`/api/admin/businesses/${business.id}/wallet-image`}
       disabled={saving}
+      planType={business.plan_type || 'inicial'}
     />
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
     {success && <p role="status" className="rounded-xl bg-green-50 p-4 text-sm font-semibold text-green-700">{success}</p>}
