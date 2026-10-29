@@ -12,13 +12,27 @@ En mobile el teléfono ocupa hasta 39vw y entra desde abajo a la derecha. La tar
 
 La composición mantiene el crema de marca, con corazones grandes recortados en los bordes y parallax sutil. “Siempre con ellos.” incluye una explicación breve. Durante la salida, tarjeta y teléfono se retiran mientras se expande una forma roja; “Hacé que vuelvan.” aparece antes de que el rojo cubra el viewport, enlazando con el contenido para comercios sin una pantalla vacía.
 
-Después de la story, `ValueStory.tsx` explica la oferta en tres filas editoriales, sin cards: kit configurado con la marca del local, sellos por NFC y utilidad de los datos. Siguen el recorrido del cliente, las recompensas, el panel ilustrativo, los mensajes en desarrollo, la caja mimo, el plan de USD 25/mes, la invitación a demo y las FAQ. El kit físico se cobra aparte; su precio todavía debe definirse.
+Después de la story, `ValueStory.tsx` explica la oferta en tres filas editoriales: programa configurado para el comercio, sellos y utilidad de los datos. Siguen el recorrido del cliente, las recompensas, el panel ilustrativo, los mensajes, la caja mimo, los tres planes de lanzamiento, la invitación a demo y las FAQ.
+
+## Planes de lanzamiento
+
+`plans.ts` centraliza la oferta pública que usan `PlansStory.tsx`, las FAQ y el diálogo de términos. Precios en pesos uruguayos (UYU):
+
+- Inicial: $0/mes, 50 clientes activos, QR en PDF sin hardware y diseño básico con logo, color y sellos estándar.
+- Profesional: $990/mes, hasta 500 clientes activos, kit de $1.290 por única vez con tótem de acrílico QR/NFC NTAG. Diseño completo de Wallet, sellos propios, sin marca de mimo y métricas.
+- Premium: $1.990/mes, clientes activos ilimitados, kit de $1.490 por única vez con tótem personalizado y llaveros NTAG. Suma push, automatizaciones y CRM. Las solicitudes de reseñas de Google Maps están señaladas como próximas, ya que el módulo no está implementado.
+
+La presentación conserva crema, rojo, tipografías y botones de Mimo; Profesional es el destacado. En móvil los planes se apilan. `#planes` es el destino principal y `#precio` se conserva dentro de la sección. Cada CTA lleva a `#acceso` y recuerda el plan elegido; no crea cuentas ni suscripciones automáticamente.
+
+Estos cambios corresponden a la landing: no implementan cobros ni límites de clientes en el producto. Antes de activar la oferta, definir la ventana de “cliente activo” y aplicar permisos y cupos por plan. El criterio propuesto al superar el cupo es impedir nuevas altas, conservando las tarjetas existentes.
 
 ## Demo y contacto
 
-Los CTA “Agendar una demo” usan `demo-link.ts` para abrir un correo prearmado a `contactomimorewards@gmail.com`. La persona debe enviarlo desde su aplicación de correo; no hay calendario de reservas todavía. `DemoStory.tsx` aclara el mecanismo y anticipa qué se mostrará en la conversación.
+Los CTA llevan al formulario compacto `#acceso`: nombre, negocio y WhatsApp. No hay campo de código, cuenta, correo del visitante ni base de datos de consultas. El plan elegido viaja como dato interno. Al enviar, la persona acepta que el equipo responda por WhatsApp; el aviso de privacidad está al lado del botón.
 
-El formulario anterior permanece en `contact.tsx` para una etapa posterior, pero ya no se renderiza en la landing. No se almacenan consultas desde el sitio. El aviso de privacidad describe el contacto por email.
+`POST /api/landing-leads` valida y normaliza los datos, verifica origen, tamaño y campo trampa y limita reenvíos por teléfono durante un minuto en memoria, y envía directamente a `contactomimorewards@gmail.com` mediante Nodemailer/SMTP, siguiendo el mecanismo de Gaia. No usa Supabase ni necesita una migración. El formulario confirma solo cuando el servidor de correo acepta el mensaje; ante un error conserva los campos para reintentar.
+
+La configuración privada está en `MAIL_HOST`, `MAIL_PORT` (587 por defecto), `MAIL_USER`, `MAIL_PASS` y `MAIL_TO` (correo de Mimo por defecto). Se reutiliza el remitente SMTP de Gaia con nombre visible “mimo rewards”. Se verifica TLS y no se muestran credenciales ni datos de consultas en logs. Para el despliegue se requieren estas mismas variables en el servidor.
 
 Configurar `NEXT_PUBLIC_MIMO_SITE_URL` con el dominio público final para que los metadatos sociales usen la URL correcta. El valor local por defecto es `http://localhost:3000`.
 
@@ -29,7 +43,7 @@ Configurar `NEXT_PUBLIC_MIMO_SITE_URL` con el dominio público final para que lo
 - Los siete filtros de segmentación operan sobre una lista local de clientes ficticios.
 - Las métricas del panel y los mensajes son ejemplos explícitos. No leen ni modifican datos de Supabase.
 - Los accesos a `/caja` y `/login` se mantienen en el menú móvil y el pie.
-- Los avisos de privacidad y términos describen la etapa de lanzamiento, el plan mensual, el kit separado y la solicitud de demo por correo.
+- Los avisos de privacidad y términos describen la etapa de lanzamiento, los tres planes, los kits separados y las consultas mediante formulario y WhatsApp.
 
 ## Entrada NFC
 
@@ -52,5 +66,6 @@ Prompt final usado para el recurso de identidad:
 ```powershell
 npm run lint
 npm run build
+node --experimental-strip-types --test tests/landing-leads.test.mjs
 ```
 

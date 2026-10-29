@@ -11,12 +11,14 @@ import RewardsStory from "./RewardsStory";
 import MerchantStory from "./MerchantStory";
 import GesturesStory from "./GesturesStory";
 import KitStory from "./KitStory";
+import PlansStory from "./PlansStory";
+import { plansSummary } from "./plans";
 import DemoStory from "./DemoStory";
 import { demoHref } from "./demo-link";
 import { BrandHeart, SectionWave } from "./StoryArt";
 import { LegalDialog } from "./contact";
 
-const navLinks = [["Qué es", "valor"], ["Cómo funciona", "sumarse"], ["Para tu negocio", "para-comercios"], ["Kit y precio", "kit"], ["FAQ", "preguntas"]];
+const navLinks = [["Qué es", "valor"], ["Cómo funciona", "sumarse"], ["Para tu negocio", "para-comercios"], ["Planes", "planes"], ["FAQ", "preguntas"]];
 
 const faq = [
   [
@@ -25,7 +27,7 @@ const faq = [
   ],
   [
     "¿Cómo se suman los sellos?",
-    "Después de una compra válida, el cliente acerca su celular al soporte NFC. La primera vez se registra y recibe su primer sello; en las siguientes visitas, vuelve a acercar el mismo celular y el sello se suma automáticamente."
+    "Después de una compra válida, el cliente escanea el QR o acerca el celular al tótem NFC de los planes Profesional y Premium. La primera vez se registra; en las siguientes visitas, usa el mismo celular para sumar su sello."
   ],
   [
     "¿Cómo evitan que se sumen sellos varias veces seguidas?",
@@ -41,7 +43,7 @@ const faq = [
   ],
   [
     "¿Qué puedo personalizar?",
-    "Podés personalizar la tarjeta con el logo y los colores de tu comercio, definir qué acciones suman sellos, cuántos se necesitan y qué recompensa recibe el cliente al completar su tarjeta."
+    "Inicial incluye una plantilla con tu logo, un color y sellos estándar. Profesional y Premium suman diseño completo para Apple Wallet y Google Wallet, sellos propios y tarjeta sin marca de mimo. En todos los planes definís la recompensa."
   ],
   [
     "¿Qué puedo ver desde el panel?",
@@ -49,21 +51,26 @@ const faq = [
   ],
   [
     "¿Puedo comunicarme con mis clientes?",
-    "Sí. Podés crear comunicaciones y campañas para distintos segmentos, como clientes frecuentes, inactivos, cumpleaños o personas cerca de una recompensa."
+    "Premium incluye campañas push en Wallet y automatizaciones por segmentos, como cumpleaños o clientes inactivos. La recepción depende de Wallet y de los permisos del cliente. Las solicitudes de reseñas en Google Maps están en desarrollo."
   ],
   [
     "¿Cuánto cuesta mimo?",
-    "El plan tiene un costo de $1.290 por mes. El kit físico con los soportes NFC se cobra por separado y te informamos su precio antes de comenzar."
+    plansSummary
+  ],
+  [
+    "¿Qué pasa cuando llego al límite de clientes?",
+    "Inicial está pensado para probar el programa con hasta 50 clientes activos. Para sumar más, coordinamos el pase a Profesional, que admite hasta 500. Premium permite clientes activos ilimitados. Antes del alta confirmamos cómo se mide la actividad y las condiciones del cambio de plan."
   ],
   [
     "¿Cómo empiezo a usar mimo en mi comercio?",
-    "Primero hacemos una demo y definimos cómo va a funcionar tu programa: recompensa, cantidad de sellos, logo y colores. Después configuramos tu tarjeta digital, preparamos el kit mimo y coordinamos la entrega."
+    "Dejanos tu nombre, negocio y WhatsApp en el formulario. Te contactamos para ayudarte a elegir un plan y definir tu recompensa, logo y colores. Con Inicial recibís tu QR en PDF; con Profesional o Premium coordinamos también la entrega del kit."
   ],
 ];
 
 
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState("");
   const [legal, setLegal] = useState<"privacy" | "terms" | null>(null);
   useEffect(() => {
     const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
@@ -82,7 +89,7 @@ export default function Landing() {
   }, []);
   return <div className="m-landing" id="inicio">
     <a className="m-skip-link" href="#contenido">Ir al contenido</a>
-<header className="m-header m-story-header"><div className="m-container m-nav"><a href="#inicio" aria-label="mimo rewards, inicio"><Brand /></a><nav className="m-desktop-nav" aria-label="Navegación principal">{navLinks.map(([label, id]) => <a href={`#${id}`} key={id}>{label}</a>)}</nav><div className="m-nav-actions"><CTA href={demoHref}>Agendar una demo</CTA><button className="m-menu-toggle" aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={menuOpen} aria-controls="m-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></div><nav id="m-mobile-nav" className="m-mobile-nav" hidden={!menuOpen} aria-label="Navegación móvil" onKeyDown={e => { if (e.key === "Escape") { setMenuOpen(false); document.querySelector<HTMLButtonElement>(".m-menu-toggle")?.focus(); } }}>{navLinks.map(([label, id]) => <a href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}>{label}<ArrowUpRight size={16} /></a>)}<Link href="/caja">Terminal Web de Caja</Link><Link href="/login">Panel de Admin (CRM)</Link></nav></header>
+<header className="m-header m-story-header"><div className="m-container m-nav"><a href="#inicio" aria-label="mimo rewards, inicio"><Brand /></a><nav className="m-desktop-nav" aria-label="Navegación principal">{navLinks.map(([label, id]) => <a href={`#${id}`} key={id}>{label}</a>)}</nav><div className="m-nav-actions"><CTA href={demoHref}>Quiero conocer mimo</CTA><button className="m-menu-toggle" aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={menuOpen} aria-controls="m-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></div><nav id="m-mobile-nav" className="m-mobile-nav" hidden={!menuOpen} aria-label="Navegación móvil" onKeyDown={e => { if (e.key === "Escape") { setMenuOpen(false); document.querySelector<HTMLButtonElement>(".m-menu-toggle")?.focus(); } }}>{navLinks.map(([label, id]) => <a href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}>{label}<ArrowUpRight size={16} /></a>)}<Link href="/caja">Terminal Web de Caja</Link><Link href="/login">Panel de Admin (CRM)</Link></nav></header>
     <main id="contenido">
       <IntroScrollStory />
       <div className="m-after-hero">
@@ -94,13 +101,14 @@ export default function Landing() {
         <MerchantStory />
         <GesturesStory />
         <KitStory />
-        <SectionWave from="cream" />
-        <DemoStory />
-        <SectionWave from="red" />
-<section id="preguntas" className="m-section m-faq"><div className="m-container m-faq-grid"><Reveal className="m-section-heading"><Eyebrow>TE LO HACEMOS SIMPLE</Eyebrow><h2>Quizás te estés<br />preguntando…</h2><p>Todo lo que necesitás saber<br />antes del primer mimo.</p><a className="m-text-link" href={demoHref}>Preguntanos por una demo <MessageCircle size={18} /></a></Reveal><div className="m-faq-list">{faq.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={19} /></summary><p>{answer}</p></details>)}</div></div></section>
+        <PlansStory onSelectPlan={setSelectedPlan} />
+        <div className="m-contact-wave"><SectionWave from="cream" /></div>
+        <DemoStory onPrivacy={() => setLegal("privacy")} selectedPlan={selectedPlan} />
+        <div className="m-contact-wave"><SectionWave from="red" /></div>
+<section id="preguntas" className="m-section m-faq"><div className="m-container m-faq-grid"><Reveal className="m-section-heading"><Eyebrow>TE LO HACEMOS SIMPLE</Eyebrow><h2>Quizás te estés<br />preguntando…</h2><p>Todo lo que necesitás saber<br />antes del primer mimo.</p><a className="m-text-link" href={demoHref}>Hablemos de tu negocio <MessageCircle size={18} /></a></Reveal><div className="m-faq-list">{faq.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={19} /></summary><p>{answer}</p></details>)}</div></div></section>
       </div>
     </main>
-    <footer className="m-footer m-story-footer"><BrandHeart className="m-footer-heart" /><div className="m-container"><div className="m-footer-top"><a href="#inicio" aria-label="mimo rewards, volver al inicio"><Brand /></a><p>Sellos con NFC.<br />Un programa con tu marca.</p><nav aria-label="Enlaces del pie de página"><a href="#sumarse">Cómo funciona</a><a href="#kit">Kit y precio</a><a href={demoHref}>Agendar demo</a><button onClick={() => setLegal("privacy")}>Privacidad</button><button onClick={() => setLegal("terms")}>Términos</button></nav></div><div className="m-footer-bottom"><span>© {new Date().getFullYear()} mimo rewards</span><span><Heart size={13} fill="currentColor" /> Hecho para los comercios de todos los días.</span><div><Link href="/caja">Caja <ArrowUpRight size={12} /></Link><Link href="/login">Panel de Admin <ArrowUpRight size={12} /></Link></div></div></div></footer>
+    <footer className="m-footer m-story-footer"><BrandHeart className="m-footer-heart" /><div className="m-container"><div className="m-footer-top"><a href="#inicio" aria-label="mimo rewards, volver al inicio"><Brand /></a><p>Sellos con NFC.<br />Un programa con tu marca.</p><nav aria-label="Enlaces del pie de página"><a href="#sumarse">Cómo funciona</a><a href="#planes">Planes</a><a href={demoHref}>Hablemos</a><button onClick={() => setLegal("privacy")}>Privacidad</button><button onClick={() => setLegal("terms")}>Términos</button></nav></div><div className="m-footer-bottom"><span>© {new Date().getFullYear()} mimo rewards</span><span><Heart size={13} fill="currentColor" /> Hecho para los comercios de todos los días.</span><div><Link href="/caja">Caja <ArrowUpRight size={12} /></Link><Link href="/login">Panel de Admin <ArrowUpRight size={12} /></Link></div></div></div></footer>
     {legal && <LegalDialog type={legal} close={() => setLegal(null)} />}
   </div>;
 }

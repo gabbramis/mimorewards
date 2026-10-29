@@ -7,7 +7,7 @@ const chapters = [
     number: "01",
     label: "LISTO PARA TU LOCAL",
     title: "Recibís mimo configurado para tu comercio.",
-    body: "Preparamos la tarjeta digital con tu logo y colores, definimos la recompensa inicial y te entregamos los soportes NFC listos para colocar en el mostrador.",
+    body: "Preparamos tu tarjeta digital y definimos la recompensa inicial. Empezá con un QR para imprimir o elegí un plan con tótem NFC listo para el mostrador.",
   },
   {
     number: "02",
@@ -31,14 +31,14 @@ export default function ValueStory() {
           <div>
             <Eyebrow>ESTO ES MIMO</Eyebrow>
             <h2 id="m-value-title">
-              Un kit listo para usar.<br />
-              <em>Sellos que se suman con NFC.</em>
+              Tu primer mimo.<br />
+              <em>El comienzo de muchas visitas.</em>
             </h2>
           </div>
 
           <p>
-            Recibís los soportes NFC y la tarjeta digital configurados para tu comercio.
-            Tus clientes acercan el celular para sumar sellos y vos seguís visitas,
+            Empezá gratis con QR o sumá un tótem NFC con los planes Profesional y Premium.
+            Tus clientes usan el celular para sumar sellos y vos seguís visitas,
             progreso y canjes desde el panel.
           </p>
         </div>

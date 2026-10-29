@@ -1,5 +1,90 @@
 /* Everything here starts after the animated hero. Its layout and timeline stay isolated. */
+.m-landing .m-plans-story { padding-top: 45px; }
+.m-landing .m-plans-heading { display: grid; grid-template-columns: 1.4fr 1fr; align-items: end; gap: 65px; scroll-margin-top: 110px; }
+.m-landing .m-plans-heading > p { max-width: 390px; color: #665951; font-size: 16px; line-height: 1.75; }
+.m-landing .m-plans-currency { margin-top: 30px; color: #665951; font-size: 12px; }
+.m-landing .m-plans-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; align-items: stretch; }
+.m-landing .m-plan-wrap { min-width: 0; padding: 8px; border: 1px solid #d9c9bc; border-radius: 26px; background: #fff8f1; }
+.m-landing .m-plan { height: 100%; display: flex; flex-direction: column; padding: 22px 20px; }
+.m-landing .m-plan-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; color: var(--m-red-ink); }
+.m-landing .m-plan-label > span { font-size: 9px; font-weight: 700; letter-spacing: .09em; }
+.m-landing .m-plan h3 { margin-top: 18px; font-size: clamp(24px, 2.6vw, 33px); line-height: 1.2; letter-spacing: -.055em; }
+.m-landing .m-plan-description { margin-top: 12px; min-height: 72px; color: #665951; font-size: 13px; line-height: 1.7; }
+.m-landing .m-plan-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.m-landing .m-plan-price strong { font-family: var(--font-landing-heading), sans-serif; font-size: clamp(38px, 4vw, 51px); font-weight: 600; line-height: 1.1; letter-spacing: -.07em; }
+.m-landing .m-plan-price > span { font-size: 13px; }
+.m-landing .m-plan-kit-price { margin-top: 10px; font-size: 12px; }
+.m-landing .m-plan-hardware { display: flex; align-items: flex-start; gap: 12px; min-height: 115px; margin-top: 24px; padding: 19px 0; border-top: 1px solid #d9c9bc; border-bottom: 1px solid #d9c9bc; }
+.m-landing .m-plan-hardware > svg { color: var(--m-red-ink); margin-top: 3px; }
+.m-landing .m-plan-hardware p { font-size: 12px; line-height: 1.7; }
+.m-landing .m-plan-capacity { display: block; margin-top: 23px; font-size: 14px; }
+.m-landing .m-plan ul { display: grid; gap: 13px; list-style: none; padding: 0; margin: 20px 0 25px; }
+.m-landing .m-plan li { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; line-height: 1.6; }
+.m-landing .m-plan li svg { margin-top: 2px; color: var(--m-red-ink); }
+.m-landing .m-plan .m-button { width: 100%; margin-top: auto; padding-inline: 14px; gap: 10px; font-size: 12px; }
+.m-landing .m-plan-roadmap { margin: -4px 0 23px; color: #665951; font-size: 11px; line-height: 1.6; }
+.m-landing .m-plan-featured { background: var(--m-red); color: var(--m-cream); border-color: var(--m-red); }
+.m-landing .m-plan-featured .m-plan-label, .m-landing .m-plan-featured .m-plan-description, .m-landing .m-plan-featured .m-plan-hardware > svg, .m-landing .m-plan-featured li svg { color: var(--m-cream); }
+.m-landing .m-plan-featured .m-plan-hardware { border-color: #ff9da4; }
+.m-landing .m-plan-featured .m-button { background: var(--m-cream); color: var(--m-red-ink); }
+.m-landing .m-plan-featured .m-button:hover { background: white; }
+.m-landing .m-plan-featured a:focus-visible { outline-color: var(--m-cream); }
+.m-landing .m-plans-details { display: grid; grid-template-columns: 1fr 1fr; gap: 65px; margin-top: 30px; padding-top: 25px; border-top: 1px solid #d9c9bc; }
+.m-landing .m-plans-details span { color: var(--m-red-ink); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.m-landing .m-plans-details p { max-width: 500px; margin-top: 9px; color: #665951; font-size: 12px; line-height: 1.75; }
+@media (max-width: 1050px) and (min-width: 761px) {
+  .m-landing .m-plan { padding: 18px 10px; }
+  .m-landing .m-plan-label > span { font-size: 8px; }
+  .m-landing .m-plan-description { min-height: 95px; }
+  .m-landing .m-plan-hardware { min-height: 145px; }
+}
+@media (max-width: 760px) {
+  .m-landing .m-plans-heading { display: block; }
+  .m-landing .m-plans-heading > p { margin-top: 23px; font-size: 14px; }
+  .m-landing .m-plans-grid { grid-template-columns: 1fr; gap: 18px; }
+  .m-landing .m-plans-currency { font-size: 11px; }
+  .m-landing .m-plan { padding: 22px 18px; }
+  .m-landing .m-plan h3 { font-size: 30px; }
+  .m-landing .m-plan-description { min-height: 0; max-width: 340px; }
+  .m-landing .m-plan-price strong { font-size: 48px; }
+  .m-landing .m-plan-hardware { min-height: 0; }
+  .m-landing .m-plan-label > span { font-size: 9px; }
+  .m-landing .m-plans-details { grid-template-columns: 1fr; gap: 22px; }
+}
 .m-after-hero { background: var(--m-cream); }
+.m-landing .m-contact-wave .m-section-wave { height: 55px; }
+.m-landing .m-contact-simple { position: relative; padding: 32px 0; background: transparent; color: var(--m-cream); scroll-margin-top: 100px; }
+.m-landing .m-contact-simple-inner { position: relative; z-index: 1; display: grid; grid-template-columns: .65fr 1.6fr; align-items: center; gap: 45px; padding-block: 25px; }
+.m-landing .m-contact-simple h2 { font-size: 32px; line-height: 1.1; letter-spacing: -.05em; }
+.m-landing .m-contact-simple h2 em { color: #ffd9dc; }
+.m-landing .m-contact-simple-copy p { max-width: 230px; margin-top: 12px; font-size: 13px; line-height: 1.6; color: #fff0e7; }
+.m-landing .m-contact-simple form { min-width: 0; }
+.m-landing .m-lead-trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.m-landing .m-contact-simple fieldset { margin: 0; padding: 0; min-width: 0; border: 0; }
+.m-landing .m-contact-simple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.m-landing .m-contact-simple label { display: grid; gap: 6px; font-size: 11px; font-weight: 600; }
+.m-landing .m-contact-simple input { min-width: 0; width: 100%; height: 44px; border: 1px solid #d9c9bc; border-radius: 9px; padding: 10px 12px; background: #fff8f1; color: var(--m-ink); font-size: 13px; }
+.m-landing .m-contact-simple input:focus { outline: 2px solid var(--m-red-ink); outline-offset: 2px; }
+.m-landing .m-contact-simple-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 15px; }
+.m-landing .m-contact-simple-bottom p { max-width: 310px; color: #fff0e7; font-size: 10px; line-height: 1.6; }
+.m-landing .m-contact-simple-bottom p button { display: inline; color: inherit; background: transparent; padding: 0; text-decoration: underline; font: inherit; }
+.m-landing .m-contact-simple .m-button { min-height: 42px; padding: 10px 18px; font-size: 12px; gap: 10px; background: var(--m-cream); color: var(--m-red-ink); }
+.m-landing .m-contact-simple .m-button:hover { background: white; }
+.m-landing .m-contact-simple button:focus-visible { outline-color: var(--m-cream); }
+.m-landing .m-contact-simple fieldset:disabled { opacity: .6; }
+.m-landing .m-contact-simple-success { display: flex; align-items: center; gap: 12px; color: var(--m-cream); font-size: 17px; }
+.m-landing .m-contact-simple-error { margin-top: 12px; color: var(--m-cream); font-size: 12px; }
+.m-landing .m-contact-plan { margin-bottom: 10px; color: var(--m-cream); font-size: 11px; }
+@media (max-width: 760px) {
+  .m-landing .m-contact-simple { padding: 30px 0; }
+  .m-landing .m-contact-simple-inner { grid-template-columns: 1fr; gap: 22px; padding-block: 25px; }
+  .m-landing .m-contact-simple h2 { font-size: 29px; }
+  .m-landing .m-contact-simple h2 br { display: none; }
+  .m-landing .m-contact-simple-copy p { max-width: none; }
+  .m-landing .m-contact-simple-fields { grid-template-columns: 1fr; gap: 12px; }
+  .m-landing .m-contact-simple-bottom { align-items: start; flex-direction: column-reverse; gap: 10px; }
+  .m-landing .m-contact-simple .m-button { width: 100%; }
+}
 .m-after-hero .m-story-section { position: relative; padding-block: 105px; overflow: clip; }
 .m-after-hero h2 { font-size: clamp(42px, 4.5vw, 66px); line-height: 1.06; letter-spacing: -.06em; font-weight: 600; }
 .m-after-hero h2 em { font-style: normal; color: var(--m-red-ink); }

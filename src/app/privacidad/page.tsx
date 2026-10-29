@@ -13,6 +13,9 @@ export default function PrivacyPage() {
       <p className="customer-legal-date">Versión {CUSTOMER_CONSENT_VERSION}</p>
       <p>Esta política explica cómo se usan tus datos cuando creás y usás una tarjeta de beneficios de un comercio en mimo rewards.</p>
 
+      <h2>Consultas desde la página de mimo</h2>
+      <p>Si completás el formulario para tu negocio, tu nombre, negocio, WhatsApp y plan de interés se envían por correo al equipo de mimo para responderte por WhatsApp. No se guardan en una base de datos ni te suscribimos a campañas. Podés pedir que dejemos de contactarte o eliminemos tu consulta escribiendo a contactomimorewards@gmail.com.</p>
+
       <h2>Qué datos usamos</h2>
       <p>Al registrarte pedimos nombre, apellido, celular y fecha de nacimiento. También guardamos el comercio al que te sumaste, tu tarjeta, sellos, visitas y canjes, y la fecha y versión de tu aceptación de esta política y los términos. Si autorizás promociones por WhatsApp, guardamos esa elección y cuándo la hiciste.</p>
 

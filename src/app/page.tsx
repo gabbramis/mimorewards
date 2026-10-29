@@ -15,7 +15,7 @@ export const metadata = {
     apple: "/apple-touch-icon.png",
   },
   title: "mimo rewards | Kit de fidelización con NFC para gastronomía",
-  description: "Recibí el kit mimo configurado para tu local: soportes NFC, tarjeta digital con tu logo y colores y un panel para seguir visitas, sellos y canjes. Plan $1.290 /mes, kit aparte.",
+  description: "Hacé que vuelvan con mimo: tarjeta digital, sellos y recompensas. Inicial gratis, Profesional $990/mes y Premium $1.990/mes. Precios en UYU, kits aparte.",
   openGraph: {
     title: "mimo rewards | Tu programa de sellos con NFC, listo para usar",
     description: "Kit mimo con soportes NFC, tarjeta digital con tu marca y panel para tu negocio. Agendá una demo para ver el recorrido completo.",

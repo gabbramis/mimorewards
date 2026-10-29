@@ -7,9 +7,9 @@ export default function Hero() {
     <div className="m-story-hero-copy">
       <span className="m-story-kicker">MIMO REWARDS</span>
       <h1>Programa de sellos<br /><em>con NFC.</em></h1>
-      <p>Recibís tu kit listo para usar: soporte NFC, tarjeta digital y panel de gestión. Tus clientes acercan el celular, suman sellos y avanzan hacia su próxima recompensa.</p>
+      <p>Una tarjeta digital, sellos y motivos para volver. Empezá gratis con QR o elegí un plan con tótem NFC. Tus clientes suman visitas y avanzan hacia su próxima recompensa.</p>
       <div className="m-story-actions">
-        <CTA href={demoHref}>Agendar una demo</CTA>
+        <CTA href={demoHref}>Quiero conocer mimo</CTA>
         <a className="m-story-secondary-link" href="#sumarse">Ver cómo funciona</a>
       </div>
       <span className="m-story-scroll-cue" aria-hidden="true">

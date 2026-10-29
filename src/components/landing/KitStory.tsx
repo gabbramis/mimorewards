@@ -2,7 +2,6 @@ import Image from "next/image";
 import { Check } from "lucide-react";
 import { CTA, Eyebrow, Reveal } from "./ui";
 import { BrandHeart } from "./StoryArt";
-import { demoHref } from "./demo-link";
 
 export default function KitStory() {
   return <section id="kit" className="m-kit-story m-story-section">
@@ -14,10 +13,10 @@ export default function KitStory() {
         <h2>Abrís el kit.<br /><em>Ya está configurado.</em></h2>
         <p>Nos pasás el logo, los colores y la recompensa de tu local. Preparamos la tarjeta digital y los soportes NFC antes de entregarte la caja mimo. Tu equipo solo tiene que presentarlos después de cada compra válida.</p>
         <ul>
-          {["2 soportes NFC personalizados para el mostrador", "Tarjeta digital con el logo y los colores de tu local", "Programa de sellos y recompensa configurados", "Acceso al panel de clientes, visitas y canjes", "Acompañamiento para empezar a usarlo"].map(item => <li key={item}><Check size={16} />{item}</li>)}
+          {["Profesional: tótem de acrílico con QR y NFC NTAG", "Premium: tótem personalizado + llaveros para tu equipo", "Tarjeta digital y recompensa configuradas", "Acompañamiento para empezar a usarlo"].map(item => <li key={item}><Check size={16} />{item}</li>)}
         </ul>
-        <div id="precio" className="m-kit-price"><span>PLAN MIMO</span><div><strong>$1.290</strong><small>/ mes</small></div><p>El kit físico se cobra aparte. Te confirmamos su precio antes de comenzar.</p></div>
-        <CTA href={demoHref}>Agendar una demo</CTA>
+        <p className="m-kit-terms">¿Preferís empezar sin kit? El plan Inicial incluye un QR en PDF para imprimir o mostrar en la caja.</p>
+        <CTA href="#planes">Elegí tu plan</CTA>
       </div>
     </div>
   </section>;

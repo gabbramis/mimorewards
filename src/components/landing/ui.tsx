@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowDown, ArrowUpRight, Coffee, Gift, Heart } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 export function Brand({ light = false }: { light?: boolean }) {
   return <span className={`m-brand ${light ? "m-brand-light" : ""}`}><Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="mimo rewards" /></span>;
@@ -14,8 +14,8 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
   return <motion.div className={className} initial={false} whileInView={reduced ? {} : { y: [16, 0] }} viewport={{ once: true, amount: 0.12 }} transition={{ duration: 0.55, ease: "easeOut" }}>{children}</motion.div>;
 }
 
-export function CTA({ children = "Agendar una demo", secondary = false, href = "#demo", className = "" }: { children?: ReactNode; secondary?: boolean; href?: string; className?: string }) {
-  return <a href={href} className={`m-button ${secondary ? "m-button-secondary" : "m-button-primary"} ${className}`}>{children}{secondary ? <ArrowDown size={17} /> : <ArrowUpRight size={18} />}</a>;
+export function CTA({ children = "Quiero conocer mimo", secondary = false, href = "#acceso", className = "", onClick }: { children?: ReactNode; secondary?: boolean; href?: string; className?: string; onClick?: MouseEventHandler<HTMLAnchorElement> }) {
+  return <a href={href} onClick={onClick} className={`m-button ${secondary ? "m-button-secondary" : "m-button-primary"} ${className}`}>{children}{secondary ? <ArrowDown size={17} /> : <ArrowUpRight size={18} />}</a>;
 }
 
 export function Eyebrow({ children, light = false }: { children: ReactNode; light?: boolean }) {
