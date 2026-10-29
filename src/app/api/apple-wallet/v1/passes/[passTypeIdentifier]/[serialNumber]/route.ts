@@ -12,6 +12,11 @@ import {
 
 export const runtime = "nodejs";
 
+/**
+ * GET /api/apple-wallet/v1/passes/[passTypeIdentifier]/[serialNumber]
+ * Endpoint oficial de Apple Wallet para descargar la última versión firmada del pase (.pkpass).
+ * Cuando el iPhone recibe el APNs push y obtiene el serial, llama a este endpoint para actualizar la tarjeta.
+ */
 export async function GET(
   request: Request,
   {
@@ -25,23 +30,28 @@ export async function GET(
 ) {
   try {
     const { passTypeIdentifier, serialNumber } = await params;
-    if (passTypeIdentifier !== PASS_TYPE_ID) return new Response(null, { status: 404 });
+    console.log(`[Apple Wallet Pull - Pass] Solicitud recibida para descargar pase. Serial: ${serialNumber}, topic: ${passTypeIdentifier}`);
+
+    if (passTypeIdentifier !== PASS_TYPE_ID) {
+      console.warn(`[Apple Wallet Pull - Pass] Topic inválido: ${passTypeIdentifier} (esperado: ${PASS_TYPE_ID})`);
+      return new Response(null, { status: 404 });
+    }
 
     // 1. Validar cabecera Authorization: ApplePass <token>
     const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("ApplePass ")) {
-      console.warn('[Apple Wallet Pass Update]', { status: 401, reason: 'missing_authorization', host: new URL(request.url).host });
+      console.warn('[Apple Wallet Pull - Pass]', { status: 401, reason: 'missing_authorization', host: new URL(request.url).host });
       return new Response(null, { status: 401 });
     }
 
     const token = authHeader.replace(/^ApplePass\s+/, "").trim();
     if (!verifyPassAuthToken(serialNumber, token)) {
-      console.warn('[Apple Wallet Pass Update]', { status: 401, reason: 'invalid_authentication', host: new URL(request.url).host });
+      console.warn('[Apple Wallet Pull - Pass]', { status: 401, reason: 'invalid_authentication', host: new URL(request.url).host });
       return new Response(null, { status: 401 });
     }
 
     if (!appleWalletConfigured()) {
-      console.error("[Apple Wallet] Certificates not configured.");
+      console.error("[Apple Wallet Pull - Pass] Certificados no configurados en el servidor.");
       return new Response(null, { status: 503 });
     }
 
@@ -55,31 +65,16 @@ export async function GET(
       .maybeSingle();
 
     if (cardError) {
-      console.error("[Apple Wallet] Error fetching loyalty card:", cardError);
+      console.error("[Apple Wallet Pull - Pass] Error buscando loyalty card:", cardError);
       return new Response(null, { status: 500 });
     }
 
     if (!card) {
+      console.warn(`[Apple Wallet Pull - Pass] Tarjeta no encontrada para serial: ${serialNumber}`);
       return new Response(null, { status: 404 });
     }
 
-    // 3. Manejo de cabecera If-Modified-Since
-    const ifModifiedSince = request.headers.get("if-modified-since") || request.headers.get("If-Modified-Since");
-    const lastModifiedDate = new Date((card as any).updated_at || (card as any).created_at || Date.now());
-
-    if (ifModifiedSince) {
-      const ifModifiedDate = new Date(ifModifiedSince);
-      if (!isNaN(ifModifiedDate.getTime())) {
-        const ifModifiedSeconds = Math.floor(ifModifiedDate.getTime() / 1000);
-        const lastModifiedSeconds = Math.floor(lastModifiedDate.getTime() / 1000);
-
-        if (lastModifiedSeconds <= ifModifiedSeconds) {
-          return new Response(null, { status: 304 });
-        }
-      }
-    }
-
-    // 4. Obtener datos de cliente y negocio (incluyendo active_campaign_message)
+    // 3. Obtener datos de cliente y negocio
     const [{ data: customer, error: customerError }, { data: business, error: businessError }] = await Promise.all([
       supabase
         .from("customers")
@@ -95,15 +90,16 @@ export async function GET(
     ]);
 
     if (customerError || businessError) {
-      console.error("[Apple Wallet] Error fetching customer or business:", { customerError, businessError });
+      console.error("[Apple Wallet Pull - Pass] Error consultando cliente o negocio:", { customerError, businessError });
       return new Response(null, { status: 500 });
     }
 
     if (!customer || !business || business.active === false) {
+      console.warn(`[Apple Wallet Pull - Pass] Cliente o negocio inactivo para serial: ${serialNumber}`);
       return new Response(null, { status: 404 });
     }
 
-    // 5. Descargar imágenes de marca si están configuradas
+    // 4. Descargar imágenes de marca si están configuradas
     const [logoImage, completedStampImage, pendingStampImage] = await Promise.all([
       storedImage(supabase, business.logo_url),
       storedImage(supabase, business.stamp_completed_url),
@@ -111,8 +107,9 @@ export async function GET(
     ]);
 
     const currentStamps = customer.current_stamps ?? card.current_stamps ?? 0;
+    const targetStamps = business.reward_target || 10;
 
-    // 6. Generar el pase .pkpass actualizado con activeCampaignMessage
+    // 5. Generar el pase .pkpass actualizado con changeMessage
     const passBuffer = await createAppleWalletPass({
       webServiceURL: resolveAppleWebServiceURL(request.url, process.env.APPLE_WALLET_WEB_SERVICE_URL),
       locations: await readWalletLocations(card.business_id),
@@ -121,7 +118,7 @@ export async function GET(
       customerCode: customer.unique_code,
       businessName: business.name,
       currentStamps,
-      targetStamps: business.reward_target || 10,
+      targetStamps,
       rewardDescription: business.reward_description || "Tu próxima recompensa",
       primaryColor: business.primary_color,
       textColor: business.card_text_color,
@@ -133,16 +130,20 @@ export async function GET(
       wallet: business.wallet_config,
     });
 
+    console.log(
+      `[Apple Wallet Pull - Pass] 200 OK: Entregando pase actualizado para ${customer.first_name} (${customer.unique_code}). Sellos: ${currentStamps}/${targetStamps}. HeaderField value: "${currentStamps} / ${targetStamps}"`
+    );
+
     return new Response(new Uint8Array(passBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.apple.pkpass",
-        "Last-Modified": lastModifiedDate.toUTCString(),
-        "Cache-Control": "private, no-cache",
+        "Last-Modified": new Date().toUTCString(),
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
       },
     });
   } catch (error) {
-    console.error("[Apple Wallet] Error generating updated pass:", error);
+    console.error("[Apple Wallet Pull - Pass] Error generando pase actualizado:", error);
     return new Response(null, { status: 500 });
   }
 }
