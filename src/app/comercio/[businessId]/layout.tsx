@@ -22,7 +22,7 @@ export default async function MerchantLayout({
   const supabase: any = createAdminClient();
   const { data: business, error } = await supabase
     .from("businesses")
-    .select("id, name, active, logo_url, primary_color, slug")
+    .select("id, name, active, logo_url, primary_color, slug, plan_type")
     .eq("id", businessId)
     .maybeSingle();
 
@@ -41,6 +41,7 @@ export default async function MerchantLayout({
       initialName={business.name}
       initialLogo={business.logo_url}
       initialPrimaryColor={business.primary_color || null}
+      initialPlanType={business.plan_type}
     >
       <MerchantShell
         businessId={business.id}
@@ -48,6 +49,7 @@ export default async function MerchantLayout({
         businessSlug={business.slug}
         businessLogo={business.logo_url}
         isActive={business.active}
+        planType={business.plan_type}
         showCommunications={locationAccess.allowed && (locationAccess.superadmin || pilot?.wallet_locations_enabled === true)}
       >
         {children}

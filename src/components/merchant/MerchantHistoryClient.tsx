@@ -14,8 +14,11 @@ import {
   Download,
   X,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import DatePickerCalendar from "./DatePickerCalendar";
+import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
+import UpgradeModal from "./UpgradeModal";
 
 export interface LogItem {
   id: string;
@@ -35,6 +38,7 @@ interface MerchantHistoryClientProps {
   initialLogs: LogItem[];
   businessCreatedAt?: string | null;
   allStampDates?: string[];
+  planType?: string | null;
 }
 
 function formatDateExact(dateStr: string) {
@@ -75,7 +79,11 @@ export default function MerchantHistoryClient({
   initialLogs,
   businessCreatedAt,
   allStampDates,
+  planType,
 }: MerchantHistoryClientProps) {
+  const { planType: contextPlanType, isFreePlan: contextIsFree } = useBusiness();
+  const isFree = planType !== undefined ? isPlanFree(planType) : contextIsFree;
+
   const [logs] = useState<LogItem[]>(initialLogs);
   const [dateFilter, setDateFilter] = useState<
     "all" | "today" | "yesterday" | "7days" | "month" | "custom"
@@ -85,6 +93,7 @@ export default function MerchantHistoryClient({
     "all"
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   // Mapa de cantidad de sellos por fecha para el indicador de inactividad del calendario
   const stampsCountByDate = useMemo(() => {
@@ -182,8 +191,13 @@ export default function MerchantHistoryClient({
     return { stamps, redeems, nfc, manual, total: filteredLogs.length };
   }, [filteredLogs]);
 
-  // Exportar a CSV
+  // Exportar a CSV (deshabilitado en Free)
   const handleExportCSV = () => {
+    if (isFree) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     const headers = [
       "Fecha y Hora",
       "Cliente",
@@ -218,6 +232,15 @@ export default function MerchantHistoryClient({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Modal de Upgrade */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Mejora tu plan para exportar datos"
+        description="La descarga de reportes y transacciones a CSV es una funcionalidad exclusiva del Plan Pro para ayudarte a conciliar y auditar tus números."
+        feature="export"
+      />
+
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -233,14 +256,29 @@ export default function MerchantHistoryClient({
         </div>
 
         {/* Botón Exportar */}
-        <button
-          type="button"
-          onClick={handleExportCSV}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#D5CFC4] bg-white px-4 py-2.5 text-xs font-semibold text-[#1F1F1F] shadow-xs hover:bg-[#FFF9F5] hover:border-[#B8B1A4] transition-colors shrink-0"
-        >
-          <Download size={14} className="text-[#737373]" />
-          <span>Exportar a CSV</span>
-        </button>
+        {isFree ? (
+          <button
+            type="button"
+            onClick={() => setUpgradeModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50/70 px-4 py-2.5 text-xs font-semibold text-[#1F1F1F] shadow-xs hover:bg-amber-100 transition-colors shrink-0 group cursor-pointer"
+            title="Mejora tu plan para exportar datos"
+          >
+            <Lock size={13} className="text-amber-600 transition-transform group-hover:scale-110" />
+            <span>Exportar a CSV</span>
+            <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-800 tracking-wider">
+              PRO
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#D5CFC4] bg-white px-4 py-2.5 text-xs font-semibold text-[#1F1F1F] shadow-xs hover:bg-[#FFF9F5] hover:border-[#B8B1A4] transition-colors shrink-0 cursor-pointer"
+          >
+            <Download size={14} className="text-[#737373]" />
+            <span>Exportar a CSV</span>
+          </button>
+        )}
       </div>
 
       {/* Mini KPI Cards del Período */}

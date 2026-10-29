@@ -17,7 +17,11 @@ import {
   ChevronRight,
   RefreshCw,
   Smartphone,
+  Lock,
+  Zap,
 } from "lucide-react";
+import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
+import UpgradeModal from "./UpgradeModal";
 
 export interface CustomerItem {
   id: string;
@@ -113,6 +117,7 @@ interface MerchantCustomersClientProps {
   initialCustomers: CustomerItem[];
   rewardTarget: number;
   rewardDescription: string;
+  planType?: string | null;
 }
 
 function formatDate(dateStr: string | null) {
@@ -135,13 +140,18 @@ export default function MerchantCustomersClient({
   initialCustomers,
   rewardTarget,
   rewardDescription,
+  planType,
 }: MerchantCustomersClientProps) {
+  const { planType: contextPlanType, isFreePlan: contextIsFree } = useBusiness();
+  const isFree = planType !== undefined ? isPlanFree(planType) : contextIsFree;
+
   const [customers, setCustomers] = useState<CustomerItem[]>(initialCustomers);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
     "all" | "active" | "risk" | "inactive" | "ready"
   >("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -369,6 +379,15 @@ export default function MerchantCustomersClient({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Actualizá a Pro para ver el estado y métricas de retención de tus clientes"
+        description="El semáforo de inactividad, la fecha de última visita y las visitas totales te permiten detectar clientes en riesgo y premiar a los más fieles antes de perderlos."
+        feature="customers"
+      />
+
       {/* Toast Notification */}
       {toast && (
         <div
@@ -417,6 +436,39 @@ export default function MerchantCustomersClient({
         </button>
       </div>
 
+      {/* Banner de Upgrade para Plan Gratis */}
+      {isFree && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/50 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 border border-amber-200">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  <Lock size={10} />
+                  PLAN INICIAL
+                </span>
+                <p className="text-xs sm:text-sm font-bold text-[#1F1F1F]">
+                  Actualizá a Pro para ver el estado y métricas de retención de tus clientes
+                </p>
+              </div>
+              <p className="text-xs text-[#737373] mt-0.5">
+                Desbloqueá el semáforo inteligente de inactividad, frecuencia de visitas y fechas de última visita.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUpgradeModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F1F1F] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-black transition-all shrink-0 cursor-pointer"
+          >
+            <Zap size={14} className="text-amber-400" />
+            <span>Mejorar a Pro</span>
+          </button>
+        </div>
+      )}
+
       {/* Card de Búsqueda y Filtros Rápidos */}
       <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-5 shadow-xs space-y-4">
         {/* Buscador en tiempo real */}
@@ -443,7 +495,7 @@ export default function MerchantCustomersClient({
           )}
         </div>
 
-        {/* Chips de Filtros Rápidos (Semáforo de Inactividad) */}
+        {/* Chips de Filtros Rápidos */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -458,42 +510,6 @@ export default function MerchantCustomersClient({
           </button>
           <button
             type="button"
-            onClick={() => setActiveFilter("active")}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeFilter === "active"
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
-            Nuevos / Activos ({counts.active})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("risk")}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeFilter === "risk"
-                ? "bg-slate-700 text-white shadow-xs"
-                : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
-            Riesgo ({counts.risk})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("inactive")}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeFilter === "inactive"
-                ? "bg-rose-600 text-white shadow-xs"
-                : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
-            Inactivos ({counts.inactive})
-          </button>
-          <button
-            type="button"
             onClick={() => setActiveFilter("ready")}
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               activeFilter === "ready"
@@ -504,6 +520,60 @@ export default function MerchantCustomersClient({
             <Gift size={12} />
             Listos para canjear ({counts.ready})
           </button>
+
+          {isFree ? (
+            <button
+              type="button"
+              onClick={() => setUpgradeModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border border-amber-300 bg-amber-50/70 text-amber-800 hover:bg-amber-100 transition-all cursor-pointer"
+              title="Actualizá a Pro para ver el semáforo de retención"
+            >
+              <Lock size={12} className="text-amber-600" />
+              <span>Semáforo de retención</span>
+              <span className="rounded-full bg-amber-200/60 px-1.5 py-0.2 text-[9px] font-black uppercase text-amber-800">
+                PRO
+              </span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveFilter("active")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeFilter === "active"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+                Nuevos / Activos ({counts.active})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter("risk")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeFilter === "risk"
+                    ? "bg-slate-700 text-white shadow-xs"
+                    : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
+                Riesgo ({counts.risk})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter("inactive")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeFilter === "inactive"
+                    ? "bg-rose-600 text-white shadow-xs"
+                    : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
+                Inactivos ({counts.inactive})
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -519,12 +589,16 @@ export default function MerchantCustomersClient({
                 <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
                   Progreso actual
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
-                  Visitas totales
-                </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
-                  Última visita
-                </th>
+                {!isFree && (
+                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                    Visitas totales
+                  </th>
+                )}
+                {!isFree && (
+                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                    Última visita
+                  </th>
+                )}
                 <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] text-right">
                   Acciones rápidas
                 </th>
@@ -551,15 +625,23 @@ export default function MerchantCustomersClient({
                       key={customer.id}
                       className="hover:bg-[#FFF9F5] transition-colors"
                     >
-                      {/* Cliente (Avatar con semáforo e icono SVG de usuario) */}
+                      {/* Cliente (Avatar con semáforo e icono SVG de usuario, o neutral si es Free) */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
-                            title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
-                          >
-                            <User size={16} className={inactivity.iconColor} strokeWidth={2} />
-                          </div>
+                          {isFree ? (
+                            <div
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5] border border-[#E5E5E5] text-[#737373]"
+                            >
+                              <User size={16} strokeWidth={2} />
+                            </div>
+                          ) : (
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
+                              title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
+                            >
+                              <User size={16} className={inactivity.iconColor} strokeWidth={2} />
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <p className="font-bold text-[#1F1F1F] leading-snug">
                               {clientName}
@@ -576,7 +658,7 @@ export default function MerchantCustomersClient({
                         </div>
                       </td>
 
-                      {/* Progreso */}
+                      {/* Progreso (Sellos actuales) */}
                       <td className="py-4 px-5">
                         <div className="w-36 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px] font-bold">
@@ -604,24 +686,28 @@ export default function MerchantCustomersClient({
                         </div>
                       </td>
 
-                      {/* Visitas */}
-                      <td className="py-4 px-5 font-semibold text-[#1F1F1F]">
-                        <span>{customer.total_visits || 1} visitas</span>
-                      </td>
+                      {/* Visitas totales (Oculto en Free) */}
+                      {!isFree && (
+                        <td className="py-4 px-5 font-semibold text-[#1F1F1F]">
+                          <span>{customer.total_visits || 1} visitas</span>
+                        </td>
+                      )}
 
-                      {/* Última visita */}
-                      <td className="py-4 px-5 text-[#737373] whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F1F]">
-                            <Clock size={13} className="text-[#A3A3A3]" />
-                            {formatDate(customer.last_visit_at)}
-                          </span>
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit ${inactivity.badgeClass}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
-                            {inactivity.badgeText}
-                          </span>
-                        </div>
-                      </td>
+                      {/* Última visita (Oculto en Free) */}
+                      {!isFree && (
+                        <td className="py-4 px-5 text-[#737373] whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F1F]">
+                              <Clock size={13} className="text-[#A3A3A3]" />
+                              {formatDate(customer.last_visit_at)}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit ${inactivity.badgeClass}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
+                              {inactivity.badgeText}
+                            </span>
+                          </div>
+                        </td>
+                      )}
 
                       {/* Acciones Rápidas */}
                       <td className="py-4 px-5 text-right whitespace-nowrap">
@@ -663,7 +749,7 @@ export default function MerchantCustomersClient({
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center">
+                  <td colSpan={isFree ? 3 : 5} className="py-12 text-center">
                     <Users size={32} className="mx-auto text-[#D4D4D4] mb-2" />
                     <p className="text-sm font-semibold text-[#1F1F1F]">
                       No se encontraron clientes
@@ -679,6 +765,23 @@ export default function MerchantCustomersClient({
             </tbody>
           </table>
         </div>
+
+        {/* Fila o banner al final para Plan Gratis */}
+        {isFree && (
+          <div className="border-t border-[#D5CFC4] bg-amber-50/50 px-5 py-3 text-xs text-[#737373] flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-900 font-medium">
+              <Lock size={13} className="text-amber-600 shrink-0" />
+              <span>Actualizá a Pro para ver el estado y métricas de retención de tus clientes.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUpgradeModalOpen(true)}
+              className="text-xs font-bold text-[#FF1F2D] hover:underline shrink-0 cursor-pointer"
+            >
+              Mejorar a Pro →
+            </button>
+          </div>
+        )}
 
         {/* Footer de resumen */}
         <div className="border-t border-[#D5CFC4] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex items-center justify-between">
