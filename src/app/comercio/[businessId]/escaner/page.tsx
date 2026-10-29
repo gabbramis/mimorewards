@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import CashierScanner from "@/components/CashierScanner";
+import CashierScanner from "@/components/shared/CashierScanner";
 
 export const dynamic = "force-dynamic";
 

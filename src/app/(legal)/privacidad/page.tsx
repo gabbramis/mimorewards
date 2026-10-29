@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CUSTOMER_CONSENT_VERSION } from "@/lib/customer-consent";
-import "../customer-legal.css";
+import "../../customer-legal.css";
 
 export const metadata = { title: "Política de privacidad | mimo rewards" };
 

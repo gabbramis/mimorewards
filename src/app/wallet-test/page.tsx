@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
-import GoogleWalletButton from '@/components/GoogleWalletButton';
-import AppleWalletButton from '@/components/AppleWalletButton';
+import GoogleWalletButton from '@/components/shared/GoogleWalletButton';
+import AppleWalletButton from '@/components/shared/AppleWalletButton';
 
 export default function WalletTestPage() {
     const [stamps, setStamps] = useState(3);

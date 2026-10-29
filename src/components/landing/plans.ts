@@ -9,7 +9,7 @@ export const launchPlans = [
     cta: "Quiero empezar gratis", featured: false,
   },
   {
-    id: "profesional", name: "Profesional", label: "EL FAVORITO DEL MOSTRADOR", price: "$990", kitPrice: "$1.290",
+    id: "profesional", name: "Profesional", label: "EL FAVORITO DEL MOSTRADOR", price: "$1.290", kitPrice: "$1.290",
     description: "Tu marca en cada visita. Una experiencia propia, del mostrador al celular.",
     capacity: "Hasta 500 clientes activos",
     hardware: "Tótem de acrílico con QR y chip NFC NTAG protegido. Listo para tu mostrador.",
@@ -17,7 +17,7 @@ export const launchPlans = [
     cta: "Quiero el Profesional", featured: true,
   },
   {
-    id: "premium", name: "Premium", label: "MÁS MOTIVOS PARA VOLVER", price: "$1.990", kitPrice: "$1.490",
+    id: "premium", name: "Premium", label: "MÁS MOTIVOS PARA VOLVER", price: "$2.490", kitPrice: "$1.490",
     description: "Convertí el historial de tus clientes en nuevas oportunidades para tu local.",
     capacity: "Clientes activos ilimitados",
     hardware: "Tótem personalizado con QR y NFC NTAG + llaveros NTAG para tu equipo.",
