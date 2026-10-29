@@ -21,7 +21,7 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_description, created_at")
+      .select("id, name, reward_description, created_at, plan_type")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -87,6 +87,7 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
       initialLogs={logs}
       businessCreatedAt={business.created_at}
       allStampDates={(allStampsData || []).map((s: any) => s.created_at)}
+      planType={business.plan_type}
     />
   );
 }

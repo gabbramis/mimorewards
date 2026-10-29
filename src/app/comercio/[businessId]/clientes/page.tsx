@@ -20,7 +20,7 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_target, reward_description")
+      .select("id, name, reward_target, reward_description, plan_type")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -60,6 +60,7 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
       rewardDescription={
         business.reward_description || "Café o recompensa disponible"
       }
+      planType={business.plan_type}
     />
   );
 }

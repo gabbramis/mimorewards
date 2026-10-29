@@ -1,9 +1,33 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessBusiness } from "@/lib/authz";
 import { scheduleCustomerWalletUpdate } from "@/lib/wallet-notifications";
 import { normalizeUruguayMobile, cleanUruguayPhone, getUruguayMobileVariants } from "@/lib/customer-phone";
+import { sendApnsNotification } from "@/lib/wallet/apns";
+import { PASS_TYPE_ID } from "@/lib/wallet/appleWallet";
+
+/**
+ * Envía la notificación push silenciosa a APNs para Apple Wallet.
+ * Apple Wallet requiere que el payload sea {} y que se use el passTypeIdentifier como topic.
+ */
+/**
+ * Envía la notificación push silenciosa a APNs para Apple Wallet.
+ * Reglas estrictas de Apple Wallet:
+ * 1. apns-topic: Debe ser exactamente el passTypeIdentifier del certificado (ej. pass.com.mimorewards.loyalty).
+ * 2. payload: Debe ser estrictamente un diccionario aps vacío: { "aps": {} } sin alert ni body.
+ */
+async function enviarPushAPNs(pushToken: string, passTopic?: string) {
+  try {
+    const topic = (passTopic || PASS_TYPE_ID).trim();
+    console.log(`[enviarPushAPNs] Iniciando push a APNs para token: ${pushToken.slice(0, 10)}... | topic: "${topic}" | payload: {"aps":{}}`);
+    return await sendApnsNotification(pushToken, topic);
+  } catch (err) {
+    console.error(`[APNs] Error al enviar push al token ${pushToken}:`, err);
+    return null;
+  }
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,10 +38,15 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Necesitás iniciar sesión para sumar un sello desde el panel." }, { status: 401 });
 
     const body = await request.json();
-    const identifier = String(body.identifier || "").trim();
-    const method = String(body.method || "MANUAL").toUpperCase();
+    const identifier = String(body.identifier || body.customerId || body.clientId || "").trim();
+    let method = String(body.method || "MANUAL").trim().toUpperCase();
+    if (method === "QR_SCAN" || method === "QRSCAN") {
+      method = "QR";
+    } else if (method === "NFC_SCAN" || method === "NFCSCAN") {
+      method = "NFC";
+    }
     if (!identifier) return NextResponse.json({ error: "Falta el identificador del cliente." }, { status: 400 });
-    if (!['QR', 'MANUAL'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
+    if (!['QR', 'MANUAL', 'NFC'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
 
     const supabase: any = createAdminClient();
     const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
@@ -140,12 +169,119 @@ export async function POST(request: Request) {
       idempotency_key: request.headers.get("x-idempotency-key") || crypto.randomUUID(),
     });
 
-    // Notificar a los dispositivos Apple Wallet y Google Wallet registrados
+    // 2. Disparador APNs con Delay: Apenas la base de datos confirme el guardado,
+    // recuperar el pushToken del dispositivo del cliente
+    let cardId = loyaltyCard?.id;
+    if (!cardId) {
+      const { data: createdCard } = await supabase
+        .from("loyalty_cards")
+        .select("id")
+        .eq("customer_id", customer.id)
+        .eq("business_id", customer.business_id)
+        .maybeSingle();
+      cardId = createdCard?.id;
+    }
+
+    let applePushTokens: Array<{ token: string; passType?: string }> = [];
+    try {
+      let regQuery = supabase
+        .from("wallet_registrations")
+        .select("push_token, pass_type_identifier");
+
+      if (cardId) {
+        regQuery = regQuery.or(`serial_number.eq.${cardId},customer_id.eq.${customer.id}`);
+      } else {
+        regQuery = regQuery.eq("customer_id", customer.id);
+      }
+
+      const { data: registrations } = await regQuery;
+
+      const tokenMap = new Map<string, string | undefined>();
+      if (registrations) {
+        for (const reg of registrations) {
+          if (reg.push_token) {
+            tokenMap.set(reg.push_token, reg.pass_type_identifier);
+          }
+        }
+      }
+
+      // Fallback a apple_push_token guardado en customers
+      if (customer.apple_push_token && !tokenMap.has(customer.apple_push_token)) {
+        tokenMap.set(customer.apple_push_token, PASS_TYPE_ID);
+      }
+
+      // Fallback por todas las tarjetas del cliente
+      if (tokenMap.size === 0) {
+        const { data: allCards } = await supabase
+          .from("loyalty_cards")
+          .select("id")
+          .eq("customer_id", customer.id);
+        const cardIds = (allCards || []).map((c: any) => c.id);
+        if (cardIds.length > 0) {
+          const { data: regByCards } = await supabase
+            .from("wallet_registrations")
+            .select("push_token, pass_type_identifier")
+            .in("serial_number", cardIds);
+          (regByCards || []).forEach((r: any) => {
+            if (r.push_token) tokenMap.set(r.push_token, r.pass_type_identifier);
+          });
+        }
+      }
+
+      applePushTokens = Array.from(tokenMap.entries()).map(([token, passType]) => ({
+        token,
+        passType,
+      }));
+
+      console.log(`[stamps/add] Cliente: ${customer.first_name} (${customer.unique_code}), Sellos: ${currentStamps} -> ${newStamps}`);
+      console.log(`[stamps/add] Apple Wallet tokens encontrados: ${applePushTokens.length}`);
+      if (applePushTokens.length === 0) {
+        console.warn("[stamps/add] No se encontraron tokens de Apple Wallet para este cliente. Asegurate de que la tarjeta esté instalada en el dispositivo.");
+      }
+    } catch (tokenErr) {
+      console.warn("[APNs] Error al recuperar pushToken de Apple Wallet:", tokenErr);
+    }
+
+    // 3. Efecto diferido: Disparar la notificación push a los servidores de APNs
+    // de forma asíncrona a los 2 segundos exactos, sin bloquear la respuesta 200 OK del cajero.
+    if (applePushTokens.length > 0) {
+      let executed = false;
+      const dispararPushConDelay = async () => {
+        if (executed) return;
+        executed = true;
+        console.log(`[APNs Delayed Push] Disparando push a los 2s para ${applePushTokens.length} dispositivo(s)...`);
+        for (const { token, passType } of applePushTokens) {
+          try {
+            const res = await enviarPushAPNs(token, passType);
+            console.log(`[APNs Delayed Push] Push enviado a ${token.slice(0, 10)}...:`, res?.success ? "OK" : res?.error);
+          } catch (err) {
+            console.error("[APNs Delayed Push] Falló el envío de push:", err);
+          }
+        }
+      };
+
+      // Disparar vía setTimeout a los 2 segundos exactos
+      setTimeout(dispararPushConDelay, 2000);
+
+      // Compatibilidad serverless: after() garantiza tiempo de ejecución sin pausar el hilo ni demorar el 200 OK
+      try {
+        after(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await dispararPushConDelay();
+        });
+      } catch {
+        // Fallback a setTimeout en entornos donde after() no esté disponible
+      }
+    }
+
+    // Notificar a Google Wallet y fallback a Apple Wallet si no hubo tokens directos
+    // skipApple: true evita push inmediato duplicado ya que se programó a los 2s
     scheduleCustomerWalletUpdate({
       customerId: customer.id,
       businessId: customer.business_id,
       currentStamps: newStamps,
       targetStamps: maxStamps,
+      skipApple: applePushTokens.length > 0,
       notificationMessage: isFull
         ? `¡Tarjeta completada! Comenzaste un nuevo ciclo con 1 de ${maxStamps} sellos.`
         : `¡Sumaste sellos! Llevás ${newStamps} de ${maxStamps}.`,
@@ -159,8 +295,12 @@ export async function POST(request: Request) {
         ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello."
         : "Sello sumado correctamente.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding stamp:", error);
-    return NextResponse.json({ error: "No se pudo sumar el sello." }, { status: 500 });
+    const rawError = error?.message || error?.details || (typeof error === "object" ? JSON.stringify(error) : String(error));
+    return NextResponse.json({
+      error: rawError || "No se pudo sumar el sello.",
+      details: error?.details || error?.hint || error?.code || null,
+    }, { status: 500 });
   }
 }

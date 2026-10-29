@@ -133,7 +133,7 @@ test('actual signed Apple pass preserves proximity and never includes promotiona
       webServiceURL: 'https://mimorewards.com/api/apple-wallet',
     }));
     assert.deepEqual(pass.locations, [{ latitude: -34.9056557, longitude: -56.1706692, relevantText: 'Local cercano' }]);
-    assert.equal(JSON.stringify(pass).includes('changeMessage'), false);
+    assert.equal(pass.storeCard.headerFields[0].changeMessage, '¡Sumaste un sello! Tenés %@ sellos.');
     assert.equal(pass.webServiceURL, 'https://www.mimorewards.com/api/apple-wallet');
     assert.equal(JSON.stringify(pass).includes('This promotion must not appear'), false);
     assert.equal(apple.verifyPassAuthToken('test-card', pass.authenticationToken), true);
@@ -175,5 +175,5 @@ test('Wallet APNs updates use an empty payload and background-compatible priorit
   assert.equal(capturedHeaders['apns-priority'], '5');
   assert.equal(capturedHeaders['apns-push-type'], 'background');
   assert.equal(capturedHeaders['apns-topic'], 'pass.test');
-  assert.equal(payload, '{}');
+  assert.equal(payload, JSON.stringify({ aps: {} }));
 });

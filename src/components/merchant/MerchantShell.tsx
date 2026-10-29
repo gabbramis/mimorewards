@@ -16,8 +16,11 @@ import {
   ChevronRight,
   Megaphone,
   QrCode,
+  Lock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
+import UpgradeModal from "./UpgradeModal";
 
 interface MerchantShellProps {
   children: React.ReactNode;
@@ -27,6 +30,7 @@ interface MerchantShellProps {
   businessLogo?: string | null;
   isActive?: boolean;
   showCommunications?: boolean;
+  planType?: string | null;
 }
 
 export default function MerchantShell({
@@ -37,12 +41,25 @@ export default function MerchantShell({
   businessLogo,
   isActive = true,
   showCommunications = false,
+  planType,
 }: MerchantShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { planType: contextPlanType, isFreePlan: contextIsFree } = useBusiness();
+  const isFree = planType !== undefined ? isPlanFree(planType) : contextIsFree;
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeModalTitle, setUpgradeModalTitle] = useState("Función exclusiva del Plan Pro");
+  const [upgradeModalDesc, setUpgradeModalDesc] = useState<string | undefined>(undefined);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showUpgradeToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   const navItems = [
     {
@@ -50,28 +67,36 @@ export default function MerchantShell({
       label: "Dashboard",
       icon: LayoutDashboard,
       exact: true,
+      requiresPro: false,
     },
     {
       href: `/comercio/${businessId}/escaner`,
       label: "Escáner",
       icon: QrCode,
       exact: false,
+      requiresPro: false,
     },
     {
       href: `/comercio/${businessId}/clientes`,
       label: "Clientes",
       icon: Users,
       exact: false,
+      requiresPro: false,
     },
     {
       href: `/comercio/${businessId}/historial`,
       label: "Historial de movimientos",
       icon: History,
       exact: false,
+      requiresPro: false,
     },
-    ...(showCommunications ? [{
-      href: `/comercio/${businessId}/comunicaciones`, label: 'Comunicaciones', icon: Megaphone, exact: false,
-    }] : []),
+    {
+      href: `/comercio/${businessId}/comunicaciones`,
+      label: "Comunicaciones",
+      icon: Megaphone,
+      exact: false,
+      requiresPro: true,
+    },
   ];
 
   const handleCopyCardLink = async () => {
@@ -100,6 +125,23 @@ export default function MerchantShell({
 
   return (
     <div className="flex h-screen w-full bg-[#FFF9F5] text-[#1F1F1F] font-sans antialiased overflow-hidden">
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title={upgradeModalTitle}
+        description={upgradeModalDesc}
+        feature="communications"
+      />
+
+      {/* Floating Upgrade Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#1F1F1F] text-white px-5 py-3.5 shadow-xl border border-neutral-700 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-200">
+          <Lock size={15} className="text-amber-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
@@ -140,7 +182,7 @@ export default function MerchantShell({
             </button>
           </div>
 
-          {/* Navigation Links (solo Dashboard, Clientes, Historial de movimientos) */}
+          {/* Navigation Links */}
           <nav className="flex flex-col gap-1.5 px-3 py-5">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#737373]">
               Gestión Operativa
@@ -148,6 +190,32 @@ export default function MerchantShell({
             {navItems.map((item) => {
               const active = isCurrentActive(item);
               const Icon = item.icon;
+              const isLocked = item.requiresPro && isFree;
+
+              if (isLocked) {
+                return (
+                  <button
+                    key={item.href}
+                    type="button"
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      setUpgradeModalTitle("Comunicaciones está disponible en el Plan Pro");
+                      setUpgradeModalDesc(
+                        "Enviá notificaciones push ilimitadas y promociones automáticas a la pantalla de bloqueo de tus clientes. Mejorá tu plan para desbloquear esta sección."
+                      );
+                      setUpgradeModalOpen(true);
+                      showUpgradeToast("Comunicaciones está bloqueado. Actualizá al Plan Pro para acceder.");
+                    }}
+                    className="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold opacity-50 cursor-not-allowed select-none text-[#737373] hover:bg-[#FFF9F5]/70 transition-all duration-150"
+                    title="Función bloqueada - Requiere Plan Pro"
+                  >
+                    <Icon size={17} className="text-[#A3A3A3] shrink-0" />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    <Lock size={13} className="text-[#737373] shrink-0 ml-auto" />
+                  </button>
+                );
+              }
+
               return (
                 <Link
                   key={item.href}

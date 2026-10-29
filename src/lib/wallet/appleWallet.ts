@@ -33,6 +33,7 @@ export type AppleCard = {
   authenticationToken?: string;
   activeCampaignMessage?: string | null;
   locations?: WalletLocation[];
+  changeMessage?: string;
   /** Configuración JSONB de `businesses.wallet_config` (se valida internamente). */
   wallet?: unknown;
 };
@@ -233,6 +234,7 @@ export async function createAppleWalletPass(card: AppleCard) {
     label: "SELLOS",
     value: `${card.currentStamps} / ${card.targetStamps}`,
     textAlignment: "PKTextAlignmentRight",
+    changeMessage: card.changeMessage || "¡Sumaste un sello! Tenés %@ sellos.",
   };
 
   let trimmedLogo = logoSource;

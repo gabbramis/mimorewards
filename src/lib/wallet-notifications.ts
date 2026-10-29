@@ -16,6 +16,7 @@ export type CustomerNotificationParams = {
   targetStamps?: number;
   notificationMessage?: string;
   businessName?: string;
+  skipApple?: boolean;
 };
 
 /** Keep provider work alive after responding to the stamp/redeem request. */
@@ -75,11 +76,13 @@ export async function notifyCustomerWalletUpdate(params: CustomerNotificationPar
     const businessName = params.businessName || business?.name || "Mimo Rewards";
 
     // 2. Notificación y actualización para Apple Wallet (.pkpass + APNs)
-    try {
-      const appleResult = await sendCustomerPassUpdate(customerId, businessId);
-      results.apple = appleResult;
-    } catch (appleErr: any) {
-      console.error("[Wallet Notifications] Error notifying Apple Wallet:", appleErr?.message);
+    if (!params.skipApple) {
+      try {
+        const appleResult = await sendCustomerPassUpdate(customerId, businessId);
+        results.apple = appleResult;
+      } catch (appleErr: any) {
+        console.error("[Wallet Notifications] Error notifying Apple Wallet:", appleErr?.message);
+      }
     }
 
     // 3. Actualización de saldo de Google Wallet, sin mensajes promocionales.

@@ -3,6 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
+/**
+ * GET /api/apple-wallet/v1/devices/[deviceLibraryIdentifier]/registrations/[passTypeIdentifier]
+ * Endpoint oficial de Apple Wallet para consultar pases modificados asociados a un dispositivo.
+ * Cuando el iPhone recibe el push silencioso APNs, llama inmediatamente a este endpoint.
+ */
 export async function GET(
   request: Request,
   {
@@ -19,10 +24,14 @@ export async function GET(
     const url = new URL(request.url);
     const passesUpdatedSince = url.searchParams.get("passesUpdatedSince");
 
+    console.log(
+      `[Apple Wallet Pull - Registrations] Solicitud recibida. Dispositivo: ${deviceLibraryIdentifier}, topic: ${passTypeIdentifier}, tag previo: ${passesUpdatedSince || "ninguno"}`
+    );
+
     const supabase: any = createAdminClient();
 
     // 1. Obtener los pases registrados para este dispositivo desde wallet_registrations (o fallback wallet_devices)
-    const [{ data: regs }, { data: legacyDevices }] = await Promise.all([
+    const [{ data: regs, error: regsErr }, { data: legacyDevices, error: legacyErr }] = await Promise.all([
       supabase
         .from("wallet_registrations")
         .select("serial_number")
@@ -35,71 +44,35 @@ export async function GET(
         .eq("pass_type_identifier", passTypeIdentifier),
     ]);
 
+    if (regsErr && legacyErr) {
+      console.error("[Apple Wallet Pull - Registrations] Error consultando registros en base de datos:", { regsErr, legacyErr });
+      return new Response(null, { status: 500 });
+    }
+
     const serialSet = new Set<string>();
-    (regs || []).forEach((r: any) => serialSet.add(r.serial_number));
-    (legacyDevices || []).forEach((d: any) => serialSet.add(d.serial_number));
+    (regs || []).forEach((r: any) => { if (r.serial_number) serialSet.add(r.serial_number); });
+    (legacyDevices || []).forEach((d: any) => { if (d.serial_number) serialSet.add(d.serial_number); });
 
     if (serialSet.size === 0) {
+      console.log(`[Apple Wallet Pull - Registrations] 204 No Content: No hay tarjetas registradas para el dispositivo ${deviceLibraryIdentifier}.`);
       return new Response(null, { status: 204 });
     }
 
     const serialNumbers = Array.from(serialSet);
 
-    // 2. Consultar las tarjetas correspondientes para conocer su fecha de modificación
-    const { data: cards, error: cardsError } = await supabase
-      .from("loyalty_cards")
-      .select("id, updated_at, created_at")
-      .in("id", serialNumbers);
+    // 2. Generar un updateTag (timestamp) siempre nuevo para forzar al dispositivo a descargar la tarjeta actualizada
+    const updateTag = String(Date.now());
 
-    if (cardsError) {
-      console.error("[Apple Wallet] Error querying loyalty cards:", cardsError);
-      return new Response(null, { status: 500 });
-    }
-
-    if (!cards || cards.length === 0) {
-      return new Response(null, { status: 204 });
-    }
-
-    let changedCards = cards;
-
-    if (passesUpdatedSince) {
-      const sinceDate = !isNaN(Number(passesUpdatedSince))
-        ? new Date(Number(passesUpdatedSince))
-        : new Date(passesUpdatedSince);
-
-      const sinceTimestamp = sinceDate.getTime();
-
-      if (!isNaN(sinceTimestamp)) {
-        changedCards = cards.filter((c: any) => {
-          const cardDate = new Date(c.updated_at || c.created_at || 0).getTime();
-          return cardDate > sinceTimestamp;
-        });
-      }
-    }
-
-    if (changedCards.length === 0) {
-      return new Response(null, { status: 204 });
-    }
-
-    // Calcular el tag de actualización más reciente
-    let maxTimestamp = 0;
-    for (const c of cards) {
-      const cardDate = new Date((c as any).updated_at || (c as any).created_at || 0).getTime();
-      if (cardDate > maxTimestamp) {
-        maxTimestamp = cardDate;
-      }
-    }
-
-    const lastUpdated = maxTimestamp > 0
-      ? new Date(maxTimestamp).toISOString()
-      : new Date().toISOString();
+    console.log(
+      `[Apple Wallet Pull - Registrations] 200 OK: Entregando ${serialNumbers.length} pase(s) seriales [${serialNumbers.join(", ")}] con updateTag=${updateTag}`
+    );
 
     return NextResponse.json({
-      lastUpdated,
-      serialNumbers: changedCards.map((c: any) => String(c.id)),
+      lastUpdated: updateTag,
+      serialNumbers: serialNumbers.map(String),
     });
   } catch (error) {
-    console.error("[Apple Wallet] Unexpected error in registrations GET:", error);
+    console.error("[Apple Wallet Pull - Registrations] Error inesperado:", error);
     return new Response(null, { status: 500 });
   }
 }

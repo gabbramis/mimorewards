@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     const supabase: any = createAdminClient();
     const { data, error } = await supabase
       .from("businesses")
-      .select("id, slug, name, logo_url, reward_target, reward_description, active, nfc_tags(nfc_id, active)")
+      .select("id, slug, name, logo_url, reward_target, reward_description, active, plan, plan_type, nfc_tags(nfc_id, active)")
       .order("name");
     if (error) throw error;
 
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
       let current = business;
       if (!current.slug) {
         const slug = await uniqueSlug(supabase, current.name, current.id);
-        const { data: updated } = await supabase.from("businesses").update({ slug }).eq("id", current.id).select("id, slug, name, logo_url, reward_target, reward_description, active").single();
+        const { data: updated } = await supabase.from("businesses").update({ slug }).eq("id", current.id).select("id, slug, name, logo_url, reward_target, reward_description, active, plan, plan_type").single();
         if (updated) current = updated;
       }
       // Solo lectura: NO se crean tags al listar. Se crean al guardar el negocio (POST/PUT).
@@ -119,10 +119,22 @@ export async function POST(request: Request) {
     if (!name) return NextResponse.json({ error: "El nombre es obligatorio." }, { status: 400 });
 
     const slug = await uniqueSlug(supabase, name);
+    const planVal = body.plan ? String(body.plan).toUpperCase() : 'FREE';
+    const planTypeVal = planVal === 'PRO' ? 'pro' : planVal === 'BLACK' ? 'black' : 'inicial';
+
     const { data: business, error } = await supabase
       .from("businesses")
-      .insert({ name, slug, logo_url: body.logo_url || null, reward_target: Number(body.reward_target) || 10, reward_description: String(body.reward_description || "Un beneficio gratis"), active: true })
-      .select("id, slug, name, logo_url, reward_target, reward_description, active")
+      .insert({
+        name,
+        slug,
+        logo_url: body.logo_url || null,
+        reward_target: Number(body.reward_target) || 10,
+        reward_description: String(body.reward_description || "Un beneficio gratis"),
+        active: true,
+        plan: planVal,
+        plan_type: planTypeVal,
+      })
+      .select("id, slug, name, logo_url, reward_target, reward_description, active, plan, plan_type")
       .single();
     if (error || !business) throw error || new Error("No se pudo crear el negocio.");
 
@@ -140,8 +152,38 @@ export async function PUT(request: Request) {
   const supabase: any = createAdminClient();
   try {
     const body = await request.json();
+    if (!body.id) return NextResponse.json({ error: "ID es obligatorio." }, { status: 400 });
+
+    // Actualizaciones parciales rápidas (toggle de estado y/o selector de plan)
+    if (body.plan !== undefined || (body.active !== undefined && !body.name) || (body.is_active !== undefined && !body.name)) {
+      const partial: Record<string, any> = {};
+      if (body.active !== undefined) partial.active = Boolean(body.active);
+      if (body.is_active !== undefined) partial.active = Boolean(body.is_active);
+
+      if (body.plan !== undefined) {
+        const p = String(body.plan).trim().toUpperCase();
+        partial.plan = p;
+        partial.plan_type = p === 'PRO' ? 'pro' : p === 'BLACK' ? 'black' : 'inicial';
+      } else if (body.plan_type !== undefined) {
+        const pt = String(body.plan_type).trim().toLowerCase();
+        partial.plan_type = pt;
+        partial.plan = pt === 'pro' ? 'PRO' : pt === 'black' ? 'BLACK' : 'FREE';
+      }
+
+      const { data: updated, error: updateErr } = await supabase
+        .from("businesses")
+        .update(partial)
+        .eq("id", body.id)
+        .select("id, slug, name, logo_url, reward_target, reward_description, active, plan, plan_type")
+        .single();
+      if (updateErr || !updated) throw updateErr || new Error("No se pudo actualizar el comercio.");
+
+      const tag = await ensureBusinessTag(supabase, updated);
+      return NextResponse.json({ business: withLinks(request, updated, tag) });
+    }
+
     const name = String(body.name || "").trim();
-    if (!body.id || !name) return NextResponse.json({ error: "ID y nombre son obligatorios." }, { status: 400 });
+    if (!name) return NextResponse.json({ error: "ID y nombre son obligatorios." }, { status: 400 });
 
     const { data: existing, error: existingError } = await supabase.from("businesses").select("slug, reward_target, reward_description").eq("id", body.id).maybeSingle();
     if (existingError) throw existingError;
@@ -154,11 +196,27 @@ export async function PUT(request: Request) {
       if ((count || 0) > 0) return NextResponse.json({ error: 'La meta y el premio de un negocio con clientes requieren una migración separada.' }, { status: 409 });
     }
     const slug = existing?.slug || await uniqueSlug(supabase, name, body.id);
+    const updateFields: Record<string, any> = {
+      name,
+      slug,
+      logo_url: body.logo_url || null,
+      reward_target: Number(body.reward_target) || 10,
+      reward_description: String(body.reward_description || "Un beneficio gratis"),
+      active: body.active !== undefined ? Boolean(body.active) : body.is_active !== undefined ? Boolean(body.is_active) : true,
+    };
+    if (body.plan !== undefined) {
+      const p = String(body.plan).trim().toUpperCase();
+      updateFields.plan = p;
+      updateFields.plan_type = p === 'PRO' ? 'pro' : p === 'BLACK' ? 'black' : 'inicial';
+    } else if (body.plan_type !== undefined) {
+      updateFields.plan_type = body.plan_type;
+    }
+
     const { data: business, error } = await supabase
       .from("businesses")
-      .update({ name, slug, logo_url: body.logo_url || null, reward_target: Number(body.reward_target) || 10, reward_description: String(body.reward_description || "Un beneficio gratis"), active: body.active !== false })
+      .update(updateFields)
       .eq("id", body.id)
-      .select("id, slug, name, logo_url, reward_target, reward_description, active")
+      .select("id, slug, name, logo_url, reward_target, reward_description, active, plan, plan_type")
       .single();
     if (error || !business) throw error || new Error("No se pudo actualizar el negocio.");
 

@@ -38,8 +38,11 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   // Fechas de filtro
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 6);
+
+  // Semana actual: Lunes como primer día y Domingo como último día
+  const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
   weekStart.setHours(0, 0, 0, 0);
 
   // Consultas concurrentes filtradas estrictamente por businessId
@@ -137,21 +140,24 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const returnRate =
     returnRateRaw % 1 === 0 ? returnRateRaw.toFixed(0) : returnRateRaw.toFixed(1);
 
-  // Agrupación por día de la semana para el gráfico (últimos 7 días)
-  const daysMap: { [key: string]: { label: string; count: number; date: Date } } = {};
-  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  // Agrupación por día de la semana para el gráfico: siempre Lunes primero hasta Domingo el último
+  const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  const daysMap: { [key: string]: { label: string; count: number; date: Date; isToday: boolean } } = {};
 
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
-    const dayLabel = dayNames[d.getDay()];
-    daysMap[key] = { label: dayLabel, count: 0, date: d };
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const isToday =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    daysMap[key] = { label: dayNames[i], count: 0, date: d, isToday };
   }
 
   (chartLogsData || []).forEach((log: any) => {
     if (log.created_at) {
-      const key = log.created_at.split("T")[0];
+      const d = new Date(log.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       if (daysMap[key]) {
         daysMap[key].count += 1;
       }
@@ -288,7 +294,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                 </p>
               </div>
               <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
-                Últimos 7 días
+                Lunes a Domingo
               </span>
             </div>
 
@@ -299,7 +305,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                   Math.round((item.count / maxDayCount) * 100),
                   6
                 );
-                const isToday = idx === chartDays.length - 1;
+                const isToday = item.isToday;
                 const isPeak = item.count === maxDayCount && maxDayCount > 0;
 
                 return (

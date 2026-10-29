@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { useState, useCallback, useEffect } from "react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 import {
-  Camera,
   CheckCircle2,
   RefreshCw,
-  AlertTriangle,
   QrCode,
-  Sparkles,
-  ArrowRight,
   User,
   XCircle,
   Loader2,
@@ -27,25 +23,61 @@ interface CashierScannerProps {
 type ScanStatus = "idle" | "scanning" | "detected" | "processing" | "success" | "error";
 
 export default function CashierScanner({
-  businessId,
+  businessId: propBusinessId,
   onStampSuccess,
   onClose,
   className = "",
 }: CashierScannerProps) {
-  const [status, setStatus] = useState<ScanStatus>("idle");
+  const [status, setStatus] = useState<ScanStatus>("scanning");
   const [clientId, setClientId] = useState<string>("");
+  const [resolvedCustomerId, setResolvedCustomerId] = useState<string>("");
   const [clientDisplayName, setClientDisplayName] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [cameraError, setCameraError] = useState<string>("");
-  const [cameraErrorType, setCameraErrorType] = useState<"permission" | "not_readable" | "general" | null>(null);
-  const [isResettingCamera, setIsResettingCamera] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [currentStamps, setCurrentStamps] = useState<number | null>(null);
+  const [activeBusinessId, setActiveBusinessId] = useState<string>(propBusinessId || "");
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const observerRef = useRef<MutationObserver | null>(null);
-  const scannerContainerId = "cashier-qr-scanner-view";
   const supabase = createClient();
+
+  // Autoresolver el businessId si no vino por props
+  useEffect(() => {
+    if (propBusinessId) {
+      setActiveBusinessId(propBusinessId);
+      return;
+    }
+    async function resolveBusiness() {
+      try {
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const bParam = params.get("businessId");
+          if (bParam) {
+            setActiveBusinessId(bParam);
+            return;
+          }
+          const match = window.location.pathname.match(/\/comercio\/([^/]+)/);
+          if (match && match[1]) {
+            setActiveBusinessId(match[1]);
+            return;
+          }
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: member } = await supabase
+            .from("business_members")
+            .select("business_id")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle();
+          if (member?.business_id) {
+            setActiveBusinessId(member.business_id);
+          }
+        }
+      } catch (err) {
+        console.warn("No se pudo resolver el businessId:", err);
+      }
+    }
+    resolveBusiness();
+  }, [propBusinessId, supabase]);
 
   // Función auxiliar para extraer el ID si el QR contiene una URL completa
   const parseQrContent = (rawText: string): string => {
@@ -83,7 +115,7 @@ export default function CashierScanner({
       osc.frequency.value = 880;
       gain.gain.setValueAtTime(0, ctx.currentTime);
       gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.04);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.18);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.18);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.18);
     } catch {
@@ -96,10 +128,10 @@ export default function CashierScanner({
     try {
       let query = supabase
         .from("customers")
-        .select("id, first_name, last_name, unique_code, current_stamps");
+        .select("id, first_name, last_name, unique_code, current_stamps, business_id");
 
-      if (businessId) {
-        query = query.eq("business_id", businessId);
+      if (activeBusinessId) {
+        query = query.eq("business_id", activeBusinessId);
       }
 
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
@@ -112,6 +144,10 @@ export default function CashierScanner({
         const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
         setClientDisplayName(fullName || data.unique_code || idOrCode);
         setCurrentStamps(typeof data.current_stamps === "number" ? data.current_stamps : null);
+        setResolvedCustomerId(data.id);
+        if (!activeBusinessId && data.business_id) {
+          setActiveBusinessId(data.business_id);
+        }
         return data.id;
       }
     } catch (err) {
@@ -119,15 +155,15 @@ export default function CashierScanner({
     }
     setClientDisplayName(idOrCode);
     return idOrCode;
-  }, [businessId, supabase]);
+  }, [activeBusinessId, supabase]);
 
-  // Callback de detección de QR
-  const onScanSuccess = useCallback(async (decodedText: string) => {
+  // Callback de detección de QR con @yudiel/react-qr-scanner
+  const handleScanSuccess = useCallback(async (rawText: string) => {
     if (status === "detected" || status === "processing" || status === "success" || isPaused) {
       return;
     }
 
-    const detectedId = parseQrContent(decodedText);
+    const detectedId = parseQrContent(rawText);
     if (!detectedId) return;
 
     playBeep();
@@ -135,290 +171,64 @@ export default function CashierScanner({
       navigator.vibrate(120);
     }
 
-    // Pausar escaneo
     setIsPaused(true);
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.pause(true);
-      } catch (err) {
-        console.warn("Error al pausar html5-qrcode:", err);
-      }
-    }
-
     setClientId(detectedId);
     setStatus("detected");
     setErrorMessage("");
 
-    // Opcional: buscar si existe el nombre del cliente
     await lookupCustomerDetails(detectedId);
   }, [status, isPaused, lookupCustomerDetails]);
 
-  // 1. Atributos del Video (Crucial para iOS/Safari):
-  // Safari bloquea la reproducción y deja la pantalla en negro si el video no tiene playsInline, autoPlay y muted
-  const injectVideoAttributes = useCallback(() => {
-    if (typeof document === "undefined") return;
-    const container = document.getElementById(scannerContainerId);
-    if (!container) return;
-    const videos = container.querySelectorAll("video");
-    videos.forEach((video) => {
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("webkit-playsinline", "true");
-      video.setAttribute("autoplay", "true");
-      video.setAttribute("muted", "true");
-      video.playsInline = true;
-      video.autoplay = true;
-      video.muted = true;
-      if (video.paused) {
-        video.play().catch(() => {});
-      }
-    });
-  }, [scannerContainerId]);
-
-  // Observer para inyectar los atributos en cuanto html5-qrcode agregue el elemento <video>
-  const setupVideoObserver = useCallback(() => {
-    if (typeof document === "undefined") return;
-    const container = document.getElementById(scannerContainerId);
-    if (!container) return;
-
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    injectVideoAttributes();
-
-    const observer = new MutationObserver(() => {
-      injectVideoAttributes();
-    });
-
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["playsinline", "webkit-playsinline", "autoplay", "muted"],
-    });
-
-    observerRef.current = observer;
-  }, [injectVideoAttributes, scannerContainerId]);
-
-  // Iniciar la cámara trasera con html5-qrcode
-  const startCamera = useCallback(async () => {
-    setCameraError("");
-    setCameraErrorType(null);
-    setStatus("scanning");
-    setIsPaused(false);
-    setClientId("");
-    setClientDisplayName("");
-    setCurrentStamps(null);
-
-    // 3. Tiempo de Montaje: retraso de 300ms para darle tiempo a Safari de renderizar el contenedor antes de inyectar el video
-    await new Promise((r) => setTimeout(r, 300));
-
-    try {
-      const container = document.getElementById(scannerContainerId);
-      if (!container) {
-        throw new Error("No se encontró el contenedor de escaneo en la pantalla.");
-      }
-
-      setupVideoObserver();
-
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(scannerContainerId, {
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.EAN_13,
-          ],
-          verbose: false,
-        });
-      }
-
-      const qrCode = scannerRef.current;
-
-      // Si ya está escaneando, resumir si estaba en pausa
-      if (qrCode.isScanning) {
-        try {
-          qrCode.resume();
-        } catch {
-          // ignore
-        }
-        injectVideoAttributes();
-        return;
-      }
-
-      const config = {
-        fps: 15,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrEdgeSize = Math.max(Math.floor(minEdge * 0.72), 200);
-          return {
-            width: qrEdgeSize,
-            height: qrEdgeSize,
-          };
-        },
-        aspectRatio: 1.0,
-      };
-
-      try {
-        // 2. Forzar Cámara Trasera: pedir explícitamente facingMode: "environment" (evitando { exact: "environment" })
-        await qrCode.start(
-          { facingMode: "environment" },
-          config,
-          onScanSuccess,
-          undefined
-        );
-      } catch (err: any) {
-        console.warn("Fallo cámara trasera o no disponible, intentando con facingMode user:", err);
-        // Fallback a cámara frontal/disponible si el dispositivo no tiene trasera o falla el selector
-        await qrCode.start(
-          { facingMode: "user" },
-          config,
-          onScanSuccess,
-          undefined
-        );
-      }
-
-      // Inyección inmediata y verificación periódica inicial de atributos
-      injectVideoAttributes();
-      let checks = 0;
-      const interval = setInterval(() => {
-        injectVideoAttributes();
-        checks += 1;
-        if (checks >= 8) clearInterval(interval);
-      }, 150);
-
-    } catch (err: any) {
-      console.error("Error al acceder a la cámara:", err);
-
-      const errName = err?.name || "";
-      const errMsg = String(err?.message || err || "");
-      const isNotAllowed =
-        errName === "NotAllowedError" ||
-        errName === "PermissionDeniedError" ||
-        errMsg.toLowerCase().includes("permission") ||
-        errMsg.toLowerCase().includes("notallowed");
-
-      const isNotReadable =
-        errName === "NotReadableError" ||
-        errName === "TrackStartError" ||
-        errMsg.toLowerCase().includes("notreadable") ||
-        errMsg.toLowerCase().includes("could not start video source");
-
-      // 4. Reinicio de Permisos: Manejo específico de NotReadableError y NotAllowedError
-      if (isNotAllowed) {
-        setCameraErrorType("permission");
-        setCameraError(
-          "Permiso de cámara denegado. Habilitá el acceso a la cámara en los ajustes de Safari para escanear."
-        );
-      } else if (isNotReadable) {
-        setCameraErrorType("not_readable");
-        setCameraError(
-          "La cámara está bloqueada o en uso por otra app/pestaña de iOS. Tocá el botón para reinicializarla limpiamente."
-        );
-      } else {
-        setCameraErrorType("general");
-        setCameraError(
-          errMsg || "No se pudo acceder a la cámara. Verificá los permisos del navegador."
-        );
-      }
-
-      setStatus("error");
-    }
-  }, [onScanSuccess, scannerContainerId, setupVideoObserver, injectVideoAttributes]);
-
-  // Detener la cámara limpiamente y liberar hardware en iOS/Safari
-  const stopCamera = useCallback(async () => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-      observerRef.current = null;
-    }
-
-    if (typeof document !== "undefined") {
-      const container = document.getElementById(scannerContainerId);
-      const videos = container?.querySelectorAll("video");
-      videos?.forEach((video) => {
-        if (video.srcObject) {
-          try {
-            const stream = video.srcObject as MediaStream;
-            stream.getTracks().forEach((track) => {
-              track.stop();
-            });
-            video.srcObject = null;
-          } catch {}
-        }
-      });
-    }
-
-    if (scannerRef.current) {
-      try {
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-        }
-        scannerRef.current.clear();
-      } catch (err) {
-        console.warn("Error al detener html5-qrcode:", err);
-      }
-      scannerRef.current = null;
-    }
-  }, [scannerContainerId]);
-
-  // 4. Reinicio de Permisos y cámara limpia
-  const handleCleanRestart = async () => {
-    setIsResettingCamera(true);
-    setCameraError("");
-    setCameraErrorType(null);
-    try {
-      await stopCamera();
-      // Pausa para que iOS libere el hardware de la cámara
-      await new Promise((r) => setTimeout(r, 400));
-      await startCamera();
-    } finally {
-      setIsResettingCamera(false);
-    }
-  };
-
   // Reiniciar escaneo para escanear otro cliente
-  const handleScanAgain = async () => {
+  const handleScanAgain = () => {
     setErrorMessage("");
     setStatus("scanning");
     setClientId("");
+    setResolvedCustomerId("");
     setClientDisplayName("");
     setCurrentStamps(null);
     setIsPaused(false);
-
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        scannerRef.current.resume();
-        injectVideoAttributes();
-        return;
-      } catch (err) {
-        console.warn("Error al resumir cámara, reiniciando:", err);
-      }
-    }
-    await startCamera();
   };
 
   // 5. Conexión: Función handleAddStamp armada para conectar con Supabase / API
   const handleAddStamp = async (targetClientId: string) => {
-    if (!targetClientId) return;
+    const idToSend = resolvedCustomerId || targetClientId;
+    if (!idToSend) return;
     setStatus("processing");
     setErrorMessage("");
 
     try {
-      // 1. Llamada a la API de sellos de Mimo
+      // 1. Llamada a la API de sellos de Mimo con method 'QR'
       const response = await fetch("/api/stamps/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          identifier: targetClientId,
-          businessId: businessId || undefined,
-          method: "QR_SCAN",
+          identifier: idToSend,
+          clientId: idToSend,
+          customerId: resolvedCustomerId || undefined,
+          businessId: activeBusinessId || undefined,
+          method: "QR",
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        const text = await response.text().catch(() => "");
+        data = { error: text || `HTTP ${response.status} ${response.statusText}` };
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "No se pudo sumar el sello.");
+        const rawErrMsg =
+          data?.error ||
+          data?.message ||
+          data?.details ||
+          (typeof data === "string" ? data : JSON.stringify(data)) ||
+          `HTTP Error ${response.status}`;
+        const errorObj = new Error(rawErrMsg);
+        (errorObj as any).response = { data, status: response.status, statusText: response.statusText };
+        throw errorObj;
       }
 
       // Si fue exitoso:
@@ -428,32 +238,21 @@ export default function CashierScanner({
       setCurrentStamps(newTotal);
 
       if (onStampSuccess) {
-        onStampSuccess(targetClientId, newTotal);
+        onStampSuccess(idToSend, newTotal);
       }
     } catch (err: any) {
-      console.error("Error al sumar sello:", err);
-      setErrorMessage(
-        err?.message || "Ocurrió un error al registrar el sello en la base de datos."
-      );
+      console.error("Fallo exacto en backend:", err);
+      const rawError =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        (typeof err === "object" ? JSON.stringify(err) : String(err)) ||
+        "Error desconocido al procesar";
+
+      setErrorMessage(String(rawError));
       setStatus("detected"); // Permite reintentar
     }
   };
-
-  // 3. Tiempo de Montaje: Inicializar cámara con retraso (300ms) al montar el componente
-  useEffect(() => {
-    let isMounted = true;
-    const timer = setTimeout(() => {
-      if (isMounted) {
-        startCamera();
-      }
-    }, 300);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-      stopCamera();
-    };
-  }, [startCamera, stopCamera]);
 
   return (
     <div
@@ -521,60 +320,21 @@ export default function CashierScanner({
       <div className="relative p-5 flex flex-col items-center">
         {/* Recuadro contenedor de la cámara */}
         <div className="relative w-full aspect-square max-w-[320px] rounded-2xl overflow-hidden bg-black shadow-inner border-2 border-[#1F1F1F]">
-          {/* Contenedor DOM para html5-qrcode */}
-          <div
-            id={scannerContainerId}
-            className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&>#cashier-qr-scanner-view__scan_region]:w-full [&>#cashier-qr-scanner-view__scan_region]:h-full"
+          <Scanner
+            onScan={(result) => {
+              if (result && result.length > 0 && result[0]?.rawValue) {
+                handleScanSuccess(result[0].rawValue);
+              }
+            }}
+            onError={(err) => console.log(err)}
+            paused={isPaused || status === "detected" || status === "processing" || status === "success"}
+            sound={false}
+            components={{ finder: true, audio: false } as any}
+            styles={{
+              container: { width: "100%", height: "100%" },
+              video: { objectFit: "cover", width: "100%", height: "100%" },
+            }}
           />
-
-          {/* Overlay visual: Guía de encuadre cuando está escaneando */}
-          {status === "scanning" && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              {/* Esquinas decorativas de escáner */}
-              <div className="relative w-[72%] h-[72%]">
-                <span className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#FF1F2D] rounded-tl-lg" />
-                <span className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#FF1F2D] rounded-tr-lg" />
-                <span className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-[#FF1F2D] rounded-bl-lg" />
-                <span className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#FF1F2D] rounded-br-lg" />
-
-                {/* Línea láser de escaneo animada */}
-                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FF1F2D] to-transparent animate-pulse shadow-[0_0_8px_#FF1F2D]" />
-              </div>
-            </div>
-          )}
-
-          {/* Overlay: Error de permisos o cámara con opción de reinicio limpio */}
-          {status === "error" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-5 bg-[#1F1F1F]/95 text-white text-center z-20">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10 text-[#FF1F2D] mb-2.5 border border-red-500/20">
-                <AlertTriangle size={24} />
-              </div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-white mb-1">
-                {cameraErrorType === "permission"
-                  ? "Permiso de cámara"
-                  : cameraErrorType === "not_readable"
-                  ? "Cámara no disponible"
-                  : "Error de cámara"}
-              </h4>
-              <p className="text-xs text-gray-300 leading-relaxed mb-4 max-w-[260px]">
-                {cameraError || "No se pudo activar la cámara trasera."}
-              </p>
-              <button
-                type="button"
-                onClick={handleCleanRestart}
-                disabled={isResettingCamera}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] text-white px-4 py-2.5 text-xs font-extrabold shadow-md hover:bg-[#e01826] transition active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw size={13} className={isResettingCamera ? "animate-spin" : ""} />
-                <span>{isResettingCamera ? "Reinicializando..." : "Reiniciar cámara limpiamente"}</span>
-              </button>
-              {cameraErrorType === "permission" && (
-                <p className="mt-3 text-[10px] text-gray-400 max-w-[240px] leading-tight">
-                  En Safari: tocá <strong>aA</strong> en la barra de direcciones → <em>Configuración del sitio web</em> → <em>Cámara: Permitir</em>.
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* 2. Texto debajo del recuadro central */}
@@ -614,7 +374,7 @@ export default function CashierScanner({
             </div>
 
             {errorMessage && (
-              <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-xl">
+              <p className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl break-words whitespace-pre-wrap">
                 {errorMessage}
               </p>
             )}

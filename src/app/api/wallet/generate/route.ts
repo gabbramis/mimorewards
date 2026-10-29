@@ -195,7 +195,7 @@ async function buildStoreCard(params: {
           label: "SELLOS",
           value: `${currentStamps} / ${targetStamps}`,
           textAlignment: "PKTextAlignmentRight",
-          changeMessage: "¡Sumaste un sello! Llevás %@ acumulados.",
+          changeMessage: "¡Sumaste un sello! Tenés %@ sellos.",
         },
       ],
       primaryFields: [],

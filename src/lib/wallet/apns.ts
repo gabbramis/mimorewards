@@ -20,9 +20,12 @@ export async function sendApnsNotification(
   pushToken: string,
   passTopic: string = PASS_TYPE_ID,
 ): Promise<ApnsPushResult> {
-  const host =
-    process.env.APNS_HOST ||
-    (process.env.APNS_ENV === "sandbox" ? "api.sandbox.push.apple.com" : "api.push.apple.com");
+  // Apple Wallet SIEMPRE debe conectarse a api.push.apple.com (entorno de producción).
+  // Los tokens de Wallet nunca existen en el sandbox de APNs.
+  const host = process.env.APNS_HOST || "api.push.apple.com";
+  if (host.includes("sandbox") || host.includes("development")) {
+    console.warn(`[APNs Warning] El host configurado es ${host}. Para Apple Wallet debe ser api.push.apple.com.`);
+  }
 
   let cert: Buffer;
   let key: Buffer;
@@ -57,12 +60,14 @@ export async function sendApnsNotification(
     };
 
     try {
+      console.log(`[APNs Ping Start] Conectando a https://${host}:443 para token: ${pushToken.slice(0, 10)}... (Topic: ${passTopic})`);
       client = http2.connect(`https://${host}:443`, {
         cert,
         key,
       });
 
       client.on("error", (err) => {
+        console.error(`[APNs Ping Error] Error al conectar con APNs: ${err.message}`);
         finalize({
           pushToken,
           status: 500,
@@ -71,10 +76,15 @@ export async function sendApnsNotification(
         });
       });
 
+      const targetTopic = (passTopic || PASS_TYPE_ID).trim();
+      const payload = JSON.stringify({ aps: {} });
+
+      console.log(`[APNs Ping Request] Enviando POST a /3/device/${pushToken.slice(0, 10)}... | apns-topic: "${targetTopic}" | payload: ${payload}`);
+
       const req = client.request({
         [http2.constants.HTTP2_HEADER_METHOD]: http2.constants.HTTP2_METHOD_POST,
         [http2.constants.HTTP2_HEADER_PATH]: `/3/device/${pushToken}`,
-        "apns-topic": passTopic,
+        "apns-topic": targetTopic,
         "apns-priority": "5",
         "apns-push-type": "background",
       });
@@ -83,6 +93,7 @@ export async function sendApnsNotification(
         try {
           req.close(http2.constants.NGHTTP2_CANCEL);
         } catch { }
+        console.error(`[APNs Ping Timeout] Timeout (8s) esperando respuesta de APNs para token: ${pushToken.slice(0, 10)}...`);
         finalize({
           pushToken,
           status: 408,
@@ -96,6 +107,8 @@ export async function sendApnsNotification(
 
       req.on("response", (headers) => {
         status = Number(headers[http2.constants.HTTP2_HEADER_STATUS]) || 0;
+        const apnsId = headers["apns-id"];
+        console.log(`[APNs Ping Response] Status HTTP/2: ${status}, apns-id: ${apnsId || "none"}`);
       });
 
       req.on("data", (chunk) => {
@@ -105,6 +118,12 @@ export async function sendApnsNotification(
       req.on("end", () => {
         const isSuccess = status === 200;
         const isUnregistered = status === 410; // Token caducado o tarjeta eliminada
+
+        if (isSuccess) {
+          console.log(`[APNs Ping Success] Push 200 OK aceptado por Apple APNs para ${pushToken.slice(0, 10)}... Topic: ${targetTopic}`);
+        } else {
+          console.error(`[APNs Ping Error] APNs rechazó el push con status ${status}: ${responseBody || "(vacío)"}`);
+        }
 
         finalize({
           pushToken,
@@ -124,8 +143,8 @@ export async function sendApnsNotification(
         });
       });
 
-      // El payload de Apple Wallet DEBE ser un objeto JSON vacío {}
-      req.write(JSON.stringify({}));
+      // El payload de Apple Wallet debe ser estrictamente un diccionario aps vacío: { "aps": {} }
+      req.write(payload);
       req.end();
     } catch (err: any) {
       finalize({
