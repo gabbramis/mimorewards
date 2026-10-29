@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# Local PDF previews and verification samples (downloads are generated in memory)
+/output/pdf/
+
 # next.js
 /.next/
 /out/

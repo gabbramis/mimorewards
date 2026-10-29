@@ -17,6 +17,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import CounterPosterDownloads from "@/components/merchant/CounterPosterDownloads";
 
 type BusinessInfo = {
   id: string;
@@ -307,6 +308,10 @@ export default function AdminCajaQrClient() {
               <ExternalLink size={14} />
             </a>
           </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-[#EBE6DE] bg-[#FFF9F5] p-4">
+          <CounterPosterDownloads key={business.id} businessId={business.id} />
         </div>
 
         {/* Botones de acción */}

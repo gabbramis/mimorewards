@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import QRCode from "react-qr-code";
 import QRCodeLib from "qrcode";
 import { Check, Copy, Download, ExternalLink, Loader2, QrCode as QrIcon } from "lucide-react";
+import CounterPosterDownloads from "./CounterPosterDownloads";
 
 interface CounterQrCardProps {
   businessId: string;
@@ -140,18 +141,19 @@ export default function CounterQrCard({
 
       {/* Acciones y texto de ayuda inferior */}
       <div className="mt-4 pt-3 border-t border-[#EBE6DE] flex flex-col items-center">
+        <CounterPosterDownloads businessId={businessId} />
         <button
           type="button"
           onClick={handleDownload}
           disabled={!url || downloading}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F1F1F] text-white px-4 py-2.5 text-xs sm:text-sm font-bold shadow-sm hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F1F1F] text-white px-4 py-2.5 text-xs sm:text-sm font-bold shadow-sm hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
         >
           {downloading ? (
             <Loader2 size={16} className="animate-spin" />
           ) : (
             <Download size={16} />
           )}
-          <span>{downloading ? "Generando imagen…" : "Descargar QR"}</span>
+          <span>{downloading ? "Generando imagen…" : "Descargar solo QR (PNG)"}</span>
         </button>
 
         <p className="mt-2.5 text-center text-xs text-[#737373] leading-relaxed">
