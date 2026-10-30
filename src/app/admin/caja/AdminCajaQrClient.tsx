@@ -65,7 +65,10 @@ export default function AdminCajaQrClient() {
         }
 
         // Verificar si es superadmin
-        const isSuper = user.email?.toLowerCase() === "creator@mimorewards.com";
+        const { data: wl } = user.email
+          ? await supabase.from("admin_whitelist").select("id").ilike("email", user.email.trim()).maybeSingle()
+          : { data: null };
+        const isSuper = Boolean(wl);
         if (!cancelled) setIsSuperadmin(isSuper);
 
         // Buscar membership del usuario

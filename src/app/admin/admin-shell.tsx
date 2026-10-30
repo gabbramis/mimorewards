@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { useEffect, useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, BarChart3, MessageSquare, Megaphone, Settings, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, PlusCircle, Zap, QrCode, History } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Users, LayoutDashboard, Megaphone, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, QrCode, History } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from "@/contexts/BusinessContext";
 
@@ -13,26 +13,16 @@ const internalNavItems = [
     ["/admin/negocios", "Negocios", Store],
     ["/admin/comunicaciones", "Comunicaciones", Megaphone],
     ["/admin/contactos", "Clientes", Users],
+    ["/admin/accesos", "Accesos", ShieldCheck],
     ["/admin/configuracion", "Configuración", Sliders],
 ] as const;
-
-const CREATOR_EMAIL = "creator@mimorewards.com";
-const CREATOR_ONLY_PATHS = ["/admin/crear-comercio"];
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [isCreator, setIsCreator] = useState(false);
     const { businessName: ctxName, logoUrl, primaryColor } = useBusiness();
-
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            setIsCreator(data.user?.email?.toLowerCase() === CREATOR_EMAIL);
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -49,7 +39,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
             [`/comercio/${businessId}/clientes`, "Clientes", Users],
             [`/comercio/${businessId}/historial`, "Historial de movimientos", History],
         ] as const
-        : internalNavItems.filter(([href]) => isCreator || !(CREATOR_ONLY_PATHS as readonly string[]).includes(href));
+        : internalNavItems;
 
     const getLinkClass = (path: string) => {
         const isActive = path === "/admin" || path === `/comercio/${businessId}`

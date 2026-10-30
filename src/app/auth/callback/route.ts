@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isMimoAdminEmail } from "@/lib/authz";
 
 function resolveBaseUrl(request: NextRequest, origin: string): string {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -46,19 +45,20 @@ export async function GET(request: NextRequest) {
     if (!error && sessionData?.user) {
       const user = sessionData.user;
       const adminSupabase: any = createAdminClient();
+      const normalizedEmail = (user.email || "").trim().toLowerCase();
 
-      // 1. Verificar si pertenece al equipo de Mimo (Super Admin por email o por tabla profiles)
-      const { data: profile } = await adminSupabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
+      // 1. Consultar la tabla admin_whitelist por el email del usuario logueado
+      if (normalizedEmail) {
+        const { data: whitelistEntry } = await adminSupabase
+          .from("admin_whitelist")
+          .select("id, email")
+          .ilike("email", normalizedEmail)
+          .limit(1)
+          .maybeSingle();
 
-      const isSuperAdmin =
-        profile?.role === "superadmin" || isMimoAdminEmail(user.email);
-
-      if (isSuperAdmin) {
-        return NextResponse.redirect(`${baseUrl}/admin`);
+        if (whitelistEntry) {
+          return NextResponse.redirect(`${baseUrl}/admin`);
+        }
       }
 
       // 2. Verificar si el usuario está vinculado a un comercio activo en business_members

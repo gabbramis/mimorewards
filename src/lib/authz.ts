@@ -4,35 +4,41 @@ import { unstable_rethrow } from "next/navigation";
 
 export type AppRole = "superadmin" | "merchant" | "staff";
 
-const MIMO_ADMIN_EMAILS = new Set([
-  "creator@mimorewards.com",
-  "contactomimorewards@gmail.com",
-]);
-
-export function isMimoAdminEmail(email?: string | null): boolean {
+export async function isEmailInAdminWhitelist(
+  email?: string | null,
+  supabaseClient?: any
+): Promise<boolean> {
   if (!email) return false;
   const normalized = email.trim().toLowerCase();
-  if (MIMO_ADMIN_EMAILS.has(normalized) || normalized.endsWith("@mimorewards.com")) {
-    return true;
-  }
-  const extraEmails = (process.env.SUPER_ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return extraEmails.includes(normalized);
+  if (!normalized) return false;
+
+  const supabase: any = supabaseClient || createAdminClient();
+  const { data } = await supabase
+    .from("admin_whitelist")
+    .select("id")
+    .ilike("email", normalized)
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(data);
 }
 
 export async function getCurrentAccess() {
   try {
     const sessionClient = await createClient();
-    const { data: { user }, error } = await sessionClient.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await sessionClient.auth.getUser();
     if (error || !user) return { user: null, role: null as AppRole | null };
 
-    if (isMimoAdminEmail(user.email)) {
+    const supabase: any = createAdminClient();
+
+    const whitelisted = await isEmailInAdminWhitelist(user.email, supabase);
+    if (whitelisted) {
       return { user, role: "superadmin" as AppRole };
     }
 
-    const supabase: any = createAdminClient();
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -49,13 +55,13 @@ export async function getCurrentAccess() {
 
 export async function isSuperadmin() {
   const access = await getCurrentAccess();
-  return access.role === "superadmin" || isMimoAdminEmail(access.user?.email);
+  return access.role === "superadmin";
 }
 
 export async function canAccessBusiness(businessId: string) {
   const access = await getCurrentAccess();
   if (!access.user) return false;
-  if (access.role === "superadmin" || isMimoAdminEmail(access.user.email)) return true;
+  if (access.role === "superadmin") return true;
 
   const supabase: any = createAdminClient();
   const { data: membership } = await supabase

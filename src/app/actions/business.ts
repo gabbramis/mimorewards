@@ -9,7 +9,7 @@ import { sanitizeWalletConfig } from '@/lib/wallet-config';
 
 export type RegisterBusinessResult = { success: boolean; error?: string };
 
-const SUPER_ADMIN_EMAIL = "creator@mimorewards.com";
+import { isSuperadmin } from "@/lib/authz";
 const MAX_LOGO_BYTES = 800 * 1024; // 800 KB
 
 function slugify(text: string): string {
@@ -30,7 +30,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     data: { user },
   } = await sessionClient.auth.getUser();
 
-  if (!user || user.email?.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+  if (!user || !(await isSuperadmin())) {
     return { success: false, error: "Acceso denegado: Privilegios insuficientes" };
   }
 

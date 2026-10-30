@@ -1,16 +1,9 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { isSuperadmin } from "@/lib/authz";
 import CrearComercioForm from "./crear-comercio-form";
 
-const SUPER_ADMIN_EMAIL = "creator@mimorewards.com";
-
 export default async function CrearComercioPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || user.email?.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+  if (!(await isSuperadmin())) {
     redirect("/");
   }
 
