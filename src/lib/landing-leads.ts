@@ -1,5 +1,5 @@
 export const LEAD_PLAN_NAMES: Record<string, string> = {
-  inicial: "Inicial", profesional: "Profesional", premium: "Premium",
+  inicial: "Inicial", profesional: "Pro", pro: "Pro", premium: "Premium",
 };
 
 export type LandingLeadInput = {

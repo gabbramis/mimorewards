@@ -26,7 +26,13 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export type PlanRank = "FREE" | "PRO" | "BLACK";
+export type PlanRank = "FREE" | "PRO" | "PREMIUM";
+
+export const PLAN_LABELS: Record<PlanRank, string> = {
+  FREE: "Free",
+  PRO: "Pro",
+  PREMIUM: "Premium",
+};
 
 export type BusinessItem = {
   id: string;
@@ -68,8 +74,9 @@ function initials(name: string) {
 
 function resolvePlanRank(business: BusinessItem): PlanRank {
   const p = (business.plan || "").trim().toUpperCase();
-  if (p === "PRO" || business.plan_type === "pro") return "PRO";
-  if (p === "BLACK" || business.plan_type === "black") return "BLACK";
+  const pt = (business.plan_type || "").trim().toLowerCase();
+  if (p === "PRO" || pt === "pro") return "PRO";
+  if (p === "BLACK" || p === "PREMIUM" || pt === "black" || pt === "premium") return "PREMIUM";
   return "FREE";
 }
 
@@ -169,14 +176,14 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
     let active = 0;
     let free = 0;
     let pro = 0;
-    let black = 0;
+    let premium = 0;
 
     businesses.forEach((b) => {
       if (b.active) active++;
       const p = resolvePlanRank(b);
       if (p === "FREE") free++;
       else if (p === "PRO") pro++;
-      else if (p === "BLACK") black++;
+      else if (p === "PREMIUM") premium++;
     });
 
     return {
@@ -185,7 +192,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
       inactive: businesses.length - active,
       free,
       pro,
-      black,
+      premium,
     };
   }, [businesses]);
 
@@ -245,13 +252,14 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
     const prevPlan = business.plan;
     const prevPlanType = business.plan_type;
-    const newPlanType = newPlan === "PRO" ? "pro" : newPlan === "BLACK" ? "black" : "inicial";
+    const dbPlan = newPlan === "PRO" ? "PRO" : newPlan === "PREMIUM" ? "BLACK" : "FREE";
+    const newPlanType = newPlan === "PRO" ? "pro" : newPlan === "PREMIUM" ? "black" : "inicial";
 
     // Actualización optimista
     setBusinesses((prev) =>
       prev.map((b) =>
         b.id === business.id
-          ? { ...b, plan: newPlan, plan_type: newPlanType }
+          ? { ...b, plan: dbPlan, plan_type: newPlanType }
           : b
       )
     );
@@ -262,7 +270,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
       const { error: supaError } = await supabase
         .from("businesses")
         .update({
-          plan: newPlan,
+          plan: dbPlan,
           plan_type: newPlanType,
         })
         .eq("id", business.id);
@@ -274,7 +282,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: business.id,
-            plan: newPlan,
+            plan: dbPlan,
             plan_type: newPlanType,
           }),
         });
@@ -285,7 +293,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
       }
 
       showToast(
-        `Plan de "${business.name}" actualizado a ${newPlan} con éxito.`,
+        `Plan de "${business.name}" actualizado a ${PLAN_LABELS[newPlan]} con éxito.`,
         "success"
       );
     } catch (err: any) {
@@ -438,10 +446,10 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
         <div className="rounded-2xl border border-neutral-300 bg-neutral-900 text-white p-4 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-            Planes BLACK
+            Planes Premium
           </span>
-          <p className="text-2xl font-bold text-white mt-1">{counts.black}</p>
-          <p className="text-[11px] text-neutral-300 mt-0.5">Nivel VIP Black</p>
+          <p className="text-2xl font-bold text-white mt-1">{counts.premium}</p>
+          <p className="text-[11px] text-neutral-300 mt-0.5">Nivel VIP Premium</p>
         </div>
       </div>
 
@@ -634,29 +642,29 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                               onChange={(e) =>
                                 handlePlanChange(business, e.target.value as PlanRank)
                               }
-                              className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all appearance-none pr-7 shadow-2xs outline-none ${
+                              className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all appearance-none pr-7 shadow-2xs outline-none text-gray-900 bg-white ${
                                 isInactive
                                   ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200 select-none"
-                                  : currentPlan === "BLACK"
-                                  ? "cursor-pointer bg-neutral-900 text-white border-neutral-800 hover:bg-black focus:ring-2 focus:ring-neutral-400"
+                                  : currentPlan === "PREMIUM"
+                                  ? "cursor-pointer bg-white text-gray-900 border-gray-300 hover:border-gray-400 focus:ring-2 focus:ring-red-100"
                                   : currentPlan === "PRO"
-                                  ? "cursor-pointer bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 focus:ring-2 focus:ring-amber-200"
-                                  : "cursor-pointer bg-white text-gray-800 border-gray-300 hover:border-gray-400 focus:ring-2 focus:ring-red-100"
+                                  ? "cursor-pointer bg-amber-50 text-gray-900 border-amber-300 hover:bg-amber-100 focus:ring-2 focus:ring-amber-200"
+                                  : "cursor-pointer bg-white text-gray-900 border-gray-300 hover:border-gray-400 focus:ring-2 focus:ring-red-100"
                               }`}
                               title={
                                 isInactive
                                   ? "Comercio inactivo: activalo para cambiar de plan"
-                                  : `Plan asignado: ${currentPlan}. Clic para cambiar.`
+                                  : `Plan asignado: ${PLAN_LABELS[currentPlan]}. Clic para cambiar.`
                               }
                             >
-                              <option value="FREE" className="bg-white text-gray-900 font-semibold">
-                                FREE
+                              <option value="FREE" className="text-gray-900 bg-white font-semibold">
+                                Free
                               </option>
-                              <option value="PRO" className="bg-white text-gray-900 font-semibold">
-                                PRO
+                              <option value="PRO" className="text-gray-900 bg-white font-semibold">
+                                Pro
                               </option>
-                              <option value="BLACK" className="bg-white text-gray-900 font-semibold">
-                                BLACK
+                              <option value="PREMIUM" className="text-gray-900 bg-white font-semibold">
+                                Premium
                               </option>
                             </select>
 
@@ -669,9 +677,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                             ) : (
                               <ChevronDown
                                 size={13}
-                                className={`absolute right-2.5 pointer-events-none ${
-                                  currentPlan === "BLACK" ? "text-neutral-400" : "text-gray-500"
-                                }`}
+                                className="absolute right-2.5 pointer-events-none text-gray-500"
                               />
                             )}
                           </div>

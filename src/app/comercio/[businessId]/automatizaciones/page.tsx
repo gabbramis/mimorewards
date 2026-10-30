@@ -57,11 +57,12 @@ export default async function Page({ params }: { params: Promise<{ businessId: s
     notFound();
   }
 
-  if ((business.plan_type ?? "inicial") !== "black") {
+  const planType = (business.plan_type ?? "inicial").toLowerCase();
+  if (planType !== "black" && planType !== "premium") {
     return (
       <PlanLockedScreen
-        title="⭐ Exclusivo Plan Black"
-        message="⭐ Exclusivo Plan Black: Habilitá notificaciones Push y reseñas automáticas"
+        title="⭐ Exclusivo Plan Premium"
+        message="⭐ Exclusivo Plan Premium: Habilitá notificaciones Push y reseñas automáticas"
       />
     );
   }

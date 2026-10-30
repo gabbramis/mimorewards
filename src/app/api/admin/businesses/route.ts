@@ -120,7 +120,7 @@ export async function POST(request: Request) {
 
     const slug = await uniqueSlug(supabase, name);
     const planVal = body.plan ? String(body.plan).toUpperCase() : 'FREE';
-    const planTypeVal = planVal === 'PRO' ? 'pro' : planVal === 'BLACK' ? 'black' : 'inicial';
+    const planTypeVal = planVal === 'PRO' ? 'pro' : (planVal === 'BLACK' || planVal === 'PREMIUM') ? 'black' : 'inicial';
 
     const { data: business, error } = await supabase
       .from("businesses")
@@ -162,8 +162,8 @@ export async function PUT(request: Request) {
 
       if (body.plan !== undefined) {
         const p = String(body.plan).trim().toUpperCase();
-        partial.plan = p;
-        partial.plan_type = p === 'PRO' ? 'pro' : p === 'BLACK' ? 'black' : 'inicial';
+        partial.plan = p === 'PREMIUM' ? 'BLACK' : p;
+        partial.plan_type = p === 'PRO' ? 'pro' : (p === 'BLACK' || p === 'PREMIUM') ? 'black' : 'inicial';
       } else if (body.plan_type !== undefined) {
         const pt = String(body.plan_type).trim().toLowerCase();
         partial.plan_type = pt;
@@ -206,8 +206,8 @@ export async function PUT(request: Request) {
     };
     if (body.plan !== undefined) {
       const p = String(body.plan).trim().toUpperCase();
-      updateFields.plan = p;
-      updateFields.plan_type = p === 'PRO' ? 'pro' : p === 'BLACK' ? 'black' : 'inicial';
+      updateFields.plan = p === 'PREMIUM' ? 'BLACK' : p;
+      updateFields.plan_type = p === 'PRO' ? 'pro' : (p === 'BLACK' || p === 'PREMIUM') ? 'black' : 'inicial';
     } else if (body.plan_type !== undefined) {
       updateFields.plan_type = body.plan_type;
     }
