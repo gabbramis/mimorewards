@@ -1,54 +1,91 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextResponse, type NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isMimoAdminEmail } from "@/lib/authz";
+
+function resolveBaseUrl(request: NextRequest, origin: string): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+  if (!isLocalEnv && forwardedHost) {
+    return `https://${forwardedHost}`;
+  }
+  return origin;
+}
 
 export async function GET(request: NextRequest) {
-    const { searchParams, origin } = new URL(request.url);
-    const code = searchParams.get('code');
-    // Redirige al panel por defecto si todo sale bien o a la ruta solicitada
-    const rawNext = searchParams.get('next') || searchParams.get('redirectTo');
-    const next = (rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('://'))
-        ? rawNext
-        : '/admin';
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+  const baseUrl = resolveBaseUrl(request, origin);
 
-    if (code) {
-        const cookieStore = await cookies();
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        try {
-                            cookiesToSet.forEach(({ name, value, options }) =>
-                                cookieStore.set(name, value, options)
-                            );
-                        } catch {
-                            // Manejo silencioso requerido para Server Components
-                        }
-                    },
-                },
+  if (code) {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Manejo silencioso para contextos de solo lectura
             }
-        );
+          },
+        },
+      }
+    );
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
-            const forwardedHost = request.headers.get('x-forwarded-host');
-            const isLocalEnv = process.env.NODE_ENV === 'development';
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
-            if (isLocalEnv) {
-                return NextResponse.redirect(`${origin}${next}`);
-            } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`);
-            } else {
-                return NextResponse.redirect(`${origin}${next}`);
-            }
-        }
+    if (!error && sessionData?.user) {
+      const user = sessionData.user;
+      const adminSupabase: any = createAdminClient();
+
+      // 1. Verificar si pertenece al equipo de Mimo (Super Admin por email o por tabla profiles)
+      const { data: profile } = await adminSupabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const isSuperAdmin =
+        profile?.role === "superadmin" || isMimoAdminEmail(user.email);
+
+      if (isSuperAdmin) {
+        return NextResponse.redirect(`${baseUrl}/admin`);
+      }
+
+      // 2. Verificar si el usuario está vinculado a un comercio activo en business_members
+      const { data: memberships } = await adminSupabase
+        .from("business_members")
+        .select("business_id, businesses(id, slug, active)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      const activeMembership = (memberships || []).find((m: any) => {
+        const biz = Array.isArray(m.businesses) ? m.businesses[0] : m.businesses;
+        return biz && biz.active !== false;
+      });
+
+      if (activeMembership) {
+        const biz = Array.isArray(activeMembership.businesses)
+          ? activeMembership.businesses[0]
+          : activeMembership.businesses;
+        const targetBusinessId = biz?.id || activeMembership.business_id;
+        return NextResponse.redirect(`${baseUrl}/comercio/${targetBusinessId}`);
+      }
+
+      // 3. Usuario no registrado o sin comercio activo: cerrar sesión y redirigir con error amigable
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${baseUrl}/login?error=unregistered`);
     }
+  }
 
-    // Si hubo error intercambiando el código, redirige al login con el error
-    return NextResponse.redirect(`${origin}/login?error=oauth_error`);
+  return NextResponse.redirect(`${baseUrl}/login?error=oauth_error`);
 }

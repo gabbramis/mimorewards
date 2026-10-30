@@ -83,35 +83,41 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
                         </Link>
                     ))}
                 </nav>
-                <div className="m-admin-account p-5">
-                    <div className="flex items-center gap-3">
-                        {mode === "merchant" && logoUrl ? (
-                            <img src={logoUrl} alt="Logo del comercio" className="m-admin-avatar w-10 h-10 rounded-full object-cover shadow-sm bg-white border border-[#D5CFC4]" />
-                        ) : (
-                            <div
-                                className="m-admin-avatar w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm"
-                                style={mode === "merchant" ? { backgroundColor: primaryColor || "#FF1F2D" } : undefined}
-                            >
-                                {mode === "merchant" ? ((ctxName || businessName) ? (ctxName || businessName)!.charAt(0).toUpperCase() : "?") : "E"}
+                <div className="border-t border-[#D5CFC4] p-3">
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        title="Cerrar sesión"
+                        className="group flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-2.5 text-left transition-colors hover:border-[#FFD9DC] hover:bg-[#FFF0F1]/40 cursor-pointer"
+                    >
+                        <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+                            {mode === "merchant" && logoUrl ? (
+                                <img
+                                    src={logoUrl}
+                                    alt="Logo del comercio"
+                                    className="h-9 w-9 shrink-0 rounded-xl object-cover border border-gray-200 bg-white shadow-2xs"
+                                />
+                            ) : (
+                                <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs border border-[#FFD9DC]"
+                                    style={mode === "merchant" && primaryColor ? { backgroundColor: primaryColor, color: "#FFFFFF" } : undefined}
+                                >
+                                    {mode === "merchant" ? ((ctxName || businessName) ? (ctxName || businessName)!.slice(0, 2).toUpperCase() : "?") : "EM"}
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <span className="block truncate text-xs font-bold text-[#1F1F1F]">
+                                    {mode === "merchant" ? (ctxName || businessName || "Sin Nombre") : "Equipo Mimo"}
+                                </span>
                             </div>
-                        )}
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-semibold truncate leading-tight">{mode === "merchant" ? (ctxName || businessName || "Sin Nombre") : "Equipo mimo"}</p>
-                            <p className="text-xs font-medium mt-1">{mode === "merchant" ? "Programa activo" : "Administración"}</p>
                         </div>
-                    </div>
+                        <span className="rounded-lg p-1.5 text-[#737373] group-hover:bg-[#FFF0F1] group-hover:text-[#FF1F2D] transition-colors shrink-0 ml-1.5">
+                            <LogOut size={15} />
+                        </span>
+                    </button>
                 </div>
             </aside>
             <main className="m-admin-main flex-1 overflow-auto relative">
-                {/* Botón flotante para salir */}
-                <button
-                    onClick={handleLogout}
-                    title="Cerrar sesión"
-                    className="fixed top-6 right-6 sm:top-10 sm:right-15 z-50 flex items-center justify-center bg-slate-900/90 text-white w-[50px] h-[50px] rounded-full shadow-md backdrop-blur-md border border-white/10 hover:bg-[#FF1F2D] transition-colors"
-                >
-                    <LogOut size={18} strokeWidth={2.2} />
-                </button>
-
                 <div className="m-admin-mobile-header">
                     <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
                     <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />

@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
+import { startImpersonation } from "@/app/actions/impersonation";
 import {
   Store,
   Search,
@@ -81,11 +83,13 @@ function resolvePlanRank(business: BusinessItem): PlanRank {
 }
 
 export default function BusinessesList({ initialBusinesses }: BusinessesListProps) {
+  const router = useRouter();
   const supabase = createClient();
   const [businesses, setBusinesses] = useState<BusinessItem[]>(initialBusinesses || []);
   const [isLoading, setIsLoading] = useState(!initialBusinesses);
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   // Copied link state
   const [copiedId, setCopiedId] = useState("");
@@ -693,7 +697,35 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
                       {/* Acciones */}
                       <td className="py-4 px-5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 justify-end">
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            type="button"
+                            disabled={impersonatingId === business.id}
+                            onClick={async () => {
+                              setImpersonatingId(business.id);
+                              try {
+                                const res = await startImpersonation(business.id);
+                                if (res.ok && res.redirectUrl) {
+                                  router.push(res.redirectUrl);
+                                } else {
+                                  showToast(res.error || "No se pudo entrar al comercio.", "error");
+                                  setImpersonatingId(null);
+                                }
+                              } catch {
+                                showToast("Error al iniciar modo administrador.", "error");
+                                setImpersonatingId(null);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 px-2.5 py-1.5 text-[11px] font-bold text-[#FF1F2D] hover:bg-[#FF1F2D] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                            title={`Entrar como ${business.name}`}
+                          >
+                            {impersonatingId === business.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <ExternalLink size={13} />
+                            )}
+                            <span>Entrar como comercio</span>
+                          </button>
                           <Link
                             href={`/admin/negocios/${business.id}`}
                             className={iconButton}

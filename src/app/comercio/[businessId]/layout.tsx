@@ -1,10 +1,11 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { canAccessBusiness, getCurrentAccess } from "@/lib/authz";
 import MerchantShell from "@/components/merchant/MerchantShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BusinessProvider } from "@/contexts/BusinessContext";
-import { getWalletLocationAccess } from '@/lib/wallet/location-store';
+import { getWalletLocationAccess } from "@/lib/wallet/location-store";
 
 export default async function MerchantLayout({
   children,
@@ -33,8 +34,12 @@ export default async function MerchantLayout({
   if (!business) redirect("/login");
   const locationAccess = await getWalletLocationAccess(businessId);
   const { data: pilot } = locationAccess.allowed
-    ? await supabase.from('businesses').select('wallet_locations_enabled').eq('id', businessId).maybeSingle()
+    ? await supabase.from("businesses").select("wallet_locations_enabled").eq("id", businessId).maybeSingle()
     : { data: null };
+
+  const cookieStore = await cookies();
+  const impersonatedBusinessId = cookieStore.get("mimo_impersonated_business_id")?.value;
+  const isImpersonating = Boolean(impersonatedBusinessId);
 
   return (
     <BusinessProvider
@@ -50,7 +55,10 @@ export default async function MerchantLayout({
         businessLogo={business.logo_url}
         isActive={business.active}
         planType={business.plan_type}
-        showCommunications={locationAccess.allowed && (locationAccess.superadmin || pilot?.wallet_locations_enabled === true)}
+        isImpersonating={isImpersonating}
+        showCommunications={
+          locationAccess.allowed && (locationAccess.superadmin || pilot?.wallet_locations_enabled === true)
+        }
       >
         {children}
       </MerchantShell>
