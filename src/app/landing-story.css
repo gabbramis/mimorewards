@@ -532,3 +532,20 @@
   .m-value-example-detail { margin-top: 20px; }
   .m-value-example .m-text-link { margin-top: 15px; white-space: normal; }
 }
+
+/* Scale the original rewards composition uniformly without changing its layout. */
+.m-after-hero .m-rewards-story { padding-block: 68px 56px; }
+.m-rewards-story > .m-container { width: min(1200px, calc(100vw - 96px)); zoom: .8; }
+@media (min-width: 1500px) {
+  .m-rewards-story > .m-container { width: min(1260px, calc(100vw - 120px)); }
+}
+@media (max-width: 1150px) and (min-width: 761px) {
+  .m-rewards-story > .m-container { width: calc(100vw - 64px); }
+}
+@media (max-width: 760px) {
+  .m-after-hero .m-rewards-story { padding-block: 52px 40px; }
+  .m-after-hero .m-rewards-story > .m-container { width: calc(100vw - 44px); }
+}
+@media (max-width: 360px) {
+  .m-after-hero .m-rewards-story > .m-container { width: calc(100vw - 36px); }
+}

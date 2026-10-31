@@ -14,7 +14,7 @@ const internalNavItems = [
     ["/admin/comunicaciones", "Comunicaciones", Megaphone],
     ["/admin/contactos", "Clientes", Users],
     ["/admin/accesos", "Accesos", ShieldCheck],
-    ["/admin/configuracion", "Configuración", Sliders],
+   
 ] as const;
 
 export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
