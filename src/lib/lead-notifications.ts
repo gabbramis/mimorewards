@@ -17,7 +17,7 @@ export async function notifyLandingLead(lead: LandingLeadInput): Promise<boolean
       from: { name: "mimo rewards", address: MAIL_USER },
       to: process.env.MAIL_TO || "contactomimorewards@gmail.com",
       subject: "Nueva consulta · mimo rewards",
-      text: `Nombre: ${lead.name}\nNegocio: ${lead.business}\nWhatsApp: ${lead.phone}\nPlan: ${LEAD_PLAN_NAMES[lead.plan] || "A definir"}\n\nContactar: https://wa.me/${lead.phone.slice(1)}\n\nEnviado desde el formulario de mimo con autorización para responder por WhatsApp.`,
+      text: `Nombre: ${lead.name}\nNegocio: ${lead.business}\nWhatsApp: ${lead.phone}\n${lead.email ? `Email: ${lead.email}\n` : ""}Plan: ${LEAD_PLAN_NAMES[lead.plan] || "A definir"}\n\nContactar: https://wa.me/${lead.phone.slice(1)}\n\nEnviado desde el formulario de mimo con autorización para responder por WhatsApp.`,
     });
     return result.accepted.length > 0;
   } catch {

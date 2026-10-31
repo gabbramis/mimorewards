@@ -6,21 +6,21 @@ El proyecto usa TypeScript con `tsconfig.json`; las páginas y componentes usan 
 
 ## Story del cliente
 
-`IntroScrollStory.tsx` presenta el programa de sellos con NFC, la tarjeta digital y la transición roja hacia el resto de la landing. Reutiliza `LoyaltyCard.tsx` y el wordmark existente; `PhoneWallet.tsx` y `MimoGraphicElements.tsx` completan la composición. Los estilos están en `src/app/intro-story.css`. La escena de Wallet es ilustrativa: la disponibilidad de los pases se confirma para el lanzamiento.
+`IntroScrollStory.tsx` presenta el programa de sellos, la tarjeta digital y el toque NFC antes de que el círculo rojo revele «Cómo funciona». Reutiliza `LoyaltyCard.tsx` y el wordmark existente; `PhoneWallet.tsx` y `MimoGraphicElements.tsx` completan la composición. Los estilos están en `src/app/intro-story.css`. La escena de Wallet es ilustrativa: la disponibilidad de los pases se confirma para el lanzamiento.
 
 En mobile el teléfono ocupa hasta 39vw y entra desde abajo a la derecha. La tarjeta se acopla después de aproximadamente 1,3 pantallas de scroll mediante un único progreso normalizado. Con `prefers-reduced-motion`, hero y Wallet se muestran de forma estática. El ancla `#como-funciona` abre el estado final; `#nfc` se conserva como compatibilidad.
 
-La composición mantiene el crema de marca, con corazones grandes recortados en los bordes y parallax sutil. “Siempre con ellos.” incluye una explicación breve. Durante la salida, tarjeta y teléfono se retiran mientras se expande una forma roja; “Hacé que vuelvan.” aparece antes de que el rojo cubra el viewport, enlazando con el contenido para comercios sin una pantalla vacía.
+La composición mantiene crema, rojo, tipografías, corazones y los textos internos originales. El círculo rojo llena la pantalla y muestra el mensaje original «Hacé que vuelvan». Debajo queda la sección original «Cómo funciona», sin marco, separada del cierre rojo por las ondas originales y sin superposición.
 
-Después de la story, `ValueStory.tsx` explica la oferta en tres filas editoriales: programa configurado para el comercio, sellos y utilidad de los datos. Siguen el recorrido del cliente, las recompensas, el panel ilustrativo, los mensajes, la caja mimo, los tres planes de lanzamiento, la invitación a demo y las FAQ.
+El orden es: animación con su cierre rojo original; «Cómo funciona» original sin marco y con la separación de ondas; panel «Del lado de tu comercio»; sellos y recompensas rotativas originales; kit; planes; único formulario; seis preguntas frecuentes.
 
 ## Planes de lanzamiento
 
 `plans.ts` centraliza la oferta pública que usan `PlansStory.tsx`, las FAQ y el diálogo de términos. Precios en pesos uruguayos (UYU):
 
 - Inicial: $0/mes, 50 clientes activos, QR en PDF sin hardware y diseño básico con logo, color y sellos estándar.
-- Profesional: $990/mes, hasta 500 clientes activos, kit de $1.290 por única vez con tótem de acrílico QR/NFC NTAG. Diseño completo de Wallet, sellos propios, sin marca de mimo y métricas.
-- Premium: $1.990/mes, clientes activos ilimitados, kit de $1.490 por única vez con tótem personalizado y llaveros NTAG. Suma push, automatizaciones y CRM. Las solicitudes de reseñas de Google Maps están señaladas como próximas, ya que el módulo no está implementado.
+- Profesional: $1.290/mes, hasta 500 clientes activos, kit de $1.290 por única vez con tótem de acrílico QR/NFC NTAG. Diseño completo de Wallet, sellos propios, sin marca de mimo y métricas.
+- Premium: $2.490/mes, clientes activos ilimitados, kit de $1.490 por única vez con tótem personalizado y llaveros NTAG. Suma push, automatizaciones y CRM. Las funciones futuras no se anuncian en las tarjetas de planes.
 
 La presentación conserva crema, rojo, tipografías y botones de Mimo; Profesional es el destacado. En móvil los planes se apilan. `#planes` es el destino principal y `#precio` se conserva dentro de la sección. Cada CTA lleva a `#acceso` y recuerda el plan elegido; no crea cuentas ni suscripciones automáticamente.
 
@@ -28,7 +28,7 @@ Estos cambios corresponden a la landing: no implementan cobros ni límites de cl
 
 ## Demo y contacto
 
-Los CTA llevan al formulario compacto `#acceso`: nombre, negocio y WhatsApp. No hay campo de código, cuenta, correo del visitante ni base de datos de consultas. El plan elegido viaja como dato interno. Al enviar, la persona acepta que el equipo responda por WhatsApp; el aviso de privacidad está al lado del botón.
+Todos los CTA de contacto llevan a `/#acceso`, el único formulario público: nombre, negocio, email y WhatsApp. El plan elegido se conserva en la consulta. `/registrarse` se mantiene únicamente como redirección de compatibilidad al formulario.
 
 `POST /api/landing-leads` valida y normaliza los datos, verifica origen, tamaño y campo trampa y limita reenvíos por teléfono durante un minuto en memoria, y envía directamente a `contactomimorewards@gmail.com` mediante Nodemailer/SMTP, siguiendo el mecanismo de Gaia. No usa Supabase ni necesita una migración. El formulario confirma solo cuando el servidor de correo acepta el mensaje; ante un error conserva los campos para reintentar.
 
@@ -69,3 +69,12 @@ npm run build
 node --experimental-strip-types --test tests/landing-leads.test.mjs
 ```
 
+
+
+## Recorrido compacto
+
+El titular es «Dales un motivo para volver». La introducción ocupa 340svh (antes 500svh), mantiene cinco paradas (inicio, tarjeta en el celular, toque, tarjeta completa y explicación sobre el círculo rojo) y avanza una etapa por gesto, independientemente del delta de rueda. Cada transición dura 600 ms, salvo el paso por el toque y los sellos (1100 ms). También admite teclado y movimiento reducido. Los enlaces a secciones suspenden la captura del scroll para poder llegar directamente al contenido y al formulario.
+
+`plans.ts` es la fuente de precios para tarjetas, metadatos, resumen y términos. La propuesta comercial conserva los cupos existentes; este cambio no modifica los límites del producto.
+
+Las tarjetas de planes reducen espacios, tamaño de títulos/precios y altura de los bloques internos. Mantienen todos los costos y beneficios. En la comprobación a 1265 px pasaron de 713 px a 525 px de alto.

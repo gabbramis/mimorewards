@@ -11,9 +11,9 @@ export default function KitStory() {
       <div className="m-kit-story-copy">
         <Eyebrow>UNA CAJA MUY TUYA</Eyebrow>
         <h2>Abrís el kit.<br /><em>Ya está configurado.</em></h2>
-        <p>Nos pasás el logo, los colores y la recompensa de tu local. Preparamos la tarjeta digital y los soportes NFC antes de entregarte la caja mimo. Tu equipo solo tiene que presentarlos después de cada compra válida.</p>
+        <p>Nos pasás tu logo y elegís la recompensa. Nosotros preparamos la tarjeta digital y el kit para que puedas empezar en tu local.</p>
         <ul>
-          {["Profesional: tótem de acrílico con QR y NFC NTAG", "Premium: tótem personalizado + llaveros para tu equipo", "Tarjeta digital y recompensa configuradas", "Acompañamiento para empezar a usarlo"].map(item => <li key={item}><Check size={16} />{item}</li>)}
+          {["Pro: soporte de acrílico con QR y NFC", "Premium: soporte personalizado y llaveros para tu equipo", "Tarjeta digital con la marca de tu negocio", "Acompañamiento para empezar a usarlo"].map(item => <li key={item}><Check size={16} />{item}</li>)}
         </ul>
         <p className="m-kit-terms">¿Preferís empezar sin kit? El plan Inicial incluye un QR en PDF para imprimir o mostrar en la caja.</p>
         <CTA href="#planes">Elegí tu plan</CTA>

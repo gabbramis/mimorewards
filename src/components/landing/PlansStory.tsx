@@ -26,15 +26,14 @@ export default function PlansStory({ onSelectPlan }: { onSelectPlan: (plan: stri
               <div className="m-plan-hardware"><Icon size={22} aria-hidden="true" /><p>{plan.hardware}</p></div>
               <strong className="m-plan-capacity">{plan.capacity}</strong>
               <ul>{plan.features.map(feature => <li key={feature}><Check size={16} aria-hidden="true" /><span>{feature}</span></li>)}</ul>
-              {plan.id === "premium" && <p className="m-plan-roadmap">Próximamente: solicitudes de reseñas en Google Maps.</p>}
               <CTA href={demoHref} onClick={() => onSelectPlan(plan.id)}>{plan.cta}</CTA>
             </article>
           </Reveal>;
         })}
       </div>
       <div className="m-plans-details">
-        <div><span>¿LLEGASTE A LOS 50?</span><p>Es una buena señal: tu comunidad crece. Coordinamos el pase a Profesional para que puedas seguir sumando clientes y acompañar esa próxima etapa.</p></div>
-        <div><span>UN PLAN, CON LAS COSAS CLARAS</span><p>Dejanos tus datos y coordinamos el alta por WhatsApp. Confirmamos entrega, disponibilidad y condiciones antes de empezar. Las reseñas en Google Maps están en desarrollo.</p></div>
+        <div><span>CRECÉ A TU RITMO</span><p>Podés empezar con Inicial y coordinar un cambio de plan cuando tu negocio lo necesite.</p></div>
+        <div><span>SIN SORPRESAS</span><p>La mensualidad y el kit se muestran por separado. Confirmamos entrega y condiciones antes de empezar.</p></div>
       </div>
     </div>
   </section>;

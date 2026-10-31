@@ -32,6 +32,17 @@ test('allows inquiries without a selected plan', () => {
   assert.ok(parseLandingLead({ ...inquiry, plan: '' }).lead);
 });
 
+test('includes the requested access email without changing existing contact submissions', () => {
+  assert.equal(parseLandingLead({ ...inquiry, email: ' owner@example.com ' }).lead.email, 'owner@example.com');
+  assert.equal(Object.hasOwn(parseLandingLead(inquiry).lead, 'email'), false);
+});
+
+test('rejects malformed access emails and header injection', () => {
+  for (const email of ['owner', 'owner@example.com\nBcc:other@example.com', 'a b@example.com', 'x'.repeat(255) + '@example.com']) {
+    assert.ok(parseLandingLead({ ...inquiry, email }).error);
+  }
+});
+
 
 test('requires explicit WhatsApp consent', () => {
   for (const consent of [false, 'true', 'on', undefined, 1]) {

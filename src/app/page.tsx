@@ -1,5 +1,6 @@
 import { Inter, Poppins } from "next/font/google";
 import Landing from "@/components/landing/landing";
+import { launchPlans } from "@/components/landing/plans";
 import "./landing.css";
 import "./intro-story.css";
 import "./landing-story.css";
@@ -14,11 +15,11 @@ export const metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  title: "mimo rewards | Kit de fidelización con NFC para gastronomía",
-  description: "Hacé que vuelvan con mimo: tarjeta digital, sellos y recompensas. Inicial gratis, Profesional $990/mes y Premium $1.990/mes. Precios en UYU, kits aparte.",
+  title: "mimo rewards | Sellos y recompensas para que vuelvan",
+  description: `Tarjeta digital, sellos y recompensas para tu local. Inicial gratis, Pro ${launchPlans[1].price}/mes y Premium ${launchPlans[2].price}/mes. Precios en UYU, kits aparte.`,
   openGraph: {
-    title: "mimo rewards | Tu programa de sellos con NFC, listo para usar",
-    description: "Kit mimo con soportes NFC, tarjeta digital con tu marca y panel para tu negocio. Agendá una demo para ver el recorrido completo.",
+    title: "mimo rewards | Dales un motivo para volver",
+    description: `Sellos y recompensas con la marca de tu local. Inicial gratis con QR. Pro ${launchPlans[1].price}/mes y Premium ${launchPlans[2].price}/mes, kits aparte. Precios en UYU.`,
     locale: "es_UY", type: "website",
     images: [{ url: "/images/mimo-identity-kit.webp", width: 1672, height: 941, alt: "Kit NFC mimo rewards en el mostrador de una cafetería" }],
   },

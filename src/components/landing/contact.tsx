@@ -15,7 +15,7 @@ export function LegalDialog({ type, close }: { type: "privacy" | "terms"; close:
       <Eyebrow>ETAPA DE LANZAMIENTO</Eyebrow>
       <h2 id="m-legal-title">{type === "privacy" ? "Tu privacidad importa" : "Sobre esta etapa de mimo"}</h2>
       {type === "privacy" ? <>
-        <p>Al enviar el formulario, tu nombre, negocio, WhatsApp y plan de interés llegan por correo al equipo de mimo para responderte por WhatsApp. No se guardan en una base de datos ni se usan para suscribirte a campañas.</p>
+        <p>Al enviar el formulario, tu nombre, negocio, email, WhatsApp y plan de interés llegan por correo al equipo de mimo para responderte por WhatsApp. No se guardan en una base de datos ni se usan para suscribirte a campañas.</p>
         <p>Podés pedir que dejemos de contactarte o eliminemos tu consulta escribiendo a contactomimorewards@gmail.com.</p>
         <p>Antes de registrar clientes en el producto, cada comercio deberá contar con la información de privacidad y los consentimientos correspondientes.</p>
       </> : <>

@@ -6,17 +6,16 @@ import Hero from "./Hero";
 import { NfcStand } from "./BrandStory";
 import { BrandHeart } from "./StoryArt";
 import { CTA } from "./ui";
+import { demoHref } from "./demo-link";
 import LoyaltyCard from "./LoyaltyCard";
 import PhoneWallet from "./PhoneWallet";
 import MimoGraphicElements from "./MimoGraphicElements";
-import { demoHref } from "./demo-link";
+import { SCENE_STOPS, STORY_END, nextStoryStop, storyTransitionDuration } from "@/lib/story-scroll";
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start));
 const ease = (value: number) => value * value * (3 - 2 * value);
 const mix = (start: number, end: number, value: number) => start + (end - start) * value;
-// Rest at complete visual beats; the moving parts still follow scroll progress.
-const SCENE_STOPS = [0, .245, .59, .735, .94];
 
 // One-shot heart explosion, fanned upward out of the phone.
 const BURST = Array.from({ length: 22 }, (_, i) => {
@@ -89,14 +88,11 @@ export default function IntroScrollStory() {
         fromY: startBox.top - stageBox.top,
         fromScale: startBox.width / 400,
         toX, toY, toScale: destination.offsetWidth / 400,
-        // The red form starts on the lower tube; it reaches the farthest corner
-        // exactly at the end of the wipe, regardless of the viewport's proportions.
         seedScale: 22 / washRadius,
         coverScale: Math.hypot(stageBox.width * .82, stageBox.height * .92) / washRadius + .002,
         nfcDX: (standCX - phoneCX) * .55,
         nfcDY: (standCY - phoneCY) * .55,
       };
-      // Rasterize at its final size to keep the expanding curved edge crisp.
       scene.style.setProperty("--wash-radius", `${washRadius}px`);
       schedule();
     };
@@ -112,7 +108,7 @@ export default function IntroScrollStory() {
     const update = () => {
       frame = 0;
       if (!geometry || media.matches) return;
-      const p = clamp((window.scrollY - geometry.rootY) / geometry.distance);
+      const p = clamp((window.scrollY - geometry.rootY) / geometry.distance) * STORY_END;
       // Once outside the story, scrolling the landing needs no scene updates.
       if (p === lastProgress) return;
       lastProgress = p;
@@ -123,7 +119,7 @@ export default function IntroScrollStory() {
       const finalCopy = ease(range(p, .66, .705)) * (1 - ease(range(p, .79, .835)));
       const sceneExit = ease(range(p, .805, .87));
       const wash = ease(range(p, .805, .895));
-      const nextCopy = ease(range(p, .85, .895));
+      const nextCopy = ease(range(p, .82, .875));
       // NFC scene: copy + stand enter, phone approaches, tap, phone returns,
       // then a still beat with the copy fixed before handing off.
       const nfcCopy = ease(range(p, .342, .387)) * (1 - ease(range(p, .615, .66)));
@@ -172,7 +168,7 @@ export default function IntroScrollStory() {
       }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const progress = () => geometry ? clamp((window.scrollY - geometry.rootY) / geometry.distance) : 0;
+    const progress = () => geometry ? clamp((window.scrollY - geometry.rootY) / geometry.distance) * STORY_END : 0;
     const scrollToY = (to: number, duration?: number) => {
       if (!geometry) return;
       cancelAnimationFrame(scrollFrame);
@@ -188,31 +184,28 @@ export default function IntroScrollStory() {
         if (t < 1) scrollFrame = requestAnimationFrame(animate);
         else {
           scrollFrame = 0;
-          wheelCooldownUntil = now + 100;
+          wheelCooldownUntil = now + 200;
         }
       };
       scrollFrame = requestAnimationFrame(animate);
     };
     const scrollToStop = (stop: number) => {
-      if (geometry) scrollToY(geometry.rootY + geometry.distance * stop, stop === .59 ? 1800 : undefined);
+      if (geometry) scrollToY(geometry.rootY + geometry.distance * stop / STORY_END, storyTransitionDuration(progress(), stop));
     };
     const step = (direction: number) => {
-      const p = progress();
-      const next = direction > 0
-        ? SCENE_STOPS.find(stop => stop > p + .012)
-        : [...SCENE_STOPS].reverse().find(stop => stop < p - .012);
-      if (next === undefined) return false;
+      const next = nextStoryStop(progress(), direction);
+      if (next === null) return false;
       scrollToStop(next);
       return true;
     };
     const inStory = () => !!geometry && window.scrollY >= geometry.rootY - 2 && window.scrollY <= geometry.rootY + geometry.distance + 2;
     const onWheel = (event: WheelEvent) => {
-      if (media.matches || anchorNavigation || event.ctrlKey || !event.deltaY) return;
+      if (media.matches || anchorNavigation || event.defaultPrevented || event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      if (!inStory()) return;
       if (scrollFrame) {
         event.preventDefault();
         return;
       }
-      if (!inStory()) return;
       const direction = Math.sign(event.deltaY);
       if (direction > 0 && progress() >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012) return;
       if ((direction < 0 && progress() <= 0) || (direction > 0 && progress() >= 1)) return;
@@ -220,12 +213,21 @@ export default function IntroScrollStory() {
       if (performance.now() < wheelCooldownUntil) return;
       step(direction);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (media.matches || anchorNavigation || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || !inStory()) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], dialog')) return;
+      const direction = event.key === "ArrowDown" || event.key === "PageDown" || (event.key === " " && !event.shiftKey) ? 1
+        : event.key === "ArrowUp" || event.key === "PageUp" || (event.key === " " && event.shiftKey) ? -1 : 0;
+      if (!direction || (direction > 0 && progress() >= SCENE_STOPS[SCENE_STOPS.length - 1] - .012) || (direction < 0 && progress() <= 0)) return;
+      event.preventDefault();
+      if (!scrollFrame && performance.now() >= wheelCooldownUntil) step(direction);
+    };
     const onTouchStart = (event: TouchEvent) => {
-      if (media.matches || !inStory() || event.touches.length !== 1) return;
+      if (media.matches || anchorNavigation || !inStory() || event.touches.length !== 1) return;
       touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
     };
     const onTouchMove = (event: TouchEvent) => {
-      if (!touchStart || event.touches.length !== 1) return;
+      if (media.matches || anchorNavigation || !touchStart || event.touches.length !== 1) return;
       const dx = event.touches[0].clientX - touchStart.x;
       const dy = event.touches[0].clientY - touchStart.y;
       if (Math.abs(dy) <= Math.abs(dx) || Math.abs(dy) < 8) return;
@@ -236,16 +238,19 @@ export default function IntroScrollStory() {
     const onTouchEnd = (event: TouchEvent) => {
       if (!touchStart) return;
       const touch = event.changedTouches[0];
+      if (!touch) { touchStart = null; return; }
       const dx = touch.clientX - touchStart.x;
       const dy = touch.clientY - touchStart.y;
       touchStart = null;
-      if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx) && !scrollFrame) step(-Math.sign(dy));
+      if (!anchorNavigation && !media.matches && inStory() && Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx) && !scrollFrame) step(-Math.sign(dy));
     };
     const onTouchCancel = () => { touchStart = null; };
     const onScroll = () => {
       schedule();
       if (anchorNavigation) return;
       if (!inStory()) {
+        cancelAnimationFrame(scrollFrame);
+        scrollFrame = 0;
         if (settleTimer) clearTimeout(settleTimer);
         settleTimer = null;
         return;
@@ -264,7 +269,11 @@ export default function IntroScrollStory() {
       }, 220);
     };
     const onAnchorClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element) || !event.target.closest('a[href^="#"]')) return;
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (!link) return;
+      const target = new URL(link.href, window.location.href);
+      if (!target.hash || target.origin !== window.location.origin || target.pathname !== window.location.pathname) return;
       anchorNavigation = true;
       cancelAnimationFrame(scrollFrame);
       scrollFrame = 0;
@@ -288,13 +297,21 @@ export default function IntroScrollStory() {
     if (stand.current) observer.observe(stand.current);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd, { passive: true });
     window.addEventListener("touchcancel", onTouchCancel, { passive: true });
     document.addEventListener("click", onAnchorClick, true);
     window.addEventListener("resize", requestMeasure);
-    const onMotionChange = () => { setReady(!media.matches); measure(); };
+    const onMotionChange = () => {
+      cancelAnimationFrame(scrollFrame);
+      scrollFrame = 0;
+      touchStart = null;
+      if (settleTimer) clearTimeout(settleTimer);
+      setReady(!media.matches);
+      measure();
+    };
     media.addEventListener("change", onMotionChange);
     measure();
     const initial = requestAnimationFrame(() => { update(); setReady(!media.matches); });
@@ -308,6 +325,7 @@ export default function IntroScrollStory() {
       observer.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);

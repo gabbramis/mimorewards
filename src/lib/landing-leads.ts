@@ -7,6 +7,7 @@ export type LandingLeadInput = {
   business: string;
   phone: string;
   plan: string;
+  email?: string;
 };
 
 export function normalizeLeadPhone(value: string): string | null {
@@ -30,6 +31,8 @@ export function parseLandingLead(body: unknown): { lead: LandingLeadInput; error
   if (!phone) return { error: "Revisá tu WhatsApp. Por ejemplo: 099 123 456 o +598 99 123 456." };
   if (data.consent !== true) return { error: "Necesitamos tu autorización para contactarte por WhatsApp." };
   const plan = field("plan");
+  const email = field("email");
+  if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\u0000-\u001f]/.test(email))) return { error: "Ingresá un correo electrónico válido." };
   if (plan && !Object.hasOwn(LEAD_PLAN_NAMES, plan)) return { error: "Elegí un plan válido o dejalo sin seleccionar." };
-  return { lead: { name, business, phone, plan } };
+  return { lead: { name, business, phone, plan, ...(email ? { email } : {}) } };
 }

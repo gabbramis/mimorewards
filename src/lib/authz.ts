@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { unstable_rethrow } from "next/navigation";
+import { getUserRole } from "@/lib/login-access";
+import type { AppRole } from "@/lib/login-access";
 
-export type AppRole = "superadmin" | "merchant" | "staff";
+export type { AppRole } from "@/lib/login-access";
 
 export async function isEmailInAdminWhitelist(
   email?: string | null,
@@ -16,7 +18,7 @@ export async function isEmailInAdminWhitelist(
   const { data } = await supabase
     .from("admin_whitelist")
     .select("id")
-    .ilike("email", normalized)
+    .ilike("email", normalized.replace(/[\\%_]/g, "\\$&"))
     .limit(1)
     .maybeSingle();
 
@@ -34,18 +36,7 @@ export async function getCurrentAccess() {
 
     const supabase: any = createAdminClient();
 
-    const whitelisted = await isEmailInAdminWhitelist(user.email, supabase);
-    if (whitelisted) {
-      return { user, role: "superadmin" as AppRole };
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    return { user, role: (profile?.role || null) as AppRole | null };
+    return { user, role: await getUserRole(supabase, user) };
   } catch (err) {
     unstable_rethrow(err);
     console.error("Error al obtener sesión en getCurrentAccess:", err);

@@ -5,6 +5,13 @@ export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isLoginRoute = pathname === '/login';
 
+    // Recover a PKCE code if Supabase falls back to the configured Site URL.
+    if ((pathname === '/' || isLoginRoute) && request.nextUrl.searchParams.has('code')) {
+        const callbackUrl = request.nextUrl.clone();
+        callbackUrl.pathname = '/auth/callback';
+        return NextResponse.redirect(callbackUrl);
+    }
+
     let supabaseResponse = NextResponse.next({
         request,
     });
