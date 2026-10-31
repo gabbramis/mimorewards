@@ -89,10 +89,10 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
         <table className="w-full text-left font-medium min-w-[650px]">
           <thead className="bg-gray-50/70 text-[11px] uppercase tracking-wider text-gray-400 border-b border-gray-100 font-bold">
             <tr>
-              <th className="px-6 py-3.5">Cliente</th>
-              <th className="px-6 py-3.5">Operación</th>
-              <th className="px-6 py-3.5">Comercio</th>
-              <th className="px-6 py-3.5 text-right">Fecha y Hora</th>
+              <th className="px-6 py-3.5 whitespace-nowrap">Cliente</th>
+              <th className="px-6 py-3.5 whitespace-nowrap">Operación</th>
+              <th className="px-6 py-3.5 whitespace-nowrap">Comercio</th>
+              <th className="px-6 py-3.5 whitespace-nowrap text-right">Fecha y Hora</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-sm">
@@ -134,7 +134,7 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
 
                 return (
                   <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="px-6 py-4 flex items-center gap-3">
+                    <td className="px-6 py-4 flex items-center gap-3 whitespace-nowrap">
                       <div
                         className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs ${colorClass} shadow-xs border border-white shrink-0`}
                       >
@@ -150,7 +150,7 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {isRedeem ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                           <Gift size={12} /> CANJE DE PREMIO
@@ -168,13 +168,13 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-xs font-semibold text-gray-700">
+                    <td className="px-6 py-4 text-xs font-semibold text-gray-700 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 border border-gray-200/60 max-w-[200px] truncate">
                         {log.businesses?.name || "Comercio"}
                       </span>
                     </td>
 
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="font-semibold text-xs text-gray-700">
                         {formattedDate}
                       </div>

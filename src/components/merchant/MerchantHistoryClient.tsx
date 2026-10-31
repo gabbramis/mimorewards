@@ -416,23 +416,23 @@ export default function MerchantHistoryClient({
 
       {/* Tabla de Movimientos */}
       <div className="rounded-2xl border border-[#D5CFC4] bg-white shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[#D5CFC4] bg-[#FFF9F5] text-[#737373]">
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Fecha y Hora exacta
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Cliente
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Acción realizada
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Origen / Método
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] text-right">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] text-right whitespace-nowrap">
                   Estado
                 </th>
               </tr>
@@ -464,7 +464,7 @@ export default function MerchantHistoryClient({
                       </td>
 
                       {/* Cliente */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F1] text-xs font-bold text-[#FF1F2D] border border-[#FFD9DC]">
                             {log.customer_name.slice(0, 1).toUpperCase()}
@@ -486,7 +486,7 @@ export default function MerchantHistoryClient({
                       </td>
 
                       {/* Acción */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         {isRedeem ? (
                           <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0F1] px-3 py-1 text-xs font-bold text-[#FF1F2D] border border-[#FFD9DC]">
                             <Gift size={13} />
@@ -501,7 +501,7 @@ export default function MerchantHistoryClient({
                       </td>
 
                       {/* Método */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         {isNfc ? (
                           <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-2.5 py-1 text-xs font-semibold text-[#0369A1]">
                             <Smartphone size={13} />

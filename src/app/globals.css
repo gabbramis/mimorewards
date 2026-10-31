@@ -852,9 +852,6 @@ body {
 .m-admin-sidebar {
   background: #fffaf5;
   border-right: 1px solid #D5CFC4;
-  flex: 0 0 258px;
-  position: relative;
-  z-index: 20;
 }
 
 .m-admin-brand-row {
@@ -1112,87 +1109,13 @@ body {
   font-weight: 700;
 }
 
-@media (max-width: 860px) {
-  .m-admin-sidebar {
-    bottom: 0;
-    box-shadow: 12px 0 35px rgba(77, 47, 31, .16);
-    left: 0;
-    position: fixed;
-    top: 0;
-    transform: translateX(-105%);
-    transition: transform 220ms ease;
-    width: min(86vw, 290px);
-  }
-
-  .m-admin-sidebar.is-open {
-    transform: translateX(0);
-  }
-
-  .m-admin-close {
-    background: #fff0f1;
-    display: flex;
-    height: 34px;
-    width: 34px;
-  }
-
-  .m-admin-backdrop {
-    background: rgba(31, 31, 31, .28);
-    border: 0;
-    inset: 0;
-    position: fixed;
-    z-index: 10;
-  }
-
-  .m-admin-mobile-header {
-    display: flex;
-  }
-
-  .m-admin-menu {
-    background: #fffaf5;
-    display: flex;
-    height: 38px;
-    width: 38px;
-  }
-
-  .m-admin-main {
-    width: 100%;
-  }
-}
-
 @media (max-width: 520px) {
   .m-admin-main {
     overflow-x: hidden;
   }
 
-  .m-admin-main > div:not(.m-admin-mobile-header) {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-
-  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
-    margin-bottom: 22px !important;
-  }
-
-  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex {
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex > button,
-  .m-admin-main > div:not(.m-admin-mobile-header) > .flex.justify-between.items-center > .flex > a {
-    flex: 1 1 auto;
-    justify-content: center;
-    min-height: 42px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
   .m-admin-main h1 {
-    font-size: 1.8rem !important;
-    line-height: 1.05;
+    font-size: 1.75rem !important;
+    line-height: 1.1;
   }
 }

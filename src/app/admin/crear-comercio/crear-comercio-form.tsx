@@ -177,8 +177,8 @@ export default function CrearComercioForm() {
 
       <form ref={formRef} action={handleSubmit} className="space-y-8">
         {/* Tarjeta superior: Datos del negocio y Programa de fidelización en 2 columnas */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-8 lg:grid-cols-2">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+          <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-2">
             {/* Columna Izquierda: Datos del negocio y acceso */}
             <div>
               <div className="mb-5 flex items-center gap-3">

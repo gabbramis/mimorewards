@@ -550,7 +550,7 @@ export default function MerchantCustomersClient({
           className="inline-flex items-center gap-2 rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#E01522] transition-colors shrink-0"
         >
           <Plus size={16} />
-          <span>+ Registrar movimiento manual</span>
+          <span>Registrar movimiento manual</span>
         </button>
       </div>
 
@@ -697,27 +697,27 @@ export default function MerchantCustomersClient({
 
       {/* Tabla de Clientes */}
       <div className="rounded-2xl border border-[#D5CFC4] bg-white shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[#D5CFC4] bg-[#FFF9F5] text-[#737373]">
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Cliente
                 </th>
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                   Progreso actual
                 </th>
                 {!isFree && (
-                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Visitas totales
                   </th>
                 )}
                 {!isFree && (
-                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Última visita
                   </th>
                 )}
-                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] text-right">
+                <th className="py-3 px-5 font-semibold uppercase tracking-wider text-[10px] text-right whitespace-nowrap">
                   Acciones rápidas
                 </th>
               </tr>
@@ -749,7 +749,7 @@ export default function MerchantCustomersClient({
                       className="hover:bg-[#FFF9F5] transition-colors"
                     >
                       {/* Cliente (Avatar + Nombre interactivo que abre el Slide-over de Perfil del Cliente) */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {isFree ? (
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5] border border-[#E5E5E5] text-[#737373]">
@@ -785,7 +785,7 @@ export default function MerchantCustomersClient({
                       </td>
 
                       {/* Progreso (Sellos actuales) */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="w-36 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px] font-bold">
                             <span
@@ -814,7 +814,7 @@ export default function MerchantCustomersClient({
 
                       {/* Visitas totales (Oculto en Free) */}
                       {!isFree && (
-                        <td className="py-4 px-5 font-semibold text-[#1F1F1F]">
+                        <td className="py-4 px-5 font-semibold text-[#1F1F1F] whitespace-nowrap">
                           <span>{customer.total_visits || 1} visitas</span>
                         </td>
                       )}
@@ -937,7 +937,7 @@ export default function MerchantCustomersClient({
             aria-modal="true"
             aria-labelledby="customer-profile-title"
             onClick={(e) => e.stopPropagation()}
-            className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl border-l border-[#D5CFC4] overflow-hidden animate-in slide-in-from-right duration-200"
+            className="relative flex h-full w-full sm:max-w-md flex-col bg-white shadow-2xl border-l border-[#D5CFC4] overflow-hidden animate-in slide-in-from-right duration-200"
           >
             {/* Cabecera del Slide-over */}
             <div className="flex items-start justify-between gap-3 border-b border-[#D5CFC4] bg-[#FFF9F5] px-6 py-5">

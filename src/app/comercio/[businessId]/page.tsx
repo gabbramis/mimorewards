@@ -382,20 +382,20 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {recentLogsData && recentLogsData.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
                 <tr className="border-b border-[#D5CFC4] text-[#737373]">
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Fecha y Hora
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Cliente
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Acción
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Método
                   </th>
                 </tr>
@@ -419,7 +419,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                           {formatDate(log.created_at)}
                         </span>
                       </td>
-                      <td className="py-3.5 pr-4 font-semibold text-[#1F1F1F]">
+                      <td className="py-3.5 pr-4 font-semibold text-[#1F1F1F] whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-full bg-[#FFF0F1] text-[#FF1F2D] font-bold text-[10px] flex items-center justify-center shrink-0">
                             {clientName.slice(0, 1).toUpperCase()}
@@ -434,7 +434,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 pr-4">
+                      <td className="py-3.5 pr-4 whitespace-nowrap">
                         {isRedeem ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0F1] px-2.5 py-1 text-[11px] font-semibold text-[#FF1F2D] border border-[#FFD9DC]">
                             <Gift size={12} />
@@ -447,7 +447,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 text-[#737373]">
+                      <td className="py-3.5 text-[#737373] whitespace-nowrap">
                         {isNfc ? (
                           <span className="inline-flex items-center gap-1 text-[11px]">
                             <Smartphone size={13} className="text-[#0284C7]" />

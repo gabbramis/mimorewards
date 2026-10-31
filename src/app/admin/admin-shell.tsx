@@ -1,120 +1,160 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
-import { useState, type ReactNode } from "react";
-import { Users, LayoutDashboard, Megaphone, Sliders, Store, Menu, X, ChevronRight, ShieldCheck, LogOut, QrCode, History } from "lucide-react";
-import { createClient } from '@/lib/supabase/client';
-import { useBusiness } from "@/contexts/BusinessContext";
+import {
+  ChevronRight,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  PlusCircle,
+  QrCode,
+  Store,
+  Users,
+  X,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
-const internalNavItems = [
-    ["/admin", "Dashboard", LayoutDashboard],
-    ["/admin/negocios", "Negocios", Store],
-    ["/admin/comunicaciones", "Comunicaciones", Megaphone],
-    ["/admin/contactos", "Clientes", Users],
-    ["/admin/accesos", "Accesos", ShieldCheck],
-   
-] as const;
+const navItems = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/negocios", label: "Negocios", icon: Store },
+  { href: "/admin/crear-comercio", label: "Crear Comercio", icon: PlusCircle },
+  { href: "/admin/contactos", label: "Clientes", icon: Users },
+  { href: "/admin/comunicaciones", label: "Comunicaciones", icon: Megaphone },
+  { href: "/admin/accesos", label: "Accesos", icon: KeyRound },
+  { href: "/admin/caja", label: "QR de Caja", icon: QrCode },
+];
 
-export default function AdminShell({ children, mode = "internal", businessId, businessName }: { children: ReactNode; mode?: "internal" | "merchant"; businessId?: string; businessName?: string }) {
-    const pathname = usePathname();
-    const router = useRouter();
-    const supabase = createClient();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const { businessName: ctxName, logoUrl, primaryColor } = useBusiness();
+export default function AdminShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.push('/login');
-    };
+  function isActive(href: string, exact?: boolean) {
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
-    if (pathname === "/admin/caja") {
-        return <>{children}</>;
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.replace("/login");
+      router.refresh();
     }
-    const navItems = mode === "merchant" && businessId
-        ? [
-            [`/comercio/${businessId}`, "Dashboard", LayoutDashboard],
-            [`/comercio/${businessId}/escaner`, "Escáner", QrCode],
-            [`/comercio/${businessId}/clientes`, "Clientes", Users],
-            [`/comercio/${businessId}/historial`, "Historial de movimientos", History],
-        ] as const
-        : internalNavItems;
+  }
 
-    const getLinkClass = (path: string) => {
-        const isActive = path === "/admin" || path === `/comercio/${businessId}`
-            ? pathname === path
-            : (pathname === path || pathname?.startsWith(path + '/'));
-        const baseClass = "m-admin-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150";
-        if (isActive) {
-            return `${baseClass} is-active font-medium`;
-        }
-        return `${baseClass} font-normal`;
-    };
-
-    return (
-        <div className="m-admin-shell flex h-dvh font-sans">
-            {sidebarOpen && <button className="m-admin-backdrop" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)} />}
-            <aside className={`m-admin-sidebar flex flex-col ${sidebarOpen ? "is-open" : ""}`}>
-                <div className="m-admin-brand-row flex items-center justify-between">
-                    <Link href={mode === "merchant" && businessId ? `/comercio/${businessId}` : "/admin"} className="m-admin-brand" aria-label="mimo rewards, panel de administración" onClick={() => setSidebarOpen(false)}>
-                        <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" priority />
-                        <span>{mode === "merchant" ? "Espacio de tu comercio" : "Panel interno de mimo"}</span>
-                    </Link>
-                    <button className="m-admin-close" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
-                </div>
-                <nav className="m-admin-nav flex-1 px-4 py-6 space-y-2 overflow-y-auto" aria-label="Navegación del panel">
-                    <p className="m-admin-nav-label">GESTIÓN</p>
-                    {navItems.map(([href, label, Icon]) => (
-                        <Link key={href} href={href} className={getLinkClass(href)} onClick={() => setSidebarOpen(false)}>
-                            <Icon size={19} strokeWidth={1.9} />
-                            <span>{label}</span>
-                            <ChevronRight className="m-admin-nav-arrow" size={15} />
-                        </Link>
-                    ))}
-                </nav>
-                <div className="border-t border-[#D5CFC4] p-3">
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        title="Cerrar sesión"
-                        className="group flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-2.5 text-left transition-colors hover:border-[#FFD9DC] hover:bg-[#FFF0F1]/40 cursor-pointer"
-                    >
-                        <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-                            {mode === "merchant" && logoUrl ? (
-                                <img
-                                    src={logoUrl}
-                                    alt="Logo del comercio"
-                                    className="h-9 w-9 shrink-0 rounded-xl object-cover border border-gray-200 bg-white shadow-2xs"
-                                />
-                            ) : (
-                                <div
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs border border-[#FFD9DC]"
-                                    style={mode === "merchant" && primaryColor ? { backgroundColor: primaryColor, color: "#FFFFFF" } : undefined}
-                                >
-                                    {mode === "merchant" ? ((ctxName || businessName) ? (ctxName || businessName)!.slice(0, 2).toUpperCase() : "?") : "EM"}
-                                </div>
-                            )}
-                            <div className="min-w-0">
-                                <span className="block truncate text-xs font-bold text-[#1F1F1F]">
-                                    {mode === "merchant" ? (ctxName || businessName || "Sin Nombre") : "Equipo Mimo"}
-                                </span>
-                            </div>
-                        </div>
-                        <span className="rounded-lg p-1.5 text-[#737373] group-hover:bg-[#FFF0F1] group-hover:text-[#FF1F2D] transition-colors shrink-0 ml-1.5">
-                            <LogOut size={15} />
-                        </span>
-                    </button>
-                </div>
-            </aside>
-            <main className="m-admin-main min-w-0 flex-1 overflow-auto relative">
-                <div className="m-admin-mobile-header">
-                    <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
-                    <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />
-                    <span>{mode === "merchant" ? (businessName || "Comercio") : "Panel"}</span>
-                </div>
-                {children}
-            </main>
+  return (
+    <div className="m-admin-shell flex flex-col md:flex-row h-dvh w-full overflow-hidden">
+      {/* Top Navbar visible solo en móvil (< md) */}
+      <header className="flex md:hidden items-center justify-between border-b border-[#D5CFC4] bg-[#FFFAF5] px-4 py-3 shrink-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D5CFC4] bg-white text-[#1F1F1F] hover:bg-[#FFF0F1] hover:text-[#FF1F2D] transition-colors"
+            aria-label="Abrir menú de navegación"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <img src="/logo-mimo.png" alt="mimo" className="h-7 w-auto object-contain" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A8D84] truncate">
+              Panel de Comercios
+            </span>
+          </div>
         </div>
-    );
+      </header>
+
+      {/* Backdrop del Drawer en móvil */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar fijo en escritorio (md:) y Drawer lateral en móvil (< md) */}
+      <aside
+        aria-label="Navegación del panel"
+        className={`m-admin-sidebar fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[85vw] flex-col justify-between border-r border-[#D5CFC4] bg-[#FFFAF5] transition-transform duration-200 ease-in-out md:static md:w-[258px] md:shrink-0 md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        }`}
+      >
+        <div>
+          <div className="m-admin-brand-row flex items-center justify-between">
+            <div className="m-admin-brand">
+              <img src="/logo-mimo.png" alt="mimo" />
+              <span>Panel de Comercios</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="flex md:hidden h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#1F1F1F] hover:bg-[#FFD9DC] transition-colors"
+              aria-label="Cerrar menú"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <nav className="m-admin-nav space-y-1.5 px-4">
+            <p className="m-admin-nav-label">GESTIÓN</p>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href, item.exact);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`m-admin-nav-link flex items-center rounded-xl px-3.5 py-2.5 transition-all ${
+                    active ? "is-active" : ""
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={active ? 2.3 : 1.9} />
+                  <span>{item.label}</span>
+                  <ChevronRight size={14} className="m-admin-nav-arrow" />
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="m-admin-account p-4 space-y-2">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="m-admin-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold text-white">
+              SA
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold">Super Admin</p>
+              <p className="truncate text-[11px] font-semibold">Acceso total</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#e7d8cd] bg-white px-3 py-2 text-xs font-bold text-[#796f69] transition hover:border-[#ff1f2d] hover:bg-[#fff0f1] hover:text-[#ff1f2d] disabled:opacity-50"
+          >
+            <LogOut size={15} />
+            <span>{loggingOut ? "Cerrando..." : "Cerrar sesión"}</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Contenedor Principal (<main>) con padding adaptativo p-4 md:p-8 y ancho fluido w-full max-w-7xl mx-auto */}
+      <main className="m-admin-main min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
+        <div className="w-full max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
 }

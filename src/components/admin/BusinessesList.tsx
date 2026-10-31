@@ -360,7 +360,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
     "p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-[#FF1F2D] transition-colors cursor-pointer";
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto font-sans space-y-6">
+    <div className="w-full max-w-7xl mx-auto font-sans space-y-6">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -494,15 +494,15 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xs">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-gray-200 bg-[#FFF9F5] text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-5">Comercio</th>
-                  <th className="py-3 px-5">Link NFC</th>
-                  <th className="py-3 px-5">Estado</th>
-                  <th className="py-3 px-5">Plan de Suscripción</th>
-                  <th className="py-3 px-5 text-right">Acciones</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Comercio</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Link NFC</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Estado</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Plan de Suscripción</th>
+                  <th className="py-3 px-5 whitespace-nowrap text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -519,7 +519,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       }`}
                     >
                       {/* Comercio */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {business.logo_url ? (
                             <img
@@ -551,7 +551,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       </td>
 
                       {/* Link NFC */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {business.nfcUrl ? (
                             <>
@@ -600,7 +600,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       </td>
 
                       {/* Toggle de Estado (Switch Reactivo) */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <button
                             type="button"
@@ -637,7 +637,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       </td>
 
                       {/* Selector de Plan (Select Dropdown con Regla de Bloqueo) */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="relative inline-flex items-center">
                             <select

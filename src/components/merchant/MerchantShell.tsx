@@ -372,8 +372,8 @@ export default function MerchantShell({
           </header>
 
           {/* Content Body */}
-          <main className="min-w-0 flex-1 overflow-y-auto bg-[#FFF9F5] p-4 sm:p-6 md:p-8">
-            <div className="mx-auto min-w-0 max-w-7xl">{children}</div>
+          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFF9F5] p-4 md:p-8">
+            <div className="w-full max-w-7xl mx-auto min-w-0">{children}</div>
           </main>
         </div>
       </div>

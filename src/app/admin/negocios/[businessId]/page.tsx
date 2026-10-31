@@ -10,5 +10,5 @@ export default async function EditBusinessPage({ params }: { params: Promise<{ b
     .select('*')
     .eq('id', businessId).maybeSingle();
   if (error || !business) notFound();
-  return <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><EditBusinessForm business={business} /></main>;
+  return <div className="w-full max-w-7xl mx-auto"><EditBusinessForm business={business} /></div>;
 }

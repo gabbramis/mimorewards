@@ -278,9 +278,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const bannerError = wallet?.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full">
       {/* Columna Izquierda: Bloques seleccionables */}
-      <div className="lg:col-span-7 space-y-4">
+      <div className="lg:col-span-7 space-y-4 w-full min-w-0">
 
         {/* 01 Identidad visual */}
         <section
@@ -850,8 +850,8 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
       </div>
 
       {/* Columna Derecha: Previsualización en vivo fija (Sticky e independiente) */}
-      <div className="lg:col-span-5 lg:sticky lg:top-6 self-start w-full space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit max-h-[calc(100vh-3rem)] overflow-y-auto">
+      <div className="lg:col-span-5 lg:sticky lg:top-6 self-start w-full min-w-0 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm h-fit w-full lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
           {/* Header de la previsualización */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div className="flex items-center gap-2">

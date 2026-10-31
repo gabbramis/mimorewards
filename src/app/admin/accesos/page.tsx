@@ -100,7 +100,7 @@ export default function AdminAccesosPage() {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto font-sans space-y-6">
+    <div className="w-full max-w-7xl mx-auto font-sans space-y-6">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -196,13 +196,13 @@ export default function AdminAccesosPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-5">Correo Electrónico</th>
-                  <th className="py-3 px-5">Fecha de Creación</th>
-                  <th className="py-3 px-5 text-right">Acciones</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Correo Electrónico</th>
+                  <th className="py-3 px-5 whitespace-nowrap">Fecha de Creación</th>
+                  <th className="py-3 px-5 whitespace-nowrap text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -220,13 +220,13 @@ export default function AdminAccesosPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-5 text-gray-500 font-medium">
+                      <td className="py-3.5 px-5 text-gray-500 font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           <Calendar size={13} className="text-gray-400" />
                           {formatDateTime(entry.created_at)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
+                      <td className="py-3.5 px-5 text-right whitespace-nowrap">
                         <button
                           type="button"
                           disabled={isRevoking}

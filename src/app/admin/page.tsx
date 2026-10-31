@@ -204,7 +204,7 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <div className="p-6 sm:p-10 max-w-7xl mx-auto font-sans space-y-8">
+    <div className="w-full max-w-7xl mx-auto font-sans space-y-6 md:space-y-8">
       {/* Cabecera del Dashboard */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -516,14 +516,14 @@ export default async function AdminDashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full text-left min-w-[600px]">
               <thead>
                 <tr className="bg-gray-50/70 border-b border-gray-100 text-gray-400 text-xs uppercase tracking-wider font-bold">
-                  <th className="px-6 py-3.5">Comercio</th>
-                  <th className="px-6 py-3.5">Fecha de Alta</th>
-                  <th className="px-6 py-3.5">Estado</th>
-                  <th className="px-6 py-3.5 text-right">Detalle</th>
+                  <th className="px-6 py-3.5 whitespace-nowrap">Comercio</th>
+                  <th className="px-6 py-3.5 whitespace-nowrap">Fecha de Alta</th>
+                  <th className="px-6 py-3.5 whitespace-nowrap">Estado</th>
+                  <th className="px-6 py-3.5 whitespace-nowrap text-right">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -532,7 +532,7 @@ export default async function AdminDashboardPage() {
                     key={business.id}
                     className="hover:bg-gray-50/70 transition-colors"
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         {business.logo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -557,14 +557,14 @@ export default async function AdminDashboardPage() {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-xs font-medium text-gray-600">
+                    <td className="px-6 py-4 text-xs font-medium text-gray-600 whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
                         <Calendar size={13} className="text-gray-400" />
                         <span>{formatDate(business.created_at)}</span>
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
                           business.active
@@ -581,7 +581,7 @@ export default async function AdminDashboardPage() {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <Link
                         href={`/admin/negocios/${business.id}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#FF1F2D] transition-colors"

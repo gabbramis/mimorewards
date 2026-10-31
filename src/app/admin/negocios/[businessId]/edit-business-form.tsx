@@ -193,8 +193,8 @@ export default function EditBusinessForm({ business }: { business: Business }) {
       </div>
     </div>
     {/* Tarjeta superior (Ancho completo): Datos del negocio y Programa de fidelización */}
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="grid gap-8 lg:grid-cols-2">
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+      <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-2">
         {/* Columna Izquierda: Datos del negocio */}
         <div>
           <h2 className="font-bold text-gray-900 text-base mb-4">Datos del negocio</h2>
