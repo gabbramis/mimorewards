@@ -55,7 +55,7 @@ function ColorField({ label, value, onChange, disabled }: { label: string; value
 }
 
 async function previewFile(file: File, effect: PendingEffect): Promise<{ complete: string; pending: string; warning: string }> {
-  if (file.type !== 'image/png' || file.size > 2 * 1024 * 1024 || file.size === 0) throw new Error('Elegí un PNG de hasta 2 MB.');
+  if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024 || file.size === 0) throw new Error('Elegí una imagen PNG, JPG o WebP de hasta 2 MB.');
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width < 64 || bitmap.height < 64 || bitmap.width > 2048 || bitmap.height > 2048) throw new Error('La imagen debe medir entre 64 y 2048 píxeles por lado.');
@@ -75,7 +75,7 @@ async function previewFile(file: File, effect: PendingEffect): Promise<{ complet
     const imageData = pendingContext.createImageData(STAMP_SIZE, STAMP_SIZE);
     imageData.data.set(pendingPixels(ctx.getImageData(0, 0, STAMP_SIZE, STAMP_SIZE).data, effect));
     pendingContext.putImageData(imageData, 0, 0);
-    return { complete: complete.toDataURL('image/png'), pending: pending.toDataURL('image/png'), warning: bounds.transparent ? '' : 'Esta imagen no tiene transparencia. Necesitás un PNG sin fondo para generar una silueta o contorno correcto; no se elimina el fondo automáticamente.' };
+    return { complete: complete.toDataURL('image/png'), pending: pending.toDataURL('image/png'), warning: '' };
   } finally { bitmap.close(); }
 }
 
@@ -152,7 +152,7 @@ function ImageUploadField({ label, kind, url, onChange, endpoint, disabled, roun
         <div className="flex flex-wrap items-center gap-2">
           {endpoint && (
             <>
-              <input id={inputId} type="file" accept="image/png, .png" disabled={disabled || uploading} className="sr-only"
+              <input id={inputId} type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" disabled={disabled || uploading} className="sr-only"
                 onClick={e => e.stopPropagation()}
                 onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; upload(file); }} />
               <label htmlFor={inputId} onClick={e => e.stopPropagation()}
@@ -604,10 +604,10 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               {value.source === 'custom' && (
                 <div className="mt-4 space-y-4">
                   <label className="block text-sm font-semibold text-gray-700">
-                    PNG con transparencia · 64–2048 px · máximo 2 MB
+                    Imagen PNG, JPG o WebP · 64–2048 px · máximo 2 MB
                     <input
                       type="file"
-                      accept="image/png"
+                      accept="image/png,image/jpeg,image/webp"
                       disabled={disabled || locked}
                       onChange={e => { const file = e.target.files?.[0] || null; update({ customFile: file }); setPreview(null); }}
                       className="mt-2 block w-full rounded-xl border border-gray-200 p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-red-50 file:px-3 file:py-2 file:font-semibold file:text-[#FF1F2D]"
