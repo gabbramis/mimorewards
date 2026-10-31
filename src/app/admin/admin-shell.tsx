@@ -53,7 +53,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
     };
 
     return (
-        <div className="m-admin-shell flex h-screen font-sans">
+        <div className="m-admin-shell flex h-dvh font-sans">
             {sidebarOpen && <button className="m-admin-backdrop" aria-label="Cerrar menú" onClick={() => setSidebarOpen(false)} />}
             <aside className={`m-admin-sidebar flex flex-col ${sidebarOpen ? "is-open" : ""}`}>
                 <div className="m-admin-brand-row flex items-center justify-between">
@@ -107,7 +107,7 @@ export default function AdminShell({ children, mode = "internal", businessId, bu
                     </button>
                 </div>
             </aside>
-            <main className="m-admin-main flex-1 overflow-auto relative">
+            <main className="m-admin-main min-w-0 flex-1 overflow-auto relative">
                 <div className="m-admin-mobile-header">
                     <button className="m-admin-menu" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Menu size={22} /></button>
                     <Image src="/images/mimo-wordmark.png" width={1220} height={469} alt="mimo rewards" />

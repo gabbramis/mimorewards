@@ -19,6 +19,7 @@ import {
 import DatePickerCalendar from "./DatePickerCalendar";
 import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
 import UpgradeModal from "./UpgradeModal";
+import { formatMerchantDate, merchantDateKey } from "@/lib/merchant-dates";
 
 export interface LogItem {
   id: string;
@@ -32,6 +33,7 @@ export interface LogItem {
 }
 
 interface MerchantHistoryClientProps {
+  referenceNow: number;
   businessId: string;
   businessName: string;
   rewardDescription: string;
@@ -42,24 +44,12 @@ interface MerchantHistoryClientProps {
 }
 
 function formatDateExact(dateStr: string) {
-  try {
-    const d = new Date(dateStr);
-    return new Intl.DateTimeFormat("es-AR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(d);
-  } catch {
-    return dateStr;
-  }
+  return formatMerchantDate(dateStr, true);
 }
 
-function getRelativeTime(dateStr: string) {
+function getRelativeTime(dateStr: string, now: number) {
   try {
-    const ms = Date.now() - new Date(dateStr).getTime();
+    const ms = now - new Date(dateStr).getTime();
     const minutes = Math.floor(ms / (1000 * 60));
     if (minutes < 1) return "Recién";
     if (minutes < 60) return `Hace ${minutes} min`;
@@ -73,6 +63,7 @@ function getRelativeTime(dateStr: string) {
 }
 
 export default function MerchantHistoryClient({
+  referenceNow,
   businessId,
   businessName,
   rewardDescription,
@@ -85,6 +76,7 @@ export default function MerchantHistoryClient({
   const isFree = planType !== undefined ? isPlanFree(planType) : contextIsFree;
 
   const [logs] = useState<LogItem[]>(initialLogs);
+  const [now] = useState(referenceNow);
   const [dateFilter, setDateFilter] = useState<
     "all" | "today" | "yesterday" | "7days" | "month" | "custom"
   >("7days");
@@ -102,7 +94,7 @@ export default function MerchantHistoryClient({
       for (const dStr of allStampDates) {
         const d = new Date(dStr);
         if (!isNaN(d.getTime())) {
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const key = merchantDateKey(dStr);
           counts[key] = (counts[key] || 0) + 1;
         }
       }
@@ -111,7 +103,7 @@ export default function MerchantHistoryClient({
         if (log.method !== "REDEEM") {
           const d = new Date(log.created_at);
           if (!isNaN(d.getTime())) {
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            const key = merchantDateKey(log.created_at);
             counts[key] = (counts[key] || 0) + 1;
           }
         }
@@ -122,30 +114,28 @@ export default function MerchantHistoryClient({
 
   // Filtrado de logs
   const filteredLogs = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
-    const sevenDaysStart = todayStart - 6 * 24 * 60 * 60 * 1000;
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const todayKey = merchantDateKey(now);
+    const dayMs = 24 * 60 * 60 * 1000;
+    const yesterdayKey = merchantDateKey(now - dayMs);
+    const sevenDaysKey = merchantDateKey(now - 6 * dayMs);
+    const monthKey = `${todayKey.slice(0, 7)}-01`;
 
     const query = searchQuery.trim().toLowerCase();
 
     return logs.filter((log) => {
-      const logTime = new Date(log.created_at).getTime();
+      const logKey = merchantDateKey(log.created_at);
 
       // Filtro de fecha
-      if (dateFilter === "today" && logTime < todayStart) return false;
+      if (dateFilter === "today" && logKey < todayKey) return false;
       if (
         dateFilter === "yesterday" &&
-        (logTime < yesterdayStart || logTime >= todayStart)
+        logKey !== yesterdayKey
       ) {
         return false;
       }
-      if (dateFilter === "7days" && logTime < sevenDaysStart) return false;
-      if (dateFilter === "month" && logTime < monthStart) return false;
+      if (dateFilter === "7days" && logKey < sevenDaysKey) return false;
+      if (dateFilter === "month" && logKey < monthKey) return false;
       if (dateFilter === "custom" && selectedCustomDate) {
-        const logDate = new Date(log.created_at);
-        const logKey = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, "0")}-${String(logDate.getDate()).padStart(2, "0")}`;
         if (logKey !== selectedCustomDate) return false;
       }
 
@@ -169,7 +159,7 @@ export default function MerchantHistoryClient({
 
       return true;
     });
-  }, [logs, dateFilter, selectedCustomDate, actionFilter, searchQuery]);
+  }, [logs, dateFilter, selectedCustomDate, actionFilter, searchQuery, now]);
 
   // KPIs del conjunto filtrado
   const kpis = useMemo(() => {
@@ -467,7 +457,7 @@ export default function MerchantHistoryClient({
                               {formatDateExact(log.created_at)}
                             </p>
                             <span className="text-[10px] text-[#737373]">
-                              {getRelativeTime(log.created_at)}
+                              {getRelativeTime(log.created_at, now)}
                             </span>
                           </div>
                         </div>

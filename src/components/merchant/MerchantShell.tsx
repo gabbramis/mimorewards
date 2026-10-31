@@ -128,7 +128,7 @@ export default function MerchantShell({
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#FFF9F5] text-[#1F1F1F] font-sans antialiased overflow-hidden">
+    <div className="m-merchant-shell flex flex-col h-dvh w-full bg-[#FFF9F5] text-[#1F1F1F] font-sans antialiased overflow-hidden">
       {/* Banner superior adhesivo de Impersonation (Modo Administrador) */}
       {isImpersonating && (
         <div
@@ -166,7 +166,7 @@ export default function MerchantShell({
 
         {/* Floating Upgrade Toast */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#1F1F1F] text-white px-5 py-3.5 shadow-xl border border-neutral-700 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-200">
+          <div role="status" className="fixed bottom-6 left-4 right-4 sm:left-auto sm:max-w-sm sm:right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#1F1F1F] text-white px-5 py-3.5 shadow-xl border border-neutral-700 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-200">
             <Lock size={15} className="text-amber-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
@@ -182,8 +182,10 @@ export default function MerchantShell({
 
         {/* Sidebar Persistente (260px) */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col justify-between border-r border-[#D5CFC4] bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          id="merchant-navigation"
+          aria-label="Navegación del comercio"
+          className={`fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[86vw] shrink-0 overflow-y-auto flex-col justify-between border-r border-[#D5CFC4] bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
+            sidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full md:visible"
           }`}
         >
           <div className="flex flex-col">
@@ -205,7 +207,8 @@ export default function MerchantShell({
               </Link>
               <button
                 type="button"
-                className="rounded-lg p-1.5 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+                aria-label="Cerrar menú de navegación"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X size={18} />
@@ -314,25 +317,27 @@ export default function MerchantShell({
         </aside>
 
         {/* Main Container */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Top Navbar Header: Altura fija h-20 (80px) idéntica al Sidebar para alineación perfecta */}
-          <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#D5CFC4] bg-white px-4 md:px-8 box-border">
-            <div className="flex items-center gap-3.5">
+          <header className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b border-[#D5CFC4] bg-white px-4 py-3 md:px-8 box-border">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3.5">
               <button
                 type="button"
-                className="rounded-lg border border-[#D5CFC4] p-2 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Abrir menú de navegación"
+                aria-expanded={sidebarOpen}
+                aria-controls="merchant-navigation"
               >
                 <Menu size={18} />
               </button>
 
               {/* Título de la sección y estado del programa */}
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-col items-start gap-1 lg:flex-row lg:items-center lg:gap-3">
                 <h1 className="text-base sm:text-lg font-bold text-[#1F1F1F] tracking-tight">
                   Panel de comercio
                 </h1>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-bold text-[#10B981] border border-[#A7F3D0]">
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-bold text-[#10B981] border border-[#A7F3D0]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
                   {isActive ? "Programa Activo" : "Pausado"}
                 </span>
@@ -340,26 +345,26 @@ export default function MerchantShell({
             </div>
 
             {/* Quick Actions */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5">
               <button
                 type="button"
                 onClick={handleCopyCardLink}
-                className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-xs transition-all duration-150 ${
+                aria-label={copiedLink ? "¡Link copiado!" : "Copiar link de tarjeta"}
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl px-3 sm:px-3.5 py-2 text-xs font-semibold transition-all duration-150 ${
                   copiedLink
-                    ? "border-[#10B981] bg-[#ECFDF5] text-[#10B981]"
-                    : "border-[#D5CFC4] bg-white text-[#1F1F1F] hover:bg-[#FFF9F5] hover:border-[#B8B1A4]"
+                    ? "bg-[#ECFDF5] text-[#10B981]"
+                    : "text-[#1F1F1F] hover:bg-[#FFF9F5]"
                 }`}
               >
                 {copiedLink ? (
                   <>
                     <Check size={14} className="text-[#10B981]" />
-                    <span>¡Link copiado!</span>
+                    <span className="hidden lg:inline">¡Link copiado!</span>
                   </>
                 ) : (
                   <>
                     <Copy size={14} className="text-[#737373]" />
-                    <span className="hidden sm:inline">Copiar link de tarjeta</span>
-                    <span className="sm:hidden">Copiar link</span>
+                    <span className="hidden lg:inline">Copiar link de tarjeta</span>
                   </>
                 )}
               </button>
@@ -367,8 +372,8 @@ export default function MerchantShell({
           </header>
 
           {/* Content Body */}
-          <main className="flex-1 overflow-y-auto bg-[#FFF9F5] p-4 sm:p-6 md:p-8">
-            <div className="mx-auto max-w-7xl">{children}</div>
+          <main className="min-w-0 flex-1 overflow-y-auto bg-[#FFF9F5] p-4 sm:p-6 md:p-8">
+            <div className="mx-auto min-w-0 max-w-7xl">{children}</div>
           </main>
         </div>
       </div>

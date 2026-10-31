@@ -52,8 +52,13 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
     created_at: c.created_at,
   }));
 
+  // Server request snapshot, serialized so hydration uses this exact instant.
+  // eslint-disable-next-line react-hooks/purity
+  const referenceNow = Date.now();
+
   return (
     <MerchantCustomersClient
+      referenceNow={referenceNow}
       businessId={businessId}
       initialCustomers={customers}
       rewardTarget={business.reward_target || 10}

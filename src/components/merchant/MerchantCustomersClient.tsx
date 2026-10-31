@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
 import UpgradeModal from "./UpgradeModal";
+import { formatMerchantDate } from "@/lib/merchant-dates";
 
 export interface CustomerItem {
   id: string;
@@ -113,6 +114,7 @@ export function getCustomerInactivityStatus(
 }
 
 interface MerchantCustomersClientProps {
+  referenceNow: number;
   businessId: string;
   initialCustomers: CustomerItem[];
   rewardTarget: number;
@@ -121,21 +123,11 @@ interface MerchantCustomersClientProps {
 }
 
 function formatDate(dateStr: string | null) {
-  if (!dateStr) return "Sin visitas";
-  try {
-    const d = new Date(dateStr);
-    return new Intl.DateTimeFormat("es-AR", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
-  } catch {
-    return dateStr;
-  }
+  return formatMerchantDate(dateStr);
 }
 
 export default function MerchantCustomersClient({
+  referenceNow,
   businessId,
   initialCustomers,
   rewardTarget,
@@ -175,7 +167,7 @@ export default function MerchantCustomersClient({
     }, 3500);
   };
 
-  const [now] = useState(() => Date.now());
+  const [now] = useState(referenceNow);
 
   // Filtrado y segmentación rápida
   const filteredCustomers = useMemo(() => {
@@ -391,7 +383,7 @@ export default function MerchantCustomersClient({
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 shadow-xl border text-sm font-semibold transition-all ${
+          className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:max-w-sm sm:right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 shadow-xl border text-sm font-semibold transition-all ${
             toast.type === "success"
               ? "bg-white border-[#10B981] text-[#1F1F1F] shadow-[#10B981]/10"
               : "bg-white border-[#FF1F2D] text-[#1F1F1F] shadow-[#FF1F2D]/10"
@@ -784,7 +776,7 @@ export default function MerchantCustomersClient({
         )}
 
         {/* Footer de resumen */}
-        <div className="border-t border-[#D5CFC4] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex items-center justify-between">
+        <div className="border-t border-[#D5CFC4] bg-[#FFF9F5] px-5 py-3 text-xs text-[#737373] flex flex-wrap gap-2 items-center justify-between">
           <span>
             Mostrando {filteredCustomers.length} de {customers.length} clientes
           </span>
@@ -798,7 +790,7 @@ export default function MerchantCustomersClient({
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div
-            className="w-full max-w-lg rounded-3xl border border-[#D5CFC4] bg-white p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl border border-[#D5CFC4] bg-white p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -817,6 +809,7 @@ export default function MerchantCustomersClient({
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
+                aria-label="Cerrar registro de movimiento"
                 className="rounded-lg p-1 text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F]"
               >
                 <X size={18} />
@@ -863,11 +856,11 @@ export default function MerchantCustomersClient({
                           isSelected ? "bg-[#FFF0F1]" : "hover:bg-[#FFF9F5]"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           <div className={`h-7 w-7 rounded-full ${cInactivity.bgColor} ${cInactivity.borderColor} flex items-center justify-center shrink-0`}>
                             <User size={13} className={cInactivity.iconColor} strokeWidth={2} />
                           </div>
-                          <div>
+                          <div className="min-w-0 break-words">
                             <p className="text-xs font-bold text-[#1F1F1F]">
                               {cName}
                             </p>

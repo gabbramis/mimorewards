@@ -270,7 +270,7 @@ export default function DatePickerCalendar({
 
       {/* Popover desplegable con el calendario */}
       {isOpen && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:translate-y-0 sm:w-80 rounded-2xl border border-[#D5CFC4] bg-white p-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
           {/* Cabecera del mes y navegación */}
           <div className="flex items-center justify-between pb-3 border-b border-[#E5E0D8]">
             <button

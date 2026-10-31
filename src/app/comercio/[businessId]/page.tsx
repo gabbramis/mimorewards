@@ -188,7 +188,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       </div>
 
       {/* 5 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {/* Card 1: Sellos Entregados */}
         <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
           <span className="text-xs font-semibold text-[#737373]">
@@ -280,11 +280,11 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       </div>
 
       {/* Gráfico de Actividad Semanal & QR del Mostrador */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2">
           {/* Gráfico de Actividad Semanal */}
-          <div className="h-full flex flex-col justify-between rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-6">
+          <div className="h-full flex flex-col justify-between rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-6 shadow-xs">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
                   Actividad semanal
@@ -299,7 +299,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
             </div>
 
             {/* Bar Chart */}
-            <div className="mt-6 flex h-48 items-end justify-between gap-3 pt-6 px-2">
+            <div className="mt-6 flex h-48 items-end justify-between gap-1.5 sm:gap-3 pt-6 sm:px-2">
               {chartDays.map((item, idx) => {
                 const heightPercent = Math.max(
                   Math.round((item.count / maxDayCount) * 100),
@@ -340,7 +340,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
               })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex items-center justify-between text-xs text-[#737373]">
+            <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex flex-wrap gap-2 items-center justify-between text-xs text-[#737373]">
               <span className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
                 Día con más visitas
@@ -350,7 +350,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="xl:col-span-1">
           {/* Tu QR para el mostrador */}
           <CounterQrCard
             businessId={business.id}
@@ -362,8 +362,8 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       </div>
 
       {/* Resumen Rápido: Últimos 5 Movimientos */}
-      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-6 shadow-xs">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
               Últimos 5 movimientos
@@ -383,7 +383,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
 
         {recentLogsData && recentLogsData.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
                 <tr className="border-b border-[#D5CFC4] text-[#737373]">
                   <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">

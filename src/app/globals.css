@@ -835,6 +835,20 @@ body {
   color: var(--admin-ink);
 }
 
+/* Keep panel controls usable with touch and avoid input zoom on phones. */
+@media (max-width: 767px) {
+  :is(.m-merchant-shell, .m-admin-shell) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  :is(.m-merchant-shell, .m-admin-shell) button,
+  :is(.m-merchant-shell, .m-admin-shell) nav a {
+    min-height: 44px;
+  }
+}
+
 .m-admin-sidebar {
   background: #fffaf5;
   border-right: 1px solid #D5CFC4;

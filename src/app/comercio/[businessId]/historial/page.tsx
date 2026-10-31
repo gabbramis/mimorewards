@@ -77,8 +77,13 @@ export default async function MerchantHistoryPage({ params }: PageProps) {
     };
   });
 
+  // Server request snapshot, serialized so hydration uses this exact instant.
+  // eslint-disable-next-line react-hooks/purity
+  const referenceNow = Date.now();
+
   return (
     <MerchantHistoryClient
+      referenceNow={referenceNow}
       businessId={businessId}
       businessName={business.name}
       rewardDescription={
