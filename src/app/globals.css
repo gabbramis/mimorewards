@@ -854,46 +854,8 @@ body {
   border-right: 1px solid #D5CFC4;
 }
 
-.m-admin-brand-row {
-  border-bottom: 1px solid #D5CFC4;
-  min-height: 90px;
-  padding: 20px 22px;
-}
-
-.m-admin-brand {
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.m-admin-brand img {
-  height: auto;
-  object-fit: contain;
-  object-position: left center;
-  width: 112px;
-}
-
-.m-admin-brand span {
-  color: #9a8d84;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.m-admin-close,
-.m-admin-menu {
-  align-items: center;
-  border: 0;
-  border-radius: 12px;
-  color: var(--admin-ink);
-  cursor: pointer;
-  display: none;
-  justify-content: center;
-}
-
 .m-admin-nav {
-  padding-top: 25px;
+  padding-top: 20px;
 }
 
 .m-admin-nav-label {

@@ -190,25 +190,23 @@ export default function MerchantShell({
         >
           <div className="flex flex-col">
             {/* Brand Header: Altura fija h-20 (80px) idéntica a la Topbar para alineación continua */}
-            <div className="flex h-20 items-center justify-between border-b border-[#D5CFC4] px-6 box-border">
+            <div className="flex h-16 md:h-20 items-center justify-between border-b border-[#D5CFC4] px-5 box-border">
               <Link
                 href={`/comercio/${businessId}`}
                 className="flex items-center"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="/images/mimo-wordmark.png"
-                  width={1220}
-                  height={469}
                   alt="mimo rewards"
-                  priority
-                  className="w-24 h-auto object-contain"
+                  className="h-8 w-auto object-contain block"
                 />
               </Link>
               <button
                 type="button"
                 aria-label="Cerrar menú de navegación"
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X size={18} />
@@ -318,23 +316,34 @@ export default function MerchantShell({
 
         {/* Main Container */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Top Navbar Header: Altura fija h-20 (80px) idéntica al Sidebar para alineación perfecta */}
-          <header className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b border-[#D5CFC4] bg-white px-4 py-3 md:px-8 box-border">
-            <div className="flex min-w-0 items-center gap-2 sm:gap-3.5">
+          {/* Top Navbar Header: Alineación vertical centrada en móvil y escritorio */}
+          <header className="flex h-16 md:h-20 shrink-0 items-center justify-between gap-2 border-b border-[#D5CFC4] bg-white px-4 md:px-8 box-border">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D5CFC4] bg-white text-[#1F1F1F] hover:bg-[#FFF9F5] md:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Abrir menú de navegación"
                 aria-expanded={sidebarOpen}
                 aria-controls="merchant-navigation"
               >
-                <Menu size={18} />
+                <Menu size={20} />
               </button>
 
-              {/* Título de la sección y estado del programa */}
-              <div className="flex min-w-0 flex-col items-start gap-1 lg:flex-row lg:items-center lg:gap-3">
-                <h1 className="text-base sm:text-lg font-bold text-[#1F1F1F] tracking-tight">
+              {/* Logo en móvil + Título de la sección y estado del programa centrados en el mismo eje vertical */}
+              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                <Link
+                  href={`/comercio/${businessId}`}
+                  className="flex md:hidden items-center shrink-0"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/images/mimo-wordmark.png"
+                    alt="mimo rewards"
+                    className="h-7 w-auto object-contain block"
+                  />
+                </Link>
+                <h1 className="hidden sm:block text-base sm:text-lg font-bold text-[#1F1F1F] tracking-tight leading-none truncate">
                   Panel de comercio
                 </h1>
                 <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-bold text-[#10B981] border border-[#A7F3D0]">

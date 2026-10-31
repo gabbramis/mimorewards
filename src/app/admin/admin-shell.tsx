@@ -53,7 +53,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="m-admin-shell flex flex-col md:flex-row h-dvh w-full overflow-hidden">
       {/* Top Navbar visible solo en móvil (< md) */}
-      <header className="flex md:hidden items-center justify-between border-b border-[#D5CFC4] bg-[#FFFAF5] px-4 py-3 shrink-0 z-30">
+      <header className="flex md:hidden h-16 items-center justify-between border-b border-[#D5CFC4] bg-[#FFFAF5] px-4 shrink-0 z-30">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -63,12 +63,20 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           >
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo-mimo.png" alt="mimo" className="h-7 w-auto object-contain" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A8D84] truncate">
+          <Link
+            href="/admin"
+            className="flex items-center gap-2.5 min-w-0"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/mimo-wordmark.png"
+              alt="mimo rewards"
+              className="h-7 w-auto object-contain shrink-0 block"
+            />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A8D84] truncate leading-none">
               Panel de Comercios
             </span>
-          </div>
+          </Link>
         </div>
       </header>
 
@@ -89,15 +97,26 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         }`}
       >
         <div>
-          <div className="m-admin-brand-row flex items-center justify-between">
-            <div className="m-admin-brand">
-              <img src="/logo-mimo.png" alt="mimo" />
-              <span>Panel de Comercios</span>
-            </div>
+          <div className="flex h-16 md:h-20 items-center justify-between border-b border-[#D5CFC4] px-5 shrink-0">
+            <Link
+              href="/admin"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-2.5 min-w-0"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/mimo-wordmark.png"
+                alt="mimo rewards"
+                className="h-8 w-auto object-contain shrink-0 block"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A8D84] truncate leading-none">
+                Admin
+              </span>
+            </Link>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              className="flex md:hidden h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#1F1F1F] hover:bg-[#FFD9DC] transition-colors"
+              className="flex md:hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#1F1F1F] hover:bg-[#FFD9DC] transition-colors"
               aria-label="Cerrar menú"
             >
               <X size={18} />
