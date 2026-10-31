@@ -21,6 +21,14 @@ export function normalizeRewardTarget(value: unknown, fallback: AllowedRewardTar
 }
 
 /**
+ * Normaliza el ID visual del cliente a un string directo sin prefijos "CLI -" o "CLI-".
+ */
+export function formatClientNumericId(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/^CLI\s*-\s*/i, '').trim();
+}
+
+/**
  * Mapeo estricto de layout (filas × columnas) según la meta de sellos seleccionada:
  * - meta == 4: 2 filas × 2 columnas (2 arriba, 2 abajo)
  * - meta == 5: 1 fila × 5 columnas (5 alineados horizontalmente)
@@ -98,6 +106,8 @@ export function sanitizeWalletConfig(raw: unknown): WalletConfig {
   const d = defaultWalletConfig;
   const url = (value: unknown) => { const v = text(value, WALLET_LIMITS.url, ''); return isHttpsUrl(v) ? v : ''; };
   const stampBg = hexColor(source.stampBackgroundColor);
+  const rawBarcodeAltText = 'barcodeAltText' in source ? text(source.barcodeAltText, WALLET_LIMITS.barcodeAltText, d.barcodeAltText) : d.barcodeAltText;
+  const cleanBarcodeAltText = rawBarcodeAltText.replace(/^CLI\s*-\s*/i, '').trim() || d.barcodeAltText;
   return {
     issuerName: text(source.issuerName, WALLET_LIMITS.issuerName, d.issuerName),
     logoUrl: url(source.logoUrl),
@@ -107,13 +117,17 @@ export function sanitizeWalletConfig(raw: unknown): WalletConfig {
     headline: 'headline' in source ? text(source.headline, WALLET_LIMITS.headline, d.headline) : d.headline,
     rewardText: 'rewardText' in source ? text(source.rewardText, WALLET_LIMITS.rewardText, d.rewardText) : d.rewardText,
     barcodeFormat: BARCODE_FORMATS.includes(source.barcodeFormat as BarcodeFormat) ? source.barcodeFormat as BarcodeFormat : d.barcodeFormat,
-    barcodeAltText: 'barcodeAltText' in source ? text(source.barcodeAltText, WALLET_LIMITS.barcodeAltText, d.barcodeAltText) : d.barcodeAltText,
+    barcodeAltText: cleanBarcodeAltText,
   };
 }
 
 /** Reemplaza {nombre}, {proximo_premio}, {id}. Variables desconocidas se dejan intactas. */
 export function resolveWalletText(template: string, vars: { nombre?: string; proximo_premio?: string; id?: string }): string {
-  return template.replace(/\{(nombre|proximo_premio|id)\}/g, (_, key: 'nombre' | 'proximo_premio' | 'id') => vars[key] ?? '');
+  const normalizedVars = {
+    ...vars,
+    ...(vars.id !== undefined ? { id: formatClientNumericId(vars.id) } : {}),
+  };
+  return template.replace(/\{(nombre|proximo_premio|id)\}/g, (_, key: 'nombre' | 'proximo_premio' | 'id') => normalizedVars[key] ?? '');
 }
 
 export const appleBarcodeFormat = (format: BarcodeFormat) =>

@@ -41,7 +41,7 @@ export default function AppleWalletPreview({
   const progress = Math.min(Math.max(0, currentStamps), target);
   const { rows, columns } = getStampGridLayout(target);
   const customerName = "Sofía López";
-  const code = "CLI-12345";
+  const code = "15001";
   const issuer = wallet.issuerName || businessName || 'Tu negocio';
   const logo = wallet.logoUrl || logoUrl;
   const headline = resolveWalletText(wallet.headline, { nombre: customerName.split(' ')[0], proximo_premio: rewardDescription });

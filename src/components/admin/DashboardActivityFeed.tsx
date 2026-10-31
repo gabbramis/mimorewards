@@ -108,7 +108,7 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
                 const clientName = log.customers
                   ? `${log.customers.first_name || ""} ${log.customers.last_name || ""}`.trim() || "Cliente"
                   : "Cliente";
-                const shortCode = log.customers?.unique_code || "N/A";
+                const shortCode = String(log.customers?.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim() || "N/A";
                 const initials = log.customers
                   ? `${log.customers.first_name?.[0] || "?"}${log.customers.last_name?.[0] || ""}`.toUpperCase()
                   : "??";

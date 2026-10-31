@@ -93,7 +93,8 @@ function StampGrid({ customer, context }: { customer: CustomerView; context: Nfc
 
 function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView; context: NfcContext; celebrate: boolean }) {
   const completed = customer.currentStamps >= customer.targetStamps;
-  const qrValue = customer.uniqueCode || customer.id || "CLI-000000";
+  const cleanCode = String(customer.uniqueCode || "").replace(/^CLI\s*-\s*/i, "").trim();
+  const qrValue = cleanCode || customer.id || "15001";
   return (
     <div className={`cx-card w-full max-w-full min-w-0 mx-auto overflow-hidden box-border ${celebrate ? "cx-card-celebrate" : ""}`}>
       <div className="cx-card-top">
@@ -132,7 +133,7 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
             className="mt-2.5 max-w-full truncate text-center font-mono text-xs font-bold tracking-widest"
             style={{ color: "var(--cx-card-text)" }}
           >
-            {customer.uniqueCode}
+            {cleanCode}
           </span>
         )}
       </div>

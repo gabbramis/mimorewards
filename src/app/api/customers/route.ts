@@ -20,8 +20,34 @@ function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function makeUniqueCode() {
-  return `CLI-${Math.floor(100000 + Math.random() * 900000)}`;
+/**
+ * Obtiene el valor actual de `next_client_sequence` del negocio (ej. "15001")
+ * y luego incrementa `next_client_sequence` en la base de datos.
+ */
+async function claimNextClientSequence(supabase: any, businessId: string): Promise<string> {
+  const { data: business, error } = await supabase
+    .from("businesses")
+    .select("next_client_sequence")
+    .eq("id", businessId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[claimNextClientSequence] Error leyendo next_client_sequence, usando fallback:", error);
+  }
+
+  const currentSeq =
+    typeof business?.next_client_sequence === "number" && Number.isFinite(business.next_client_sequence) && business.next_client_sequence >= 1
+      ? business.next_client_sequence
+      : 15001;
+
+  const assignedId = String(currentSeq);
+
+  await supabase
+    .from("businesses")
+    .update({ next_client_sequence: currentSeq + 1 })
+    .eq("id", businessId);
+
+  return assignedId;
 }
 
 const PLAN_CUSTOMER_LIMITS: Record<string, number | null> = {
@@ -176,15 +202,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: PLAN_LIMIT_ERROR, code: "PLAN_LIMIT_REACHED" }, { status: 403 });
     }
 
-    // 4. Flujo de registro nuevo (con inserción segura y manejo de concurrencia)
+    // 4. Flujo de registro nuevo con ID 100% numérico y secuencial desde next_client_sequence
     const acceptedAt = new Date().toISOString();
+    const numericClientCode = await claimNextClientSequence(supabase, context.businessId);
     let createdCustomer: any = null;
 
     const { data: newCustomer, error: customerError } = await supabase
       .from("customers")
       .insert({
         business_id: context.businessId,
-        unique_code: makeUniqueCode(),
+        unique_code: numericClientCode,
         first_name: firstName,
         last_name: lastName,
         phone,

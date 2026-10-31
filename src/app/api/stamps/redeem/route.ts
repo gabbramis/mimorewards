@@ -20,13 +20,22 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing customer identifier' }, { status: 400 });
         }
 
+        const cleanId = String(identifier).trim();
+        const cleanCode = cleanId.replace(/^CLI\s*-\s*/i, '').trim();
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanId);
+
         let query = supabase
             .from('customers')
-            .select('id, current_stamps, business_id')
-            .or(`id.eq.${identifier},unique_code.eq.${identifier}${businessId ? `,phone.eq.${identifier}` : ''}`);
+            .select('id, current_stamps, business_id');
 
         if (businessId) {
             query = query.eq('business_id', businessId);
+        }
+
+        if (isUUID) {
+            query = query.eq('id', cleanId);
+        } else {
+            query = query.or(`unique_code.eq.${cleanId},unique_code.eq.${cleanCode}${businessId ? `,phone.eq.${cleanId}` : ''}`);
         }
 
         const { data: customer, error: customerError } = await query.maybeSingle();
@@ -62,7 +71,11 @@ export async function POST(request: Request) {
                 customer_id: customer.id,
                 business_id: customer.business_id,
                 method: 'REDEEM',
-                metadata: { redemption_id: result.redemption_id || null },
+                metadata: {
+                    redemption_id: result.redemption_id || null,
+                    registered_by_email: user.email || null,
+                    registered_by_id: user.id,
+                },
             });
         }
 

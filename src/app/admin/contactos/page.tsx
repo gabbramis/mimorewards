@@ -3,9 +3,12 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
     Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X,
-    Minus, Trash2, Link2, User, ArrowLeft, Store, Building2, ChevronRight, Loader2
+    Minus, Trash2, Link2, User, ArrowLeft, Store, Building2, ChevronRight, Loader2,
+    History, Stamp, Gift, Smartphone, QrCode, Lock, Sparkles, Zap, Phone, Calendar
 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
+import { isPlanFree } from '@/contexts/BusinessContext';
+import UpgradeModal from '@/components/merchant/UpgradeModal';
 
 export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
 
@@ -18,6 +21,7 @@ type Business = {
     primary_color?: string | null;
     active?: boolean;
     plan_type?: string;
+    plan?: string;
 };
 
 function initials(name: string) {
@@ -99,6 +103,10 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
     // Edit Mode states
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
+    const [profileCustomer, setProfileCustomer] = useState<any>(null);
+    const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
     const supabase = createClient();
     const getTargetStamps = (customer: any) => customer.businesses?.reward_target || selectedBusiness?.reward_target || 10;
@@ -168,6 +176,31 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
 
     // Negocio activo actual
     const currentBusiness = selectedBusiness || (initialBusinessId ? businesses.find(b => b.id === initialBusinessId) : null);
+    const isCurrentBusinessFree = currentBusiness ? isPlanFree(currentBusiness.plan_type && currentBusiness.plan_type !== "inicial" ? currentBusiness.plan_type : currentBusiness.plan || currentBusiness.plan_type) : false;
+
+    const openCustomerHistory = async (cust: any) => {
+        setProfileCustomer(cust);
+        if (isCurrentBusinessFree) {
+            setHistoryLogs([]);
+            return;
+        }
+        setHistoryLoading(true);
+        try {
+            const bizId = cust.business_id || currentBusiness?.id;
+            const res = await fetch(`/api/merchant/customers/${encodeURIComponent(cust.id)}/history?businessId=${encodeURIComponent(bizId || "")}`, { cache: "no-store" });
+            if (res.ok) {
+                const payload = await res.json();
+                setHistoryLogs(Array.isArray(payload.logs) ? payload.logs : []);
+            } else {
+                const { data } = await supabase.from("stamp_logs").select("id, customer_id, business_id, method, stamps_added, metadata, created_at").eq("customer_id", cust.id).eq("business_id", bizId).order("created_at", { ascending: false }).limit(200);
+                setHistoryLogs(data || []);
+            }
+        } catch {
+            setHistoryLogs([]);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
 
     // Clientes exclusivos del negocio seleccionado
     const businessCustomers = useMemo(() => {
@@ -496,7 +529,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             </div>
                             <input
                                 type="text"
-                                placeholder="Buscar por código CLI, nombre del cliente o teléfono..."
+                                placeholder="Buscar por ID de cliente (ej. 15001), nombre o teléfono..."
                                 className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-xs sm:text-sm text-gray-900 font-medium"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
@@ -583,7 +616,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                         <tr key={c.id} className="hover:bg-gray-50/70 transition group">
                                             <td className="px-4 py-2 whitespace-nowrap">
                                                 <span className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">
-                                                    {c.unique_code}
+                                                    {String(c.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim()}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2 whitespace-nowrap">
@@ -595,7 +628,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                                         <User size={13} className={inactivity.iconColor} strokeWidth={2.2} />
                                                     </div>
                                                     <div>
-                                                        <div className="font-semibold text-gray-900 text-xs leading-tight">
+                                                        <div onClick={() => openCustomerHistory(c)} className="font-semibold text-gray-900 text-xs leading-tight cursor-pointer hover:underline hover:text-[#FF1F2D] hover:text-primary transition-colors">
                                                             {c.first_name} {c.last_name}
                                                         </div>
                                                         <div className="text-gray-400 text-[11px] font-medium leading-tight mt-0.5">
@@ -707,6 +740,83 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                 </div>
             )}
 
+            <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} title="Actualizá a Pro para ver el historial detallado de clientes" feature="customers" />
+            {profileCustomer && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in duration-200" onClick={() => setProfileCustomer(null)}>
+                    <aside role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200">
+                        <div className="flex items-start justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-5">
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF1F2D]">Perfil del Cliente</span>
+                                <h3 className="text-lg font-bold text-gray-900 truncate mt-0.5">{`${profileCustomer.first_name || ""} ${profileCustomer.last_name || ""}`.trim() || profileCustomer.phone || "Cliente"}</h3>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                    {profileCustomer.unique_code && (
+                                        <span className="inline-flex items-center rounded-md bg-white border border-gray-200 px-2 py-0.5 font-mono text-[11px] font-bold text-gray-900">
+                                            ID {String(profileCustomer.unique_code).replace(/^CLI\s*-\s*/i, "").trim()}
+                                        </span>
+                                    )}
+                                    {profileCustomer.phone && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+                                            <Phone size={12} /> {profileCustomer.phone}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setProfileCustomer(null)} className="rounded-xl p-1.5 text-gray-500 hover:bg-white hover:text-gray-900 transition-colors cursor-pointer"><X size={18} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5"><History size={14} className="text-[#FF1F2D]" /><span>Historial de movimientos</span></h4>
+                                {!isCurrentBusinessFree && !historyLoading && <span className="text-[11px] font-semibold text-gray-500">{historyLogs.length} registros</span>}
+                            </div>
+                            {isCurrentBusinessFree ? (
+                                <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-gradient-to-b from-amber-50/80 to-white p-6 text-center shadow-xs">
+                                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 border border-amber-200"><Lock size={22} /></div>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-2"><Sparkles size={11} /> Exclusivo Pro / Premium</span>
+                                    <p className="text-sm font-bold text-gray-900 leading-snug">El historial detallado de clientes es una función exclusiva de los planes Pro y Premium</p>
+                                    <button type="button" onClick={() => setUpgradeModalOpen(true)} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#E01522] transition-colors cursor-pointer"><Zap size={14} className="text-amber-300" /><span>Mejorar plan</span></button>
+                                </div>
+                            ) : historyLoading ? (
+                                <div className="py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-[#FF1F2D] mb-2" /><p className="text-xs font-semibold text-gray-500">Cargando historial...</p></div>
+                            ) : historyLogs.length === 0 ? (
+                                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 text-center"><History size={28} className="mx-auto text-gray-300 mb-2" /><p className="text-sm font-semibold text-gray-900">Sin movimientos registrados</p></div>
+                            ) : (
+                                <div className="relative pl-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 space-y-4">
+                                    {historyLogs.map((item: any) => {
+                                        const isRedeem = item.method === "REDEEM";
+                                        const isNfc = item.method === "NFC";
+                                        const isQr = item.method === "QR";
+                                        const d = new Date(item.created_at);
+                                        const dateStr = d.toLocaleDateString("es-UY", { day: "2-digit", month: "short", year: "numeric" });
+                                        const timeStr = d.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hour12: false });
+                                        const registeredBy = item.metadata?.registered_by_email || null;
+                                        return (
+                                            <div key={item.id} className="relative">
+                                                <span className={`absolute -left-6 top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-2xs ${isRedeem ? "bg-red-50 text-[#FF1F2D]" : "bg-emerald-50 text-emerald-600"}`}>
+                                                    {isRedeem ? <Gift size={12} /> : <Stamp size={12} />}
+                                                </span>
+                                                <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xs">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${isRedeem ? "bg-red-50 text-[#FF1F2D] border border-red-100" : "bg-emerald-50 text-emerald-600 border border-emerald-200"}`}>
+                                                            {isRedeem ? "Canje de premio" : "+1 Sello"}
+                                                        </span>
+                                                        <span className="text-[11px] text-gray-500 shrink-0"><strong className="text-gray-900">{dateStr}</strong> · {timeStr} hs</span>
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600">
+                                                        <span className="inline-flex items-center gap-1 font-medium">
+                                                            {isNfc ? <><Smartphone size={12} className="text-sky-600" /> NFC / Autoservicio</> : isQr ? <><QrCode size={12} className="text-[#FF1F2D]" /> Escaneo QR</> : <><Edit3 size={12} /> Registro manual</>}
+                                                        </span>
+                                                        {registeredBy && <span className="inline-flex items-center gap-1 rounded-md bg-gray-50 border border-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-600 truncate"><User size={10} /> {registeredBy}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+                </div>
+            )}
             {/* MODAL DE EDICIÓN */}
             {editingCustomer && (
                 <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">

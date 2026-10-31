@@ -7,7 +7,7 @@ import { PKPass } from "passkit-generator";
 import sharp from "sharp";
 
 import crypto from "node:crypto";
-import { appleBarcodeFormat, getStampGridLayout, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
+import { appleBarcodeFormat, formatClientNumericId, getStampGridLayout, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
 import { certificateEnvironment } from './apple-certificates';
 import { applePassLocations, type WalletLocation } from './locations';
 import { resolveAppleWebServiceURL } from './apple-web-service';
@@ -237,7 +237,8 @@ export async function createAppleWalletPass(card: AppleCard) {
   const firstName = card.customerName.split(" ")[0] || card.customerName;
   const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: card.rewardDescription }) || `¡Hola, ${firstName}!`;
   const rewardValue = resolveWalletText(wallet.rewardText || "{proximo_premio}", { nombre: card.customerName, proximo_premio: card.rewardDescription }) || card.rewardDescription;
-  const altText = resolveWalletText(wallet.barcodeAltText, { id: card.customerCode });
+  const cleanCustomerCode = formatClientNumericId(card.customerCode) || String(card.customerCode || "");
+  const altText = formatClientNumericId(resolveWalletText(wallet.barcodeAltText, { id: cleanCustomerCode })) || cleanCustomerCode;
   const stampsField = {
     key: "stamps",
     label: "SELLOS",
@@ -303,7 +304,7 @@ export async function createAppleWalletPass(card: AppleCard) {
         },
         barcodes: [{
           format: appleBarcodeFormat(wallet.barcodeFormat),
-          message: card.customerCode,
+          message: cleanCustomerCode,
           messageEncoding: "iso-8859-1",
           ...(altText ? { altText } : {}),
         }],

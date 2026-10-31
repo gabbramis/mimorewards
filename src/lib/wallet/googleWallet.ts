@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
 import crypto from 'node:crypto';
-import { googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
+import { formatClientNumericId, googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
 import { readWalletLocations } from './location-store';
 import { googleMerchantLocations } from './locations';
 
@@ -400,7 +400,8 @@ export function generateSavePassUrl(
     const firstName = customerName.split(' ')[0] || customerName;
     const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: rewardDescription });
     const reward = resolveWalletText(wallet.rewardText || '{proximo_premio}', { nombre: customerName, proximo_premio: rewardDescription }) || rewardDescription || '';
-    const altText = resolveWalletText(wallet.barcodeAltText, { id: customerCode || cardId });
+    const cleanCustomerCode = formatClientNumericId(customerCode) || String(customerCode || cardId);
+    const altText = formatClientNumericId(resolveWalletText(wallet.barcodeAltText, { id: cleanCustomerCode })) || cleanCustomerCode;
     const textModulesData = [
         headline ? { id: 'headline', header: 'Tu tarjeta', body: headline } : null,
         reward ? { id: 'reward', header: 'Próximo premio', body: reward } : null,
@@ -410,11 +411,11 @@ export function generateSavePassUrl(
         id: objectId,
         classId: classId,
         state: 'ACTIVE',
-        accountId: cardId, // Map barcode with ID
+        accountId: cleanCustomerCode,
         accountName: customerName,
         barcode: {
             type: googleBarcodeType(wallet.barcodeFormat),
-            value: cardId,
+            value: cleanCustomerCode,
             ...(altText ? { alternateText: altText } : {})
         },
         ...(textModulesData.length ? { textModulesData } : {}),

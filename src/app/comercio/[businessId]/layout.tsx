@@ -23,7 +23,7 @@ export default async function MerchantLayout({
   const supabase: any = createAdminClient();
   const { data: business, error } = await supabase
     .from("businesses")
-    .select("id, name, active, logo_url, primary_color, slug, plan_type")
+    .select("id, name, active, logo_url, primary_color, slug, plan_type, plan")
     .eq("id", businessId)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export default async function MerchantLayout({
       initialName={business.name}
       initialLogo={business.logo_url}
       initialPrimaryColor={business.primary_color || null}
-      initialPlanType={business.plan_type}
+      initialPlanType={business.plan_type && business.plan_type !== "inicial" ? business.plan_type : business.plan || business.plan_type}
     >
       <MerchantShell
         businessId={business.id}

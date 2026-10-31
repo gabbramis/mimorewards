@@ -428,7 +428,7 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                             <p className="leading-tight">{clientName}</p>
                             {customer?.unique_code && (
                               <p className="text-[10px] text-[#737373]">
-                                {customer.unique_code}
+                                {String(customer.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim()}
                               </p>
                             )}
                           </div>

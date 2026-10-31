@@ -192,7 +192,7 @@ export default function MerchantHistoryClient({
       "Fecha y Hora",
       "Cliente",
       "Telefono",
-      "Codigo CLI",
+      "ID Cliente",
       "Accion",
       "Metodo",
     ];
@@ -200,7 +200,7 @@ export default function MerchantHistoryClient({
       `"${formatDateExact(l.created_at)}"`,
       `"${l.customer_name}"`,
       `"${l.customer_phone || ""}"`,
-      `"${l.customer_code || ""}"`,
+      `"${String(l.customer_code || "").replace(/^CLI\s*-\s*/i, "").trim()}"`,
       `"${l.method === "REDEEM" ? "Premio canjeado" : "+1 Sello acreditado"}"`,
       `"${l.method === "NFC" ? "NFC Autoservicio" : "Carga manual"}"`,
     ]);
@@ -323,7 +323,7 @@ export default function MerchantHistoryClient({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por cliente, teléfono o código CLI-XXXXXX..."
+            placeholder="Buscar por cliente, teléfono o ID (ej. 15001)..."
             className="w-full rounded-xl border border-[#D5CFC4] bg-[#FFF9F5] py-2.5 pl-10 pr-4 text-xs text-[#1F1F1F] placeholder:text-[#737373] focus:border-[#FF1F2D] focus:bg-white focus:outline-none"
           />
           {searchQuery && (
@@ -477,7 +477,7 @@ export default function MerchantHistoryClient({
                               {log.customer_phone && <span>{log.customer_phone}</span>}
                               {log.customer_code && (
                                 <span className="rounded bg-[#F5F5F5] px-1 py-0.2 font-mono text-[9px] font-semibold text-[#525252]">
-                                  {log.customer_code}
+                                  {String(log.customer_code || "").replace(/^CLI\s*-\s*/i, "").trim()}
                                 </span>
                               )}
                             </div>

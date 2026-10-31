@@ -263,7 +263,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
     registroSubtitulo: value.registroSubtitulo, registroTitulo: value.registroTitulo,
   }), [businessName, logoPreview, target, rewardDescription, value.primaryColor, value.textColor, value.accentColor, value.registroSubtitulo, value.registroTitulo, completed, pending]);
   const previewCustomer: CustomerView = useMemo(() => ({
-    id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: 'CLI-12345',
+    id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: '15001',
     currentStamps: previewStage === 'reward' ? target : previewStage === 'stamp' ? Math.max(1, progress) : progress,
     targetStamps: target, businessName: previewContext.businessName, businessLogo: previewContext.businessLogo,
     rewardDescription: previewContext.rewardDescription,
@@ -478,7 +478,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                 label="Texto alfanumérico bajo el código"
                 value={wallet.barcodeAltText}
                 onChange={barcodeAltText => patchWallet({ barcodeAltText })}
-                placeholder="CLI-{id}"
+                placeholder="15001"
                 maxLength={WALLET_LIMITS.barcodeAltText}
                 hint="Texto visible o alternativo. {id} se reemplaza por el código único del cliente. Vacío = sin texto."
                 disabled={disabled}
