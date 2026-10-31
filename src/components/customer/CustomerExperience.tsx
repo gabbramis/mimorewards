@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Gift, Heart, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
+import { getStampGridLayout } from "@/lib/wallet-config";
 import AppleWalletButton from "@/components/shared/AppleWalletButton";
 import GoogleWalletButton from "@/components/shared/GoogleWalletButton";
 import { useDevicePlatform } from "@/hooks/useDevicePlatform";
@@ -60,9 +61,9 @@ function messageFor(status: string | null, firstName: string) {
 function StampGrid({ customer, context }: { customer: CustomerView; context: NfcContext }) {
   const target = Math.max(1, Math.min(customer.targetStamps || context.rewardTarget, 15));
   const current = Math.min(customer.currentStamps, target);
-  const columns = Math.ceil(target / Math.ceil(target / 5));
+  const { columns } = getStampGridLayout(target);
   return (
-    <div className="cx-stamps" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`${current} de ${target} sellos`}>
+    <div className="cx-stamps" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, justifyContent: "space-evenly", justifyItems: "center" }} aria-label={`${current} de ${target} sellos`}>
       {Array.from({ length: target }, (_, index) => {
         const filled = index < current;
         const image = filled ? context.stampCompletedUrl : context.stampPendingUrl;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateStripImage } from "@/lib/wallet/generateStrip";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeWalletConfig } from "@/lib/wallet-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,31 +17,41 @@ export async function GET(
         let currentStamps = parseInt(searchParams.get("stamps") || "0");
         let maxStamps = parseInt(searchParams.get("max") || "0");
         let color = searchParams.get("color");
+        let bgColor = searchParams.get("bg");
+        let textColor = searchParams.get("text") || "#FFFFFF";
 
-        // Si faltan parámetros de diseño, buscamos en DB
-        if (!maxStamps || !color) {
+        if (!maxStamps || !color || !bgColor) {
             const supabase = await createClient();
             const { data: business } = await supabase
                 .from("businesses")
-                .select("reward_target, primary_color")
+                .select("*")
                 .eq("id", businessId)
                 .single();
 
             if (business) {
+                const wallet = sanitizeWalletConfig(business.wallet_config);
                 if (!maxStamps) maxStamps = business.reward_target || 10;
-                if (!color) color = business.primary_color || "#E84538";
+                if (!color) color = business.primary_color || "#FF1F2D";
+                if (!bgColor) bgColor = business.stamp_background_color || wallet.stampBackgroundColor || business.primary_color || "#FF1F2D";
+                if (business.card_text_color) textColor = business.card_text_color;
             } else {
-                maxStamps = 10;
-                color = "#E84538";
+                maxStamps = maxStamps || 10;
+                color = color || "#FF1F2D";
+                bgColor = bgColor || color;
             }
         }
 
-        // Si la URL provee el color, usar con # precargado (puede venir sin hash por la URL)
-        if (color && !color.startsWith("#")) {
-            color = `#${color}`;
-        }
+        if (color && !color.startsWith("#")) color = `#${color}`;
+        if (bgColor && !bgColor.startsWith("#")) bgColor = `#${bgColor}`;
+        if (textColor && !textColor.startsWith("#")) textColor = `#${textColor}`;
 
-        const buffer = await generateStripImage(maxStamps, currentStamps, color || "#E84538");
+        const buffer = await generateStripImage(
+            maxStamps,
+            currentStamps,
+            color || "#FF1F2D",
+            bgColor || color || "#FF1F2D",
+            textColor
+        );
 
         return new NextResponse(buffer as unknown as BodyInit, {
             headers: {

@@ -5,7 +5,7 @@ import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { availableStamp } from '@/lib/stamp-catalog';
 import { validateEffect } from '@/lib/stamp-image';
 import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
-import { sanitizeWalletConfig } from '@/lib/wallet-config';
+import { isAllowedRewardTarget, sanitizeWalletConfig } from '@/lib/wallet-config';
 
 export type RegisterBusinessResult = { success: boolean; error?: string };
 
@@ -47,6 +47,10 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   const rawColor = String(formData.get("primaryColor") ?? "").trim();
   const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor.toUpperCase() : "#FF1F2D";
 
+  // Color de fondo de los sellos (hex válido, fallback a primaryColor)
+  const rawStampBg = String(formData.get("stampBackgroundColor") ?? "").trim();
+  const stampBackgroundColor = /^#[0-9a-fA-F]{6}$/.test(rawStampBg) ? rawStampBg.toUpperCase() : primaryColor;
+
   // Archivo real de logo
   const logo = formData.get("logo");
   const logoFile = logo instanceof File && logo.size > 0 ? logo : null;
@@ -54,8 +58,8 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   if (!businessName || !email || !password) {
     return { success: false, error: "Todos los campos son obligatorios." };
   }
-  if (!Number.isFinite(rewardTarget) || rewardTarget < 4 || rewardTarget > 15) {
-    return { success: false, error: "La meta de sellos debe ser un número entre 4 y 15." };
+  if (!Number.isFinite(rewardTarget) || !isAllowedRewardTarget(rewardTarget)) {
+    return { success: false, error: "La meta de sellos debe ser 4, 5, 6, 8 o 10." };
   }
   if (logoFile) {
     if (!logoFile.type.startsWith("image/")) {
@@ -68,7 +72,7 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
 
   const textColor = String(formData.get('cardTextColor') || '#FFFFFF');
   const accentColor = String(formData.get('cardAccentColor') || '#FFFFFF');
-  if (![textColor, accentColor].every(value => /^#[0-9a-f]{6}$/i.test(value))) return { success: false, error: 'Los colores de la tarjeta no son válidos.' };
+  if (![textColor, accentColor, stampBackgroundColor].every(value => /^#[0-9a-f]{6}$/i.test(value))) return { success: false, error: 'Los colores de la tarjeta no son válidos.' };
   const stampSource = String(formData.get('stampSource') || '');
   const stampCatalogId = String(formData.get('stampCatalogId') || '');
   let effect;
@@ -86,13 +90,13 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
     catch (error) { return { success: false, error: error instanceof Error ? error.message : 'No se pudo procesar el sello.' }; }
   }
 
-  let walletConfig = null;
+  let walletConfig = sanitizeWalletConfig({ stampBackgroundColor });
   const rawWallet = formData.get('walletConfig');
   if (rawWallet) {
     try {
-      walletConfig = sanitizeWalletConfig(JSON.parse(String(rawWallet)));
+      walletConfig = sanitizeWalletConfig({ ...JSON.parse(String(rawWallet)), stampBackgroundColor });
     } catch {
-      walletConfig = sanitizeWalletConfig(null);
+      walletConfig = sanitizeWalletConfig({ stampBackgroundColor });
     }
   }
 
@@ -170,29 +174,44 @@ export async function registerNewBusiness(formData: FormData): Promise<RegisterB
   };
 
   // 6. INSERT inicial en la tabla businesses con logo real y color de marca
-  const { data: business, error: businessError } = await supabaseAdmin
+  const baseInsertPayload = {
+    name: businessName,
+    slug,
+    reward_target: rewardTarget,
+    reward_description: rewardDescription,
+    active: isActive,
+    logo_url: logoUrl,
+    primary_color: primaryColor,
+    card_text_color: textColor.toUpperCase(),
+    card_accent_color: accentColor.toUpperCase(),
+    stamp_source: stampSource || null,
+    stamp_catalog_id: selected?.id || null,
+    stamp_completed_url: selected?.completed || null,
+    stamp_pending_url: selected?.pending || null,
+    stamp_pending_effect: preparedStamp ? effect : null,
+    wallet_config: walletConfig,
+    registro_subtitulo: String(formData.get('registroSubtitulo') ?? '').trim().slice(0, 60) || 'TU TARJETA EMPIEZA ACÁ',
+    registro_titulo: String(formData.get('registroTitulo') ?? '').trim().slice(0, 80) || 'Cada visita cuenta.',
+  };
+
+  let { data: business, error: businessError } = await supabaseAdmin
     .from("businesses")
     .insert({
-      name: businessName,
-      slug,
-      reward_target: rewardTarget,
-      reward_description: rewardDescription,
-      active: isActive,
-      logo_url: logoUrl,
-      primary_color: primaryColor,
-      card_text_color: textColor.toUpperCase(),
-      card_accent_color: accentColor.toUpperCase(),
-      stamp_source: stampSource || null,
-      stamp_catalog_id: selected?.id || null,
-      stamp_completed_url: selected?.completed || null,
-      stamp_pending_url: selected?.pending || null,
-      stamp_pending_effect: preparedStamp ? effect : null,
-      wallet_config: walletConfig,
-      registro_subtitulo: String(formData.get('registroSubtitulo') ?? '').trim().slice(0, 60) || 'TU TARJETA EMPIEZA ACÁ',
-      registro_titulo: String(formData.get('registroTitulo') ?? '').trim().slice(0, 80) || 'Cada visita cuenta.',
+      ...baseInsertPayload,
+      stamp_background_color: stampBackgroundColor,
     })
     .select("id")
     .single();
+
+  if (businessError && businessError.message?.includes("stamp_background_color")) {
+    const retry = await supabaseAdmin
+      .from("businesses")
+      .insert(baseInsertPayload)
+      .select("id")
+      .single();
+    business = retry.data;
+    businessError = retry.error;
+  }
 
   if (businessError || !business) {
     await rollback();

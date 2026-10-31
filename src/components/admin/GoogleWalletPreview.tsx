@@ -9,6 +9,7 @@ type Props = {
   primaryColor: string;
   textColor: string;
   accentColor: string;
+  stampBackgroundColor?: string;
   currentStamps: number;
   targetStamps: number;
   rewardDescription: string;

@@ -8,8 +8,6 @@ import {
   KeyRound,
   Loader2,
   Mail,
-  Minus,
-  Plus,
   Rocket,
   Store,
   Trash2,
@@ -19,11 +17,9 @@ import {
 } from "lucide-react";
 import { registerNewBusiness, type RegisterBusinessResult } from "@/app/actions/business";
 import { BusinessDesign, emptyDesign, type DesignValue } from "@/components/admin/BusinessDesign";
-import { sanitizeWalletConfig, type WalletConfig, isHttpsUrl } from "@/lib/wallet-config";
+import { ALLOWED_REWARD_TARGETS, sanitizeWalletConfig, type WalletConfig, isHttpsUrl } from "@/lib/wallet-config";
 
 const MAX_LOGO_BYTES = 800 * 1024;
-const MIN_STAMPS = 4;
-const MAX_STAMPS = 15;
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-[#FF1F2D] focus:ring-2 focus:ring-red-100 disabled:opacity-60";
@@ -39,7 +35,7 @@ export default function CrearComercioForm() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const [stamps, setStamps] = useState(10);
+  const [stamps, setStamps] = useState<number>(10);
   const [active, setActive] = useState(true);
   const [design, setDesign] = useState<DesignValue>(emptyDesign);
   const [wallet, setWallet] = useState<WalletConfig>(() => sanitizeWalletConfig(null));
@@ -90,10 +86,6 @@ export default function CrearComercioForm() {
     selectLogo(e.dataTransfer.files?.[0]);
   }
 
-  function changeStamps(value: number) {
-    setStamps(Math.min(MAX_STAMPS, Math.max(MIN_STAMPS, Number.isFinite(value) ? Math.floor(value) : MIN_STAMPS)));
-  }
-
   function handleSubmit(formData: FormData) {
     setResult(null);
 
@@ -116,13 +108,14 @@ export default function CrearComercioForm() {
     formData.set("primaryColor", design.primaryColor);
     formData.set("cardTextColor", design.textColor);
     formData.set("cardAccentColor", design.accentColor);
+    formData.set("stampBackgroundColor", design.stampBackgroundColor);
     formData.set("registroSubtitulo", design.registroSubtitulo);
     formData.set("registroTitulo", design.registroTitulo);
     formData.set("stampSource", design.source || "");
     formData.set("stampCatalogId", design.catalogId || "");
     formData.set("stampEffect", JSON.stringify(design.effect));
     if (design.customFile) formData.set("stampFile", design.customFile);
-    formData.set("walletConfig", JSON.stringify(wallet));
+    formData.set("walletConfig", JSON.stringify({ ...wallet, stampBackgroundColor: design.stampBackgroundColor }));
 
     startTransition(async () => {
       try {
@@ -373,38 +366,34 @@ export default function CrearComercioForm() {
 
                 <div className="space-y-5">
                   <div>
-                    <label htmlFor="rewardTarget" className={labelClass}>Meta de sellos</label>
-                    <div className="inline-flex items-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => changeStamps(stamps - 1)}
-                        disabled={isPending || stamps <= MIN_STAMPS}
-                        aria-label="Restar un sello"
-                        className="flex h-11 w-11 items-center justify-center text-gray-600 transition hover:bg-red-50 hover:text-[#FF1F2D] disabled:opacity-40"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <input
-                        id="rewardTarget"
-                        type="number"
-                        min={MIN_STAMPS}
-                        max={MAX_STAMPS}
-                        value={stamps}
-                        disabled={isPending}
-                        onChange={(e) => changeStamps(Number(e.target.value))}
-                        className="h-11 w-16 border-x border-gray-200 bg-white text-center text-sm font-bold text-gray-900 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => changeStamps(stamps + 1)}
-                        disabled={isPending || stamps >= MAX_STAMPS}
-                        aria-label="Sumar un sello"
-                        className="flex h-11 w-11 items-center justify-center text-gray-600 transition hover:bg-red-50 hover:text-[#FF1F2D] disabled:opacity-40"
-                      >
-                        <Plus size={16} />
-                      </button>
+                    <span id="rewardTarget-label" className={labelClass}>Meta de sellos</span>
+                    <div
+                      role="radiogroup"
+                      aria-labelledby="rewardTarget-label"
+                      className="inline-flex flex-wrap gap-2"
+                    >
+                      {ALLOWED_REWARD_TARGETS.map((option) => {
+                        const selected = stamps === option;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            disabled={isPending}
+                            onClick={() => setStamps(option)}
+                            className={`flex h-11 min-w-[3.25rem] items-center justify-center rounded-xl border px-3.5 text-sm font-bold transition ${
+                              selected
+                                ? "border-[#FF1F2D] bg-[#FF1F2D] text-white shadow-sm ring-2 ring-red-100"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-[#FF1F2D] hover:text-[#FF1F2D]"
+                            } disabled:opacity-40`}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <p className="mt-1.5 text-xs text-gray-500">Cantidad de sellos requeridos para desbloquear el premio (4 a 15).</p>
+                    <p className="mt-1.5 text-xs text-gray-500">Cantidad de sellos requeridos para desbloquear el premio (4, 5, 6, 8 o 10).</p>
                   </div>
 
                   <div>

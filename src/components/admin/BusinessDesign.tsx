@@ -11,7 +11,7 @@ import { BANNER_SIZES, isHttpsUrl, WALLET_LIMITS, type BarcodeFormat, type Walle
 import type { NfcContext } from '@/lib/mimo-nfc';
 
 export type DesignValue = {
-  primaryColor: string; textColor: string; accentColor: string;
+  primaryColor: string; textColor: string; accentColor: string; stampBackgroundColor: string;
   source: 'collection' | 'custom' | 'logo' | null;
   catalogId: string | null; completedUrl: string | null; pendingUrl: string | null;
   effect: PendingEffect; customFile: File | null;
@@ -19,7 +19,7 @@ export type DesignValue = {
 };
 
 export const emptyDesign: DesignValue = {
-  primaryColor: '#FF1F2D', textColor: '#FFFFFF', accentColor: '#FFFFFF',
+  primaryColor: '#FF1F2D', textColor: '#FFFFFF', accentColor: '#FFFFFF', stampBackgroundColor: '#FF1F2D',
   source: null, catalogId: null, completedUrl: null, pendingUrl: null,
   effect: defaultPendingEffect, customFile: null,
   registroSubtitulo: 'TU TARJETA EMPIEZA ACÁ', registroTitulo: 'Cada visita cuenta.',
@@ -326,8 +326,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           {/* Contenido expandido */}
           {isIdentidad && (
             <div className="mt-6 pt-5 border-t border-gray-100 space-y-5 animate-in fade-in duration-200">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <ColorField label="Fondo de la tarjeta" value={value.primaryColor} onChange={primaryColor => update({ primaryColor })} disabled={disabled} />
+                <ColorField label="Fondo de los sellos" value={value.stampBackgroundColor} onChange={stampBackgroundColor => update({ stampBackgroundColor })} disabled={disabled} />
                 <ColorField label="Textos" value={value.textColor} onChange={textColor => update({ textColor })} disabled={disabled} />
                 <ColorField label="Acentos" value={value.accentColor} onChange={accentColor => update({ accentColor })} disabled={disabled} />
               </div>
@@ -922,6 +923,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}
@@ -935,6 +937,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}
@@ -972,6 +975,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}

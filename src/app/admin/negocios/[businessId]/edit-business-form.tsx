@@ -7,11 +7,12 @@ import { ArrowLeft, ExternalLink, Loader2, QrCode, RefreshCw, Save } from 'lucid
 import { BusinessDesign, emptyDesign, type DesignValue } from '@/components/admin/BusinessDesign';
 import { BusinessMembersManager } from '@/components/admin/BusinessMembersManager';
 import { validateEffect } from '@/lib/stamp-image';
-import { isHttpsUrl, sanitizeWalletConfig, type WalletConfig } from '@/lib/wallet-config';
+import { ALLOWED_REWARD_TARGETS, isHttpsUrl, normalizeRewardTarget, sanitizeWalletConfig, type WalletConfig } from '@/lib/wallet-config';
 
 type Business = {
   id: string; name: string; logo_url: string | null; active: boolean; reward_target: number; reward_description: string | null;
   primary_color: string | null; card_text_color: string | null; card_accent_color: string | null;
+  stamp_background_color?: string | null;
   stamp_source: DesignValue['source']; stamp_catalog_id: string | null; stamp_completed_url: string | null;
   stamp_pending_url: string | null; stamp_pending_effect: unknown; wallet_config: unknown; plan_type?: string | null;
   registro_subtitulo?: string | null; registro_titulo?: string | null;
@@ -19,15 +20,39 @@ type Business = {
 
 export default function EditBusinessForm({ business }: { business: Business }) {
   const router = useRouter();
-  const initial = useMemo(() => ({
-    name: business.name, active: business.active, rewardTarget: business.reward_target || 10,
-    rewardDescription: business.reward_description || '', logoUrl: business.logo_url,
-    design: { ...emptyDesign, primaryColor: business.primary_color || emptyDesign.primaryColor, textColor: business.card_text_color || '#FFFFFF', accentColor: business.card_accent_color || '#FFFFFF', source: business.stamp_source, catalogId: business.stamp_catalog_id, completedUrl: business.stamp_completed_url, pendingUrl: business.stamp_pending_url, effect: validateEffect(business.stamp_pending_effect), registroSubtitulo: business.registro_subtitulo || emptyDesign.registroSubtitulo, registroTitulo: business.registro_titulo || emptyDesign.registroTitulo } as DesignValue,
-    wallet: sanitizeWalletConfig(business.wallet_config),
-  }), [business]);
+  const initial = useMemo(() => {
+    const sanitizedWallet = sanitizeWalletConfig(business.wallet_config);
+    const primaryColor = business.primary_color || emptyDesign.primaryColor;
+    const stampBackgroundColor =
+      business.stamp_background_color ||
+      sanitizedWallet.stampBackgroundColor ||
+      primaryColor;
+    return {
+      name: business.name,
+      active: business.active,
+      rewardTarget: normalizeRewardTarget(business.reward_target, 10),
+      rewardDescription: business.reward_description || '',
+      logoUrl: business.logo_url,
+      design: {
+        ...emptyDesign,
+        primaryColor,
+        textColor: business.card_text_color || '#FFFFFF',
+        accentColor: business.card_accent_color || '#FFFFFF',
+        stampBackgroundColor,
+        source: business.stamp_source,
+        catalogId: business.stamp_catalog_id,
+        completedUrl: business.stamp_completed_url,
+        pendingUrl: business.stamp_pending_url,
+        effect: validateEffect(business.stamp_pending_effect),
+        registroSubtitulo: business.registro_subtitulo || emptyDesign.registroSubtitulo,
+        registroTitulo: business.registro_titulo || emptyDesign.registroTitulo,
+      } as DesignValue,
+      wallet: sanitizedWallet,
+    };
+  }, [business]);
   const [name, setName] = useState(initial.name);
   const [active, setActive] = useState(initial.active);
-  const [rewardTarget, setRewardTarget] = useState(initial.rewardTarget);
+  const [rewardTarget, setRewardTarget] = useState<number>(initial.rewardTarget);
   const [rewardDescription, setRewardDescription] = useState(initial.rewardDescription);
   const [design, setDesign] = useState(initial.design);
   const [wallet, setWallet] = useState<WalletConfig>(initial.wallet);
@@ -86,9 +111,10 @@ export default function EditBusinessForm({ business }: { business: Business }) {
     const data = new FormData();
     data.set('name', name.trim()); data.set('active', String(active)); data.set('rewardTarget', String(rewardTarget)); data.set('rewardDescription', rewardDescription.trim());
     data.set('primaryColor', design.primaryColor); data.set('cardTextColor', design.textColor); data.set('cardAccentColor', design.accentColor);
+    data.set('stampBackgroundColor', design.stampBackgroundColor);
     data.set('registroSubtitulo', design.registroSubtitulo); data.set('registroTitulo', design.registroTitulo);
     data.set('stampSource', design.source || ''); data.set('stampCatalogId', design.catalogId || ''); data.set('stampEffect', JSON.stringify(design.effect));
-    data.set('walletConfig', JSON.stringify(wallet));
+    data.set('walletConfig', JSON.stringify({ ...wallet, stampBackgroundColor: design.stampBackgroundColor }));
     if (logoFile) data.set('logo', logoFile);
     if (design.customFile) data.set('stampFile', design.customFile);
     try {
@@ -225,19 +251,40 @@ export default function EditBusinessForm({ business }: { business: Business }) {
             La meta de sellos y el premio definen cuándo el cliente desbloquea su beneficio.
           </p>
           <div className="space-y-4">
-            <label className="block text-sm font-semibold text-gray-700">
-              Sellos necesarios para el premio
-              <input
-                type="number"
-                min={4}
-                max={15}
-                required
-                value={rewardTarget}
-                onChange={e => setRewardTarget(Number(e.target.value))}
-                disabled={saving}
-                className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
-              />
-            </label>
+            <div>
+              <span id="edit-rewardTarget-label" className="block text-sm font-semibold text-gray-700">
+                Meta de sellos
+              </span>
+              <div
+                role="radiogroup"
+                aria-labelledby="edit-rewardTarget-label"
+                className="mt-2 inline-flex flex-wrap gap-2"
+              >
+                {ALLOWED_REWARD_TARGETS.map((option) => {
+                  const selected = rewardTarget === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={saving}
+                      onClick={() => setRewardTarget(option)}
+                      className={`flex h-11 min-w-[3.25rem] items-center justify-center rounded-xl border px-3.5 text-sm font-bold transition ${
+                        selected
+                          ? 'border-[#FF1F2D] bg-[#FF1F2D] text-white shadow-sm ring-2 ring-red-100'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#FF1F2D] hover:text-[#FF1F2D]'
+                      } disabled:opacity-40`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                Cantidad de sellos requeridos para desbloquear el premio (4, 5, 6, 8 o 10).
+              </p>
+            </div>
             <label className="block text-sm font-semibold text-gray-700">
               Descripción del premio o recompensa
               <input

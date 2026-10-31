@@ -7,7 +7,7 @@ import { PKPass } from "passkit-generator";
 import sharp from "sharp";
 
 import crypto from "node:crypto";
-import { appleBarcodeFormat, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
+import { appleBarcodeFormat, getStampGridLayout, resolveWalletText, sanitizeWalletConfig, type WalletConfig } from "@/lib/wallet-config";
 import { certificateEnvironment } from './apple-certificates';
 import { applePassLocations, type WalletLocation } from './locations';
 import { resolveAppleWebServiceURL } from './apple-web-service';
@@ -26,6 +26,7 @@ export type AppleCard = {
   primaryColor?: string | null;
   textColor?: string | null;
   accentColor?: string | null;
+  stampBackgroundColor?: string | null;
   logoImage?: Buffer | null;
   completedStampImage?: Buffer | null;
   pendingStampImage?: Buffer | null;
@@ -141,71 +142,79 @@ export function appleWalletConfigured() {
   return requiredFiles.every((fileName) => existsSync(join(process.cwd(), ".secrets", "apple-wallet", fileName)));
 }
 
-async function stripImages(card: AppleCard, banner?: Buffer | null) {
+async function stripImages(card: AppleCard, wallet: WalletConfig, banner?: Buffer | null) {
   const canvasWidth = 1125;
   const canvasHeight = 432;
   const canvas = createCanvas(canvasWidth, canvasHeight);
   const context = canvas.getContext("2d");
+
+  // 1. Si el comercio NO subió una imagen de banner personalizada (o falla la carga),
+  // rellenar el canvas primero con el color sólido elegido (stamp_background_color, opacidad 100%).
+  const stripBgColor = card.stampBackgroundColor || wallet.stampBackgroundColor || card.primaryColor || "#FF1F2D";
+  context.globalAlpha = 1;
+  context.fillStyle = walletColor(stripBgColor);
+  context.fillRect(0, 0, canvasWidth, canvasHeight);
+
   if (banner) {
     try {
       const image = await loadImage(await sharp(banner).resize(canvasWidth, canvasHeight, { fit: "cover" }).png().toBuffer());
       context.drawImage(image, 0, 0, canvasWidth, canvasHeight);
     } catch (error) {
-      console.warn("[Apple Wallet] Banner inválido, se omite:", error);
+      console.warn("[Apple Wallet] Banner inválido, se mantiene el color sólido de fondo de sellos:", error);
     }
   }
+
   const target = Math.min(15, Math.max(1, card.targetStamps));
   const progress = Math.min(target, Math.max(0, card.currentStamps));
 
-  // Distribuir en 1 fila si son 5 o menos, o en 2 filas si son más
-  const rows = target <= 5 ? 1 : 2;
-  const columns = Math.ceil(target / rows);
+  // 2. Mapeo estricto de filas y columnas idéntico al Frontend (4 -> 2x2, 5 -> 1x5, 6 -> 2x3, 8 -> 2x4, 10 -> 2x5)
+  const { rows, columns } = getStampGridLayout(target);
 
   const completed = card.completedStampImage ? await loadImage(card.completedStampImage) : null;
   const pending = card.pendingStampImage ? await loadImage(card.pendingStampImage) : null;
 
-  // Tamaño prominente de los sellos (120px - 140px según cantidad de columnas)
-  const maxAvailableWidth = (canvasWidth - 100) / columns;
-  const maxAvailableHeight = (canvasHeight - 60) / (rows === 1 ? 1 : 2.2);
-  const size = Math.floor(Math.min(140, maxAvailableWidth * 0.85, maxAvailableHeight));
+  const padX = 40;
+  const usableWidth = canvasWidth - padX * 2;
+  const maxAvailableWidth = usableWidth / columns;
+  const maxAvailableHeight = (canvasHeight - 48) / (rows === 1 ? 1 : 2.15);
+  const size = Math.floor(Math.min(rows === 1 ? 148 : 136, maxAvailableWidth * 0.82, maxAvailableHeight));
 
-  // Centrado vertical exacto en los 432px de alto
-  const rowGap = rows > 1 ? Math.min(44, Math.max(16, Math.floor((canvasHeight - rows * size) / (rows + 1)))) : 0;
-  const totalGridHeight = rows * size + (rows - 1) * rowGap;
-  const startY = Math.floor((canvasHeight - totalGridHeight) / 2) + Math.floor(size / 2);
+  // Distribución vertical con space-evenly
+  const rowGap = (canvasHeight - rows * size) / (rows + 1);
 
-  // Distribución horizontal
-  const maxContentWidth = Math.min(canvasWidth - 120, columns * (size + 50));
-  const stepX = columns > 1 ? maxContentWidth / (columns - 1) : 0;
+  for (let row = 0; row < rows; row++) {
+    const startIdx = row * columns;
+    const itemsInRow = Math.max(0, Math.min(columns, target - startIdx));
+    if (itemsInRow <= 0) continue;
 
-  for (let index = 0; index < target; index++) {
-    const row = Math.floor(index / columns);
-    const col = index % columns;
+    // Distribución horizontal con space-evenly para cada fila
+    const colGap = (usableWidth - itemsInRow * size) / (itemsInRow + 1);
+    const y = rowGap + size / 2 + row * (size + rowGap);
 
-    // Centrar la última fila si tiene menos elementos
-    const itemsInRow = (row === rows - 1 && target % columns !== 0) ? (target % columns) : columns;
-    const rowStartX = itemsInRow > 1 ? (canvasWidth - (itemsInRow - 1) * stepX) / 2 : canvasWidth / 2;
+    for (let col = 0; col < itemsInRow; col++) {
+      const index = startIdx + col;
+      const x = padX + colGap + size / 2 + col * (size + colGap);
 
-    const x = rowStartX + col * stepX;
-    const y = startY + row * (size + rowGap);
-
-    const image = index < progress ? completed : pending;
-    if (image) {
-      const scale = Math.min(size / image.width, size / image.height);
-      const width = image.width * scale;
-      const height = image.height * scale;
-      context.drawImage(image, x - width / 2, y - height / 2, width, height);
-    } else {
-      context.beginPath();
-      context.arc(x, y, size * 0.38, 0, Math.PI * 2);
-      context.lineWidth = 8;
-      context.strokeStyle = walletColor(card.textColor || "#FFFFFF");
-      context.globalAlpha = index < progress ? 0.95 : 0.38;
-      if (index < progress) {
-        context.fillStyle = walletColor(card.textColor || "#FFFFFF");
-        context.fill();
-      } else context.stroke();
-      context.globalAlpha = 1;
+      const image = index < progress ? completed : pending;
+      if (image) {
+        const scale = Math.min(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, x - width / 2, y - height / 2, width, height);
+      } else {
+        context.beginPath();
+        context.arc(x, y, size * 0.38, 0, Math.PI * 2);
+        context.lineWidth = 8;
+        context.strokeStyle = walletColor(card.textColor || "#FFFFFF");
+        context.globalAlpha = index < progress ? 0.95 : 0.38;
+        if (index < progress) {
+          context.fillStyle = walletColor(card.textColor || "#FFFFFF");
+          context.fill();
+        } else {
+          context.stroke();
+        }
+        context.globalAlpha = 1;
+      }
     }
   }
 
@@ -264,7 +273,7 @@ export async function createAppleWalletPass(card: AppleCard) {
       "icon.png": icon(29),
       "icon@2x.png": icon(58),
       ...logoImages,
-      ...await stripImages(card, bannerImage),
+      ...await stripImages(card, wallet, bannerImage),
       "pass.json": Buffer.from(JSON.stringify({
         formatVersion: 1,
         passTypeIdentifier: PASS_TYPE_ID,

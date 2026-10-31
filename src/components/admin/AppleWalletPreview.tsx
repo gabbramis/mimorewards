@@ -1,7 +1,7 @@
 "use client";
 
 import WalletBarcode from "@/components/admin/WalletBarcode";
-import { defaultWalletConfig, resolveWalletText, type WalletConfig } from "@/lib/wallet-config";
+import { defaultWalletConfig, getStampGridLayout, resolveWalletText, type WalletConfig } from "@/lib/wallet-config";
 
 type Props = {
   businessName: string;
@@ -11,6 +11,7 @@ type Props = {
   primaryColor: string;
   textColor: string;
   accentColor: string;
+  stampBackgroundColor?: string;
   currentStamps: number;
   targetStamps: number;
   rewardDescription: string;
@@ -21,10 +22,24 @@ type Props = {
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
 /** Réplica de un pase storeCard de Apple Wallet (iOS PassKit). */
-export default function AppleWalletPreview({ businessName, logoUrl, completedUrl, pendingUrl, primaryColor, textColor, accentColor, currentStamps, targetStamps, rewardDescription, artworkVisible, wallet = defaultWalletConfig }: Props) {
+export default function AppleWalletPreview({
+  businessName,
+  logoUrl,
+  completedUrl,
+  pendingUrl,
+  primaryColor,
+  textColor,
+  accentColor,
+  stampBackgroundColor,
+  currentStamps,
+  targetStamps,
+  rewardDescription,
+  artworkVisible,
+  wallet = defaultWalletConfig,
+}: Props) {
   const target = Math.max(1, targetStamps);
   const progress = Math.min(Math.max(0, currentStamps), target);
-  const columns = Math.ceil(target / 2);
+  const { rows, columns } = getStampGridLayout(target);
   const customerName = "Sofía López";
   const code = "CLI-12345";
   const issuer = wallet.issuerName || businessName || 'Tu negocio';
@@ -34,6 +49,7 @@ export default function AppleWalletPreview({ businessName, logoUrl, completedUrl
   const altText = resolveWalletText(wallet.barcodeAltText, { id: code });
   const banner = wallet.bannerEnabled && wallet.bannerUrl ? wallet.bannerUrl : null;
   const showStrip = !!banner || artworkVisible;
+  const stripBgColor = stampBackgroundColor || wallet.stampBackgroundColor || primaryColor;
 
   return <div className="mx-auto w-full max-w-[390px] rounded-[46px] border-[7px] border-[#26282d] bg-[#26282d] p-[4px] shadow-[0_25px_70px_rgba(15,23,42,.22)]">
     <div className="relative min-h-[690px] overflow-hidden rounded-[35px] bg-[#f1f2f6] px-4 pb-8 pt-5" style={{ fontFamily: FONT }}>
@@ -58,17 +74,37 @@ export default function AppleWalletPreview({ businessName, logoUrl, completedUrl
         </div>
 
         {/* Strip image: banner de lado a lado con los sellos encima */}
-        {showStrip && <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1125 / 432', backgroundColor: banner ? undefined : 'rgba(0,0,0,.12)' }}>
+        {showStrip && <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1125 / 432', backgroundColor: banner ? undefined : stripBgColor }}>
           {banner && <img src={banner} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-          {artworkVisible && <div className="absolute inset-0 grid content-end gap-x-1 gap-y-1 px-5 pb-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-hidden="true">
-            {Array.from({ length: target }, (_, index) => {
-              const filled = index < progress;
-              const url = filled ? completedUrl : pendingUrl;
-              return <span key={index} className="flex aspect-square min-w-0 items-center justify-center">
-                {url ? <img src={url} alt="" className="h-full max-h-9 w-full object-contain" style={!filled && pendingUrl === completedUrl ? { opacity: 0.25 } : undefined} /> : <span className="block h-[60%] w-[60%] rounded-full border-2" style={{ borderColor: textColor, backgroundColor: filled ? textColor : 'transparent', opacity: filled ? .95 : .4 }} />}
-              </span>;
-            })}
-          </div>}
+          {artworkVisible && (
+            <div className="absolute inset-0 flex flex-col justify-evenly px-4 py-2" aria-hidden="true">
+              {Array.from({ length: rows }, (_, rowIndex) => {
+                const startIdx = rowIndex * columns;
+                const rowStampsCount = Math.max(0, Math.min(columns, target - startIdx));
+                return (
+                  <div key={rowIndex} className="flex w-full items-center justify-evenly">
+                    {Array.from({ length: rowStampsCount }, (_, colIndex) => {
+                      const index = startIdx + colIndex;
+                      const filled = index < progress;
+                      const url = filled ? completedUrl : pendingUrl;
+                      return (
+                        <span key={index} className={`flex shrink-0 items-center justify-center ${rows === 1 ? 'h-12 w-12' : 'h-11 w-11'}`}>
+                          {url ? (
+                            <img src={url} alt="" className="h-full max-h-9 w-full object-contain" style={!filled && pendingUrl === completedUrl ? { opacity: 0.25 } : undefined} />
+                          ) : (
+                            <span
+                              className="block h-[72%] w-[72%] rounded-full border-2"
+                              style={{ borderColor: textColor, backgroundColor: filled ? textColor : 'transparent', opacity: filled ? .95 : .4 }}
+                            />
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>}
 
         {/* Campos: titular a la izquierda, recompensa a la derecha */}
