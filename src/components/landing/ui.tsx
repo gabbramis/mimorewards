@@ -7,7 +7,7 @@ import type { MouseEventHandler, ReactNode } from "react";
 import { demoHref } from "./demo-link";
 
 export function Brand({ light = false }: { light?: boolean }) {
-  return <span className={`m-brand ${light ? "m-brand-light" : ""}`}><Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="mimo rewards" /></span>;
+  return <span className={`m-brand ${light ? "m-brand-light" : ""}`}><Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="Mimo Rewards - Tarjetas de fidelización digitales" /></span>;
 }
 
 export function Reveal({ children, className = "" }: { children: ReactNode; className?: string }) {

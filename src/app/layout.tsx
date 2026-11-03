@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_MIMO_SITE_URL || "https://mimorewards.com"),
+  metadataBase: new URL("https://www.mimorewards.com"),
+  alternates: {
+    canonical: "/",
+  },
   title: "mimo rewards | Fidelización para tu comercio",
   description: "Sumate al programa de beneficios de tu comercio favorito.",
   icons: {
