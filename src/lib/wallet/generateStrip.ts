@@ -1,63 +1,70 @@
 import { createCanvas } from '@napi-rs/canvas';
+import { getStampGridLayout } from '@/lib/wallet-config';
 
 export async function generateStripImage(
     maxStamps: number,
     currentStamps: number,
-    primaryColor: string
+    primaryColor: string,
+    stampBackgroundColor?: string,
+    textColor: string = '#FFFFFF'
 ): Promise<Buffer> {
     const width = 1125;
-    const height = 369;
+    const height = 432;
 
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    // Fondo transparente preparado para overlay en Apple Wallet
-    ctx.clearRect(0, 0, width, height);
+    // 1. Rellenar el canvas con el color sólido de fondo de los sellos (opacidad 100%)
+    const bgColor = stampBackgroundColor || primaryColor || '#FF1F2D';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
 
-    // Ahora los sellos se dividen exactamente en 2 filas
-    const columns = Math.ceil(maxStamps / 2);
-    const rows = 2;
+    // 2. Distribución de filas y columnas idéntica al Frontend (4 -> 2x2, 5 -> 1x5, 6 -> 2x3, 8 -> 2x4, 10 -> 2x5)
+    const target = Math.max(1, Math.min(15, maxStamps || 8));
+    const { rows, columns } = getStampGridLayout(target);
 
-    // Determinar el radio máximo (55px normal o ajustar si son muchas columnas)
-    const maxRadius = 55;
-    const radius = Math.min((width - 120) / columns / 2.8, maxRadius);
+    const padX = 40;
+    const usableWidth = width - padX * 2;
+    const maxAvailableWidth = usableWidth / columns;
+    const maxAvailableHeight = (height - 48) / (rows === 1 ? 1 : 2.15);
+    const size = Math.floor(Math.min(rows === 1 ? 148 : 136, maxAvailableWidth * 0.82, maxAvailableHeight));
+    const radius = size * 0.38;
 
-    // Distancia entre los centros
-    const spacingX = radius * 3.2;
-    const spacingY = radius * 3.2;
+    // Distribución vertical con space-evenly
+    const rowGap = (height - rows * size) / (rows + 1);
 
-    // Ancho y Alto total ocupado por todos los sellos
-    const totalStampsWidth = (columns - 1) * spacingX;
-    const totalStampsHeight = (rows - 1) * spacingY;
+    for (let row = 0; row < rows; row++) {
+        const startIdx = row * columns;
+        const itemsInRow = Math.max(0, Math.min(columns, target - startIdx));
+        if (itemsInRow <= 0) continue;
 
-    // Puntos de partida para centrar en el Canvas (1125x369)
-    const startX = (width - totalStampsWidth) / 2;
-    const startY = (height - totalStampsHeight) / 2;
+        // Distribución horizontal con space-evenly
+        const colGap = (usableWidth - itemsInRow * size) / (itemsInRow + 1);
+        const y = rowGap + size / 2 + row * (size + rowGap);
 
-    for (let i = 0; i < maxStamps; i++) {
-        const col = i % columns;
-        const row = Math.floor(i / columns);
+        for (let col = 0; col < itemsInRow; col++) {
+            const index = startIdx + col;
+            const x = padX + colGap + size / 2 + col * (size + colGap);
 
-        const x = startX + (col * spacingX);
-        const y = startY + (row * spacingY);
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
 
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
+            if (index < currentStamps) {
+                ctx.globalAlpha = 0.95;
+                ctx.fillStyle = textColor;
+                ctx.fill();
+            } else {
+                ctx.globalAlpha = 0.2;
+                ctx.fillStyle = textColor;
+                ctx.fill();
 
-        if (i < currentStamps) {
-            // Sello completado / lleno
-            ctx.fillStyle = primaryColor;
-            ctx.fill();
-        } else {
-            // Sello pendiente / vacío (Fondo muy tenue del mismo color)
-            // Usamos opacidad hexadecimal, ej: 20%
-            ctx.fillStyle = `${primaryColor}33`;
-            ctx.fill();
-
-            // Borde
-            ctx.strokeStyle = `${primaryColor}88`;
-            ctx.lineWidth = 4;
-            ctx.stroke();
+                ctx.globalAlpha = 0.45;
+                ctx.strokeStyle = textColor;
+                ctx.lineWidth = 6;
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
         }
     }
 

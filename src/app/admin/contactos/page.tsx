@@ -3,9 +3,12 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
     Search, Plus, CheckCircle2, UserPlus, RefreshCcw, Settings, Edit3, X,
-    Minus, Trash2, Link2, User, ArrowLeft, Store, Building2, ChevronRight, Loader2
+    Minus, Trash2, Link2, User, ArrowLeft, Store, ChevronRight, Loader2,
+    History, Stamp, Gift, Smartphone, QrCode, Lock, Sparkles, Zap, Phone
 } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
+import { isPlanFree } from '@/contexts/BusinessContext';
+import UpgradeModal from '@/components/merchant/UpgradeModal';
 
 export type ContactsCRMProps = { businessId?: string; merchantMode?: boolean };
 
@@ -18,6 +21,7 @@ type Business = {
     primary_color?: string | null;
     active?: boolean;
     plan_type?: string;
+    plan?: string;
 };
 
 function initials(name: string) {
@@ -31,49 +35,46 @@ function getInactivityStatus(lastVisitAt?: string | null, createdAt?: string | n
             status: "inactive",
             label: "Inactivo (+25d)",
             badgeText: "+25d",
-            borderColor: "border-2 border-red-500",
-            bgColor: "bg-red-50",
-            iconColor: "text-red-500",
-            badgeClass: "bg-red-50 text-red-700 border-red-200",
-            dotColor: "bg-red-500",
+            borderColor: "border border-red-500/40",
+            bgColor: "bg-red-500/10",
+            iconColor: "text-red-400",
+            badgeClass: "bg-red-500/10 text-red-400 border-red-500/20",
+            dotColor: "bg-red-400",
         };
     }
     const diffDays = Math.max(0, Math.floor((Date.now() - new Date(visitDate).getTime()) / (1000 * 60 * 60 * 24)));
     if (diffDays <= 7) {
-        // Verde: 0 a 7 días.
         return {
             status: "active",
             label: "Activo (0-7d)",
             badgeText: diffDays === 0 ? "Hoy" : diffDays === 1 ? "Ayer" : `Hace ${diffDays}d`,
-            borderColor: "border-2 border-emerald-500",
-            bgColor: "bg-emerald-50",
-            iconColor: "text-emerald-600",
-            badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
-            dotColor: "bg-emerald-500",
+            borderColor: "border border-emerald-500/40",
+            bgColor: "bg-emerald-500/10",
+            iconColor: "text-emerald-400",
+            badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+            dotColor: "bg-emerald-400",
         };
     } else if (diffDays <= 24) {
-        // Gris azulado: 8 a 24 días.
         return {
             status: "risk",
             label: "Riesgo (8-24d)",
             badgeText: `Hace ${diffDays}d`,
-            borderColor: "border-2 border-slate-400",
-            bgColor: "bg-slate-50",
-            iconColor: "text-slate-600",
-            badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
-            dotColor: "bg-slate-400",
+            borderColor: "border border-zinc-700",
+            bgColor: "bg-zinc-950",
+            iconColor: "text-zinc-400",
+            badgeClass: "bg-zinc-950 text-zinc-400 border-zinc-800",
+            dotColor: "bg-zinc-400",
         };
     } else {
-        // Rojo: 25 días o más.
         return {
             status: "inactive",
             label: "Inactivo (+25d)",
             badgeText: `Hace ${diffDays}d`,
-            borderColor: "border-2 border-red-500",
-            bgColor: "bg-red-50",
-            iconColor: "text-red-500",
-            badgeClass: "bg-red-50 text-rose-700 border-rose-200",
-            dotColor: "bg-rose-500",
+            borderColor: "border border-red-500/40",
+            bgColor: "bg-red-500/10",
+            iconColor: "text-red-400",
+            badgeClass: "bg-red-500/10 text-red-400 border-red-500/20",
+            dotColor: "bg-red-400",
         };
     }
 }
@@ -99,6 +100,10 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
     // Edit Mode states
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
+    const [profileCustomer, setProfileCustomer] = useState<any>(null);
+    const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
     const supabase = createClient();
     const getTargetStamps = (customer: any) => customer.businesses?.reward_target || selectedBusiness?.reward_target || 10;
@@ -148,7 +153,6 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
         fetchCustomers();
     }, [fetchBusinesses, fetchCustomers]);
 
-    // Conteo de clientes por negocio
     const customerCountsByBusiness = useMemo(() => {
         const counts = new Map<string, number>();
         customers.forEach((c: any) => {
@@ -159,24 +163,45 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
         return counts;
     }, [customers]);
 
-    // Comercios filtrados por búsqueda en la Vista 1
     const filteredBusinesses = useMemo(() => {
         const query = businessSearchTerm.trim().toLowerCase();
         if (!query) return businesses;
         return businesses.filter(b => b.name?.toLowerCase().includes(query));
     }, [businesses, businessSearchTerm]);
 
-    // Negocio activo actual
     const currentBusiness = selectedBusiness || (initialBusinessId ? businesses.find(b => b.id === initialBusinessId) : null);
+    const isCurrentBusinessFree = currentBusiness ? isPlanFree(currentBusiness.plan_type && currentBusiness.plan_type !== "inicial" ? currentBusiness.plan_type : currentBusiness.plan || currentBusiness.plan_type) : false;
 
-    // Clientes exclusivos del negocio seleccionado
+    const openCustomerHistory = async (cust: any) => {
+        setProfileCustomer(cust);
+        if (isCurrentBusinessFree) {
+            setHistoryLogs([]);
+            return;
+        }
+        setHistoryLoading(true);
+        try {
+            const bizId = cust.business_id || currentBusiness?.id;
+            const res = await fetch(`/api/merchant/customers/${encodeURIComponent(cust.id)}/history?businessId=${encodeURIComponent(bizId || "")}`, { cache: "no-store" });
+            if (res.ok) {
+                const payload = await res.json();
+                setHistoryLogs(Array.isArray(payload.logs) ? payload.logs : []);
+            } else {
+                const { data } = await supabase.from("stamp_logs").select("id, customer_id, business_id, method, stamps_added, metadata, created_at").eq("customer_id", cust.id).eq("business_id", bizId).order("created_at", { ascending: false }).limit(200);
+                setHistoryLogs(data || []);
+            }
+        } catch {
+            setHistoryLogs([]);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
     const businessCustomers = useMemo(() => {
         if (!currentBusiness) return [];
         return customers.filter((c: any) => c.business_id === currentBusiness.id);
     }, [customers, currentBusiness]);
 
     const handleManualStamp = async (id: string, currentStamps: number, targetStamps: number) => {
-        // Optimistic UI update
         setCustomers(customers.map((c: any) => {
             if (c.id === id) {
                 return { ...c, current_stamps: Math.min(targetStamps, currentStamps + 1) };
@@ -256,7 +281,6 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
         }
     };
 
-    // Contadores para chips basados en el negocio seleccionado
     const counts = useMemo(() => {
         let active = 0, risk = 0, inactive = 0;
         businessCustomers.forEach((c: any) => {
@@ -268,7 +292,6 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
         return { all: businessCustomers.length, active, risk, inactive };
     }, [businessCustomers]);
 
-    // Filtrado con semáforo y búsqueda
     const filtered = useMemo(() => businessCustomers.filter((c: any) => {
         const matchesSearch =
             ((c.first_name + " " + c.last_name).toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -282,38 +305,38 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
     }), [businessCustomers, searchTerm, activeFilter]);
 
     return (
-        <div className="w-full px-4 sm:px-8 py-6 font-sans">
+        <div className="w-full max-w-7xl mx-auto font-sans">
             {toastMessage && (
-                <div className="fixed top-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 flex items-center gap-2 animate-in slide-in-from-top-2">
-                    <CheckCircle2 className="text-green-400 w-4 h-4" />
+                <div className="fixed top-4 right-4 bg-zinc-900 border border-zinc-800 text-white px-4 py-2.5 rounded-xl text-sm font-medium z-50 flex items-center gap-2 animate-in slide-in-from-top-2">
+                    <CheckCircle2 className="text-emerald-400 w-4 h-4" />
                     {toastMessage}
                 </div>
             )}
 
-            {/* VISTA 1: LISTA / GRILLA DE NEGOCIOS (selectedBusiness === null) */}
+            {/* VISTA 1: LISTA / GRILLA DE NEGOCIOS */}
             {!currentBusiness ? (
                 <div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Directorio de Clientes</h1>
-                            <p className="text-gray-500 text-sm mt-1.5 font-medium">
+                            <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Directorio de Clientes</h1>
+                            <p className="text-zinc-400 text-sm mt-1.5">
                                 Seleccioná un comercio para ver y gestionar su base de clientes.
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="relative w-full sm:w-64">
-                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
                                 <input
                                     type="text"
                                     value={businessSearchTerm}
                                     onChange={(e) => setBusinessSearchTerm(e.target.value)}
                                     placeholder="Buscar comercio…"
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-sm text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-white focus:border-white outline-none transition text-sm text-white placeholder:text-zinc-500"
                                 />
                             </div>
                             <button
                                 onClick={() => { fetchBusinesses(); fetchCustomers(); }}
-                                className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-xs"
+                                className="bg-zinc-900 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-800 hover:text-white transition cursor-pointer"
                                 title="Actualizar datos"
                             >
                                 <RefreshCcw size={16} className={isLoadingBusinesses ? "animate-spin" : ""} />
@@ -322,25 +345,25 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                     </div>
 
                     {isLoadingBusinesses ? (
-                        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-                            <Loader2 size={32} className="animate-spin mb-3 text-[#FF1F2D]" />
+                        <div className="flex flex-col items-center justify-center py-24 text-zinc-400">
+                            <Loader2 size={28} className="animate-spin mb-3 text-white" />
                             <p className="text-sm font-medium">Cargando comercios…</p>
                         </div>
                     ) : businesses.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-20 text-center">
-                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-[#FF1F2D]">
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-20 text-center">
+                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 text-zinc-400">
                                 <Store size={32} strokeWidth={1.8} />
                             </div>
-                            <h2 className="text-lg font-bold text-gray-900">No hay comercios registrados</h2>
-                            <p className="mt-1 text-sm text-gray-500 max-w-sm">
+                            <h2 className="text-lg font-semibold text-white">No hay comercios registrados</h2>
+                            <p className="mt-1 text-sm text-zinc-400 max-w-sm">
                                 Creá tu primer comercio para poder asociar y gestionar clientes.
                             </p>
                         </div>
                     ) : filteredBusinesses.length === 0 ? (
-                        <div className="flex flex-col items-center py-16 text-center text-gray-500">
-                            <Search size={32} className="mb-2 text-gray-300" />
-                            <p className="font-semibold text-gray-900">Sin resultados para &ldquo;{businessSearchTerm}&rdquo;</p>
-                            <button onClick={() => setBusinessSearchTerm("")} className="mt-2 text-xs font-semibold text-[#FF1F2D] hover:underline">
+                        <div className="flex flex-col items-center py-16 text-center text-zinc-400">
+                            <Search size={32} className="mb-2 text-zinc-500" />
+                            <p className="font-semibold text-white">Sin resultados para &ldquo;{businessSearchTerm}&rdquo;</p>
+                            <button onClick={() => setBusinessSearchTerm("")} className="mt-2 text-xs font-medium text-zinc-400 hover:text-white underline">
                                 Limpiar búsqueda
                             </button>
                         </div>
@@ -356,53 +379,51 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                             setSearchTerm("");
                                             setActiveFilter("all");
                                         }}
-                                        className="group relative flex flex-col justify-between p-5 rounded-2xl border border-gray-200 bg-white hover:border-[#FF1F2D] hover:shadow-md transition-all duration-150 cursor-pointer"
+                                        className="group relative flex flex-col justify-between p-5 rounded-2xl border border-zinc-800 bg-zinc-900 hover:border-zinc-700 transition-all duration-150 cursor-pointer"
                                     >
                                         <div>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     {b.logo_url ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
                                                         <img
                                                             src={b.logo_url}
                                                             alt={b.name}
-                                                            className="h-12 w-12 rounded-xl object-cover border border-gray-200 shrink-0"
+                                                            className="h-12 w-12 rounded-xl object-cover border border-zinc-800 shrink-0"
                                                         />
                                                     ) : (
-                                                        <div
-                                                            className="h-12 w-12 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs text-base"
-                                                            style={{ backgroundColor: b.primary_color || "#FF1F2D" }}
-                                                        >
+                                                        <div className="h-12 w-12 rounded-xl flex items-center justify-center font-semibold text-white bg-zinc-950 border border-zinc-800 shrink-0 text-base">
                                                             {initials(b.name)}
                                                         </div>
                                                     )}
                                                     <div className="min-w-0">
-                                                        <h3 className="font-bold text-gray-900 group-hover:text-[#FF1F2D] text-base truncate transition-colors">
+                                                        <h3 className="font-semibold text-white text-base truncate transition-colors">
                                                             {b.name}
                                                         </h3>
-                                                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                                                        <p className="text-xs text-zinc-400 truncate mt-0.5">
                                                             {b.reward_target || 10} sellos · {b.reward_description || "Beneficio"}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                                    b.active !== false ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500"
+                                                <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                                                    b.active !== false ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-zinc-950 text-zinc-500 border-zinc-800"
                                                 }`}>
-                                                    <span className={`h-1.5 w-1.5 rounded-full ${b.active !== false ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${b.active !== false ? "bg-emerald-400" : "bg-zinc-500"}`} />
                                                     {b.active !== false ? "Activo" : "Inactivo"}
                                                 </span>
                                             </div>
 
-                                            <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                                                <span className="font-semibold text-gray-500">
+                                            <div className="mt-5 pt-4 border-t border-zinc-800 flex items-center justify-between text-xs">
+                                                <span className="font-medium text-zinc-400">
                                                     Clientes registrados:
                                                 </span>
-                                                <span className="font-bold text-gray-900 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
+                                                <span className="font-semibold text-white bg-zinc-950 border border-zinc-800 px-2.5 py-1 rounded-lg">
                                                     {totalClients} {totalClients === 1 ? "cliente" : "clientes"}
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 pt-3 flex items-center justify-between text-xs font-semibold text-[#FF1F2D]">
+                                        <div className="mt-4 pt-3 flex items-center justify-between text-xs font-medium text-zinc-300 group-hover:text-white transition-colors">
                                             <span>Ver clientes del comercio</span>
                                             <ChevronRight size={16} className="transition-transform group-hover:translate-x-1" />
                                         </div>
@@ -415,7 +436,6 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
             ) : (
                 /* VISTA 2: CLIENTES DEL NEGOCIO SELECCIONADO */
                 <div>
-                    {/* Botón Volver a negocios */}
                     {!initialBusinessId && (
                         <button
                             type="button"
@@ -423,7 +443,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                 setSelectedBusiness(null);
                                 setSearchTerm("");
                             }}
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-[#FF1F2D] transition-colors mb-5 group cursor-pointer"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors mb-5 group cursor-pointer"
                         >
                             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
                             <span>← Volver a negocios</span>
@@ -434,18 +454,19 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                         <div>
                             <div className="flex items-center gap-3">
                                 {currentBusiness.logo_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={currentBusiness.logo_url}
                                         alt={currentBusiness.name}
-                                        className="h-10 w-10 rounded-xl object-cover border border-gray-200 shadow-2xs"
+                                        className="h-10 w-10 rounded-xl object-cover border border-zinc-800"
                                     />
                                 )}
                                 <div>
-                                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                                    <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
                                         Clientes de {currentBusiness.name}
                                     </h1>
-                                    <p className="text-gray-500 text-xs sm:text-sm mt-0.5 font-medium">
-                                        Gestiona tu base de clientes y sella manualmente aquellos sin batería.
+                                    <p className="text-zinc-400 text-xs sm:text-sm mt-0.5">
+                                        Gestioná la base de clientes y otorgá sellos o canjes manuales.
                                     </p>
                                 </div>
                             </div>
@@ -454,19 +475,19 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             {!merchantMode && (
                                 <button
                                     onClick={() => setIsEditMode(!isEditMode)}
-                                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs border ${
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition border cursor-pointer ${
                                         isEditMode
-                                            ? 'bg-gray-900 text-white border-gray-900 ring-2 ring-gray-900 ring-offset-1'
-                                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                                            ? 'bg-white text-black border-white'
+                                            : 'bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:text-white'
                                     }`}
                                 >
-                                    <Settings size={15} className={isEditMode ? "animate-spin-slow" : ""} />
+                                    <Settings size={15} />
                                     {isEditMode ? 'Editando...' : 'Modo Edición'}
                                 </button>
                             )}
                             <button
                                 onClick={fetchCustomers}
-                                className="bg-white border border-gray-200 text-gray-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 hover:bg-gray-50 transition shadow-xs"
+                                className="bg-zinc-900 border border-zinc-800 text-zinc-200 px-3.5 py-2 rounded-xl text-xs font-medium flex items-center gap-2 hover:bg-zinc-800 hover:text-white transition cursor-pointer"
                             >
                                 <RefreshCcw size={15} className={isLoading ? "animate-spin" : ""} />
                                 Refrescar
@@ -475,7 +496,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                 href={`/t/${currentBusiness.id}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-xs"
+                                className="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition"
                             >
                                 <UserPlus size={15} /> Alta cliente
                             </a>
@@ -483,35 +504,34 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                     </div>
 
                     {loadError && (
-                        <div role="alert" className="mb-4 p-3.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-medium">
+                        <div role="alert" className="mb-4 p-3.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-medium">
                             {loadError} <button onClick={fetchCustomers} className="underline font-semibold ml-1">Reintentar</button>
                         </div>
                     )}
 
-                    {/* Toolbar de Filtros y Búsqueda (sin marco de tarjeta) */}
+                    {/* Toolbar de Filtros y Búsqueda */}
                     <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="relative flex-1 max-w-md">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
                                 <Search size={16} />
                             </div>
                             <input
                                 type="text"
-                                placeholder="Buscar por código CLI, nombre del cliente o teléfono..."
-                                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF1F2D] focus:border-[#FF1F2D] outline-none transition text-xs sm:text-sm text-gray-900 font-medium"
+                                placeholder="Buscar por ID de cliente (ej. 15001), nombre o teléfono..."
+                                className="w-full pl-9 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-white focus:border-white outline-none transition text-xs sm:text-sm text-white placeholder:text-zinc-500"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
 
-                        {/* Botones de filtrado por semáforo */}
                         <div className="flex flex-wrap items-center gap-1.5">
                             <button
                                 type="button"
                                 onClick={() => setActiveFilter("all")}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                className={`rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                                     activeFilter === "all"
-                                        ? "bg-gray-900 text-white shadow-xs"
-                                        : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                                        ? "bg-white text-black font-semibold"
+                                        : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
                                 }`}
                             >
                                 Todos ({counts.all})
@@ -519,187 +539,189 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             <button
                                 type="button"
                                 onClick={() => setActiveFilter("active")}
-                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                                     activeFilter === "active"
-                                        ? "bg-emerald-600 text-white shadow-xs"
-                                        : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        ? "bg-white text-black font-semibold"
+                                        : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
                                 }`}
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                                 Nuevos / Activos ({counts.active})
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setActiveFilter("risk")}
-                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                                     activeFilter === "risk"
-                                        ? "bg-slate-700 text-white shadow-xs"
-                                        : "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                        ? "bg-white text-black font-semibold"
+                                        : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
                                 }`}
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
                                 Riesgo ({counts.risk})
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setActiveFilter("inactive")}
-                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                                     activeFilter === "inactive"
-                                        ? "bg-rose-600 text-white shadow-xs"
-                                        : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                        ? "bg-white text-black font-semibold"
+                                        : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-white"
                                 }`}
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                                 Inactivos ({counts.inactive})
                             </button>
                         </div>
                     </div>
 
-                    {/* Tabla Full-Width con scroll horizontal y padding compacto py-2 */}
-                    <div className="overflow-x-auto w-full border-t border-b border-gray-200">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50/70 text-gray-500 text-[11px] uppercase tracking-wider border-b border-gray-200">
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CÓDIGO</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CLIENTE</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">PROMOS WHATSAPP</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">CUMPLEAÑOS</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">PROGRESO</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap">ÚLTIMA VISITA</th>
-                                    <th className="px-4 py-2 font-bold whitespace-nowrap text-right">ACCIONES</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {isLoading && businessCustomers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-xs">
-                                            <RefreshCcw size={20} className="animate-spin mx-auto mb-2 text-gray-300" />
-                                            Cargando clientes de este comercio…
-                                        </td>
+                    {/* Tabla de Clientes */}
+                    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+                        <div className="overflow-x-auto w-full">
+                            <table className="w-full text-left border-collapse min-w-[780px]">
+                                <thead>
+                                    <tr className="bg-zinc-950 text-zinc-400 text-[11px] uppercase tracking-wider border-b border-zinc-800">
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">CÓDIGO</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">CLIENTE</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">PROMOS WHATSAPP</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">CUMPLEAÑOS</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">PROGRESO</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">ÚLTIMA VISITA</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap text-right">ACCIONES</th>
                                     </tr>
-                                ) : filtered.map((c: any) => {
-                                    const inactivity = getInactivityStatus(c.last_visit_at, c.created_at);
-                                    return (
-                                        <tr key={c.id} className="hover:bg-gray-50/70 transition group">
-                                            <td className="px-4 py-2 whitespace-nowrap">
-                                                <span className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">
-                                                    {c.unique_code}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div
-                                                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
-                                                        title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
-                                                    >
-                                                        <User size={13} className={inactivity.iconColor} strokeWidth={2.2} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-gray-900 text-xs leading-tight">
-                                                            {c.first_name} {c.last_name}
-                                                        </div>
-                                                        <div className="text-gray-400 text-[11px] font-medium leading-tight mt-0.5">
-                                                            {c.phone || "Sin teléfono"}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-xs font-semibold">
-                                                <span className={c.whatsapp_marketing_opt_in === true ? "text-emerald-700" : "text-gray-400"}>
-                                                    {c.whatsapp_marketing_opt_in === true ? "Autorizadas" : "No autorizadas"}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 font-medium">
-                                                {c.birthdate || "-"}
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                                        <div
-                                                            className="h-full bg-blue-500 transition-all duration-300"
-                                                            style={{ width: `${Math.min(100, (c.current_stamps / getTargetStamps(c)) * 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs font-bold text-gray-700">
-                                                        {c.current_stamps}/{getTargetStamps(c)}
-                                                    </span>
-                                                </div>
-                                                <div className="text-[10px] text-gray-400 font-medium mt-0.5 leading-tight">
-                                                    {c.total_visits || 0} visitas totales
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 font-medium">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${inactivity.badgeClass}`}>
-                                                        <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
-                                                        {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'Sin visitas'}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-400">({inactivity.badgeText})</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    {isEditMode ? (
-                                                        <button
-                                                            onClick={() => setEditingCustomer({ ...c })}
-                                                            className="inline-flex items-center justify-center gap-1 text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-all"
-                                                            title="Editar Cliente"
-                                                        >
-                                                            <Edit3 size={13} /> Editar
-                                                        </button>
-                                                    ) : stampSuccessId === c.id ? (
-                                                        <span className="inline-flex items-center justify-center gap-1 text-green-700 text-xs font-bold bg-green-100 px-2.5 py-1 rounded-lg transition-all">
-                                                            <CheckCircle2 size={13} /> ¡Agregado!
-                                                        </span>
-                                                    ) : (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <button
-                                                                onClick={() => handleTestTapLink(c.id)}
-                                                                disabled={testLinkLoadingId === c.id}
-                                                                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 px-2 py-1 rounded-lg text-xs font-semibold transition-colors"
-                                                                title="Genera un enlace temporal que usa el flujo NFC real"
-                                                            >
-                                                                <Link2 size={13} /> {testLinkLoadingId === c.id ? '…' : 'Link prueba'}
-                                                            </button>
-                                                            {testLinks[c.id] && (
-                                                                <a href={testLinks[c.id]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">
-                                                                    Abrir
-                                                                </a>
-                                                            )}
-                                                            {c.current_stamps >= getTargetStamps(c) && (
-                                                                <button
-                                                                    onClick={() => handleRedeem(c.id)}
-                                                                    disabled={redeemLoadingId === c.id}
-                                                                    className="bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
-                                                                >
-                                                                    {redeemLoadingId === c.id ? 'Canjeando…' : 'Canjear'}
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => handleManualStamp(c.id, c.current_stamps, getTargetStamps(c))}
-                                                                disabled={c.current_stamps >= getTargetStamps(c)}
-                                                                className="bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-gray-900 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
-                                                            >
-                                                                +1 Manual
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-800/50">
+                                    {isLoading && businessCustomers.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="px-4 py-12 text-center text-zinc-400 text-xs">
+                                                <RefreshCcw size={20} className="animate-spin mx-auto mb-2 text-zinc-500" />
+                                                Cargando clientes de este comercio…
                                             </td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                    ) : filtered.map((c: any) => {
+                                        const inactivity = getInactivityStatus(c.last_visit_at, c.created_at);
+                                        return (
+                                            <tr key={c.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition group">
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className="font-mono text-xs font-medium bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded border border-zinc-800">
+                                                        {String(c.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim()}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div
+                                                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${inactivity.bgColor} ${inactivity.borderColor} transition-colors`}
+                                                            title={`Semáforo: ${inactivity.label} (${inactivity.badgeText})`}
+                                                        >
+                                                            <User size={13} className={inactivity.iconColor} strokeWidth={2.2} />
+                                                        </div>
+                                                        <div>
+                                                            <div onClick={() => openCustomerHistory(c)} className="font-semibold text-white text-xs leading-tight cursor-pointer hover:underline transition-colors">
+                                                                {c.first_name} {c.last_name}
+                                                            </div>
+                                                            <div className="text-zinc-500 text-[11px] leading-tight mt-0.5">
+                                                                {c.phone || "Sin teléfono"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">
+                                                    <span className={c.whatsapp_marketing_opt_in === true ? "text-emerald-400" : "text-zinc-500"}>
+                                                        {c.whatsapp_marketing_opt_in === true ? "Autorizadas" : "No autorizadas"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
+                                                    {c.birthdate || "-"}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-16 h-1.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800">
+                                                            <div
+                                                                className="h-full bg-white transition-all duration-300"
+                                                                style={{ width: `${Math.min(100, (c.current_stamps / getTargetStamps(c)) * 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-semibold text-white">
+                                                            {c.current_stamps}/{getTargetStamps(c)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[10px] text-zinc-500 mt-0.5 leading-tight">
+                                                        {c.total_visits || 0} visitas totales
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${inactivity.badgeClass}`}>
+                                                            <span className={`h-1.5 w-1.5 rounded-full ${inactivity.dotColor}`} />
+                                                            {c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString() : 'Sin visitas'}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-500">({inactivity.badgeText})</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {isEditMode ? (
+                                                            <button
+                                                                onClick={() => setEditingCustomer({ ...c })}
+                                                                className="inline-flex items-center justify-center gap-1 text-zinc-200 text-xs font-medium bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                                                                title="Editar Cliente"
+                                                            >
+                                                                <Edit3 size={13} /> Editar
+                                                            </button>
+                                                        ) : stampSuccessId === c.id ? (
+                                                            <span className="inline-flex items-center justify-center gap-1 text-emerald-400 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition-all">
+                                                                <CheckCircle2 size={13} /> ¡Agregado!
+                                                            </span>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <button
+                                                                    onClick={() => handleTestTapLink(c.id)}
+                                                                    disabled={testLinkLoadingId === c.id}
+                                                                    className="inline-flex items-center gap-1 bg-zinc-950 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white disabled:opacity-50 px-2 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                                                                    title="Genera un enlace temporal que usa el flujo NFC real"
+                                                                >
+                                                                    <Link2 size={13} /> {testLinkLoadingId === c.id ? '…' : 'Link prueba'}
+                                                                </button>
+                                                                {testLinks[c.id] && (
+                                                                    <a href={testLinks[c.id]} target="_blank" rel="noreferrer" className="text-xs font-medium text-white hover:underline">
+                                                                        Abrir
+                                                                    </a>
+                                                                )}
+                                                                {c.current_stamps >= getTargetStamps(c) && (
+                                                                    <button
+                                                                        onClick={() => handleRedeem(c.id)}
+                                                                        disabled={redeemLoadingId === c.id}
+                                                                        className="bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                                                                    >
+                                                                        {redeemLoadingId === c.id ? 'Canjeando…' : 'Canjear'}
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handleManualStamp(c.id, c.current_stamps, getTargetStamps(c))}
+                                                                    disabled={c.current_stamps >= getTargetStamps(c)}
+                                                                    className="bg-white text-black hover:bg-gray-200 disabled:opacity-30 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                                                                >
+                                                                    +1 Manual
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {!isLoading && !loadError && filtered.length === 0 && (
                         <div className="py-12 text-center flex flex-col items-center justify-center">
-                            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-2">
+                            <div className="w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-zinc-400 mb-2">
                                 <Search size={24} />
                             </div>
-                            <h3 className="text-base font-bold text-gray-900 mb-0.5">Sin clientes en este comercio</h3>
-                            <p className="text-gray-500 text-xs font-medium max-w-sm">
+                            <h3 className="text-base font-semibold text-white mb-0.5">Sin clientes en este comercio</h3>
+                            <p className="text-zinc-400 text-xs max-w-sm">
                                 Este comercio aún no tiene clientes afiliados o no hay coincidencias con la búsqueda actual.
                             </p>
                         </div>
@@ -707,76 +729,153 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                 </div>
             )}
 
+            <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} title="Actualizá a Pro para ver el historial detallado de clientes" feature="customers" />
+            {profileCustomer && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-xs animate-in fade-in duration-200" onClick={() => setProfileCustomer(null)}>
+                    <aside role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="relative flex h-full w-full sm:max-w-md flex-col bg-zinc-900 border-l border-zinc-800 overflow-hidden animate-in slide-in-from-right duration-200">
+                        <div className="flex items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-6 py-5">
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Perfil del Cliente</span>
+                                <h3 className="text-lg font-semibold text-white truncate mt-0.5">{`${profileCustomer.first_name || ""} ${profileCustomer.last_name || ""}`.trim() || profileCustomer.phone || "Cliente"}</h3>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+                                    {profileCustomer.unique_code && (
+                                        <span className="inline-flex items-center rounded-md bg-zinc-900 border border-zinc-800 px-2 py-0.5 font-mono text-[11px] font-semibold text-white">
+                                            ID {String(profileCustomer.unique_code).replace(/^CLI\s*-\s*/i, "").trim()}
+                                        </span>
+                                    )}
+                                    {profileCustomer.phone && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400">
+                                            <Phone size={12} /> {profileCustomer.phone}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setProfileCustomer(null)} className="rounded-xl p-1.5 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors cursor-pointer"><X size={18} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><History size={14} className="text-zinc-400" /><span>Historial de movimientos</span></h4>
+                                {!isCurrentBusinessFree && !historyLoading && <span className="text-[11px] font-medium text-zinc-500">{historyLogs.length} registros</span>}
+                            </div>
+                            {isCurrentBusinessFree ? (
+                                <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-center">
+                                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300 border border-zinc-800"><Lock size={20} /></div>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-300 mb-2"><Sparkles size={11} /> Exclusivo Pro / Premium</span>
+                                    <p className="text-sm font-semibold text-white leading-snug">El historial detallado de clientes es una función exclusiva de los planes Pro y Premium</p>
+                                    <button type="button" onClick={() => setUpgradeModalOpen(true)} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-black hover:bg-gray-200 transition-colors cursor-pointer"><Zap size={14} /><span>Mejorar plan</span></button>
+                                </div>
+                            ) : historyLoading ? (
+                                <div className="py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-white mb-2" /><p className="text-xs font-medium text-zinc-400">Cargando historial...</p></div>
+                            ) : historyLogs.length === 0 ? (
+                                <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 text-center"><History size={28} className="mx-auto text-zinc-500 mb-2" /><p className="text-sm font-semibold text-white">Sin movimientos registrados</p></div>
+                            ) : (
+                                <div className="relative pl-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-zinc-800 space-y-4">
+                                    {historyLogs.map((item: any) => {
+                                        const isRedeem = item.method === "REDEEM";
+                                        const isNfc = item.method === "NFC";
+                                        const isQr = item.method === "QR";
+                                        const d = new Date(item.created_at);
+                                        const dateStr = d.toLocaleDateString("es-UY", { day: "2-digit", month: "short", year: "numeric" });
+                                        const timeStr = d.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hour12: false });
+                                        const registeredBy = item.metadata?.registered_by_email || null;
+                                        return (
+                                            <div key={item.id} className="relative">
+                                                <span className={`absolute -left-6 top-1 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 ${isRedeem ? "text-amber-400" : "text-emerald-400"}`}>
+                                                    {isRedeem ? <Gift size={12} /> : <Stamp size={12} />}
+                                                </span>
+                                                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3.5">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${isRedeem ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+                                                            {isRedeem ? "Canje de premio" : "+1 Sello"}
+                                                        </span>
+                                                        <span className="text-[11px] text-zinc-400 shrink-0"><strong className="text-white font-semibold">{dateStr}</strong> · {timeStr} hs</span>
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
+                                                        <span className="inline-flex items-center gap-1 font-medium">
+                                                            {isNfc ? <><Smartphone size={12} className="text-zinc-300" /> NFC / Autoservicio</> : isQr ? <><QrCode size={12} className="text-zinc-300" /> Escaneo QR</> : <><Edit3 size={12} /> Registro manual</>}
+                                                        </span>
+                                                        {registeredBy && <span className="inline-flex items-center gap-1 rounded-md bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400 truncate"><User size={10} /> {registeredBy}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+                </div>
+            )}
             {/* MODAL DE EDICIÓN */}
             {editingCustomer && (
-                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                <Edit3 className="w-5 h-5 text-gray-500" /> Editar Cliente
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
+                            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <Edit3 className="w-5 h-5 text-zinc-400" /> Editar Cliente
                             </h2>
-                            <button onClick={() => setEditingCustomer(null)} className="text-gray-400 hover:text-gray-600 bg-white hover:bg-gray-50 rounded-full p-1.5 transition-colors shadow-sm border border-gray-200">
+                            <button onClick={() => setEditingCustomer(null)} className="text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors border border-zinc-800 cursor-pointer">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Nombre</label>
+                                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5 block">Nombre</label>
                                     <input
                                         type="text"
                                         value={editingCustomer.first_name || ''}
                                         onChange={e => setEditingCustomer({ ...editingCustomer, first_name: e.target.value })}
-                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-white focus:ring-1 focus:ring-white outline-none transition"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Apellido</label>
+                                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5 block">Apellido</label>
                                     <input
                                         type="text"
                                         value={editingCustomer.last_name || ''}
                                         onChange={e => setEditingCustomer({ ...editingCustomer, last_name: e.target.value })}
-                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-white focus:ring-1 focus:ring-white outline-none transition"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Teléfono (WhatsApp)</label>
+                                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5 block">Teléfono (WhatsApp)</label>
                                 <input
                                     type="tel"
                                     value={editingCustomer.phone || ''}
                                     onChange={e => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
-                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-white focus:ring-1 focus:ring-white outline-none transition"
                                 />
                             </div>
 
                             <div>
-                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Fecha de Nacimiento</label>
+                                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5 block">Fecha de Nacimiento</label>
                                 <input
                                     type="date"
                                     value={editingCustomer.birthdate || ''}
                                     onChange={e => setEditingCustomer({ ...editingCustomer, birthdate: e.target.value })}
-                                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none transition"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-white focus:ring-1 focus:ring-white outline-none transition"
                                 />
                             </div>
 
                             <div>
-                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 block">Ajuste de Sellos (Manual)</label>
+                                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5 block">Ajuste de Sellos (Manual)</label>
                                 <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => setEditingCustomer({ ...editingCustomer, current_stamps: Math.max(0, (editingCustomer.current_stamps || 0) - 1) })}
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 shadow-sm"
+                                        className="bg-zinc-950 hover:bg-zinc-800 text-zinc-200 p-2.5 rounded-lg transition-colors border border-zinc-800 cursor-pointer"
                                     >
                                         <Minus className="w-5 h-5" />
                                     </button>
-                                    <div className="w-16 text-center font-bold text-xl text-gray-900 bg-gray-50 border border-gray-200 py-1.5 rounded-xl shadow-inner">
+                                    <div className="w-16 text-center font-semibold text-xl text-white bg-zinc-950 border border-zinc-800 py-1.5 rounded-xl">
                                         {editingCustomer.current_stamps || 0}
                                     </div>
                                     <button
                                         onClick={() => setEditingCustomer({ ...editingCustomer, current_stamps: Math.min(10, (editingCustomer.current_stamps || 0) + 1) })}
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 shadow-sm"
+                                        className="bg-zinc-950 hover:bg-zinc-800 text-zinc-200 p-2.5 rounded-lg transition-colors border border-zinc-800 cursor-pointer"
                                     >
                                         <Plus className="w-5 h-5" />
                                     </button>
@@ -784,17 +883,14 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                        <div className="p-6 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between">
                             <button
                                 onClick={async () => {
                                     if (confirm('¿Seguro que deseas eliminar este cliente permanentemente?')) {
                                         const prevCustomers = [...customers];
-                                        // Optimistic Update
                                         setCustomers(prevCustomers.filter(c => c.id !== editingCustomer.id));
                                         setEditingCustomer(null);
 
-                                        // Limpieza preventiva (si no hay CASCADE configurado estricto).
-                                        // automation_events se borra solo por su FK ON DELETE CASCADE.
                                         await supabase.from('stamp_logs').delete().eq('customer_id', editingCustomer.id);
 
                                         const { error } = await supabase.from('customers').delete().eq('id', editingCustomer.id).eq('business_id', editingCustomer.business_id);
@@ -803,11 +899,11 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                             alert("Error al eliminar");
                                         } else {
                                             showToast('Cliente eliminado con éxito.');
-                                            router.refresh(); // Invalidar caché para métricas globales
+                                            router.refresh();
                                         }
                                     }
                                 }}
-                                className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 transition"
+                                className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition cursor-pointer"
                             >
                                 <Trash2 className="w-4 h-4" /> Eliminar
                             </button>
@@ -815,13 +911,12 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setEditingCustomer(null)}
-                                    className="px-4 py-2 font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition"
+                                    className="px-4 py-2 font-medium text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 hover:text-white transition cursor-pointer"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={async () => {
-                                        // SINCRONIZACIÓN EXACTA DB
                                         const { count, error: countErr } = await supabase
                                             .from('stamp_logs')
                                             .select('*', { count: 'exact', head: true })
@@ -866,16 +961,15 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                                                 }
                                             }
 
-                                            // Optimistic table update instead of full refetch
                                             setCustomers(customers.map(c => c.id === editingCustomer.id ? editingCustomer : c));
                                             setEditingCustomer(null);
                                             showToast('Datos del cliente guardados.');
-                                            router.refresh(); // Invalidar caché en el servidor
+                                            router.refresh();
                                         } else {
-                                            alert('Error al guardar: ' + error.message);
+                                            alert('Error al guardar: ' + error?.message);
                                         }
                                     }}
-                                    className="px-4 py-2 font-semibold text-white bg-gray-900 border border-gray-900 rounded-xl shadow hover:bg-gray-800 transition"
+                                    className="px-4 py-2 font-semibold text-black bg-white rounded-xl hover:bg-gray-200 transition cursor-pointer"
                                 >
                                     Guardar Cambios
                                 </button>

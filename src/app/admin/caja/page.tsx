@@ -343,7 +343,7 @@ export default function CashierTerminal() {
                                     <div className="relative flex-1">
                                         <input
                                             type="text"
-                                            placeholder="Ej: CLI-12345 o Teléfono..."
+                                            placeholder="Ej: 15001 o Teléfono..."
                                             className="w-full h-14 sm:h-16 pl-4 pr-11 sm:pr-4 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-[#FF1F2D] focus:bg-white text-slate-900 text-base sm:text-lg font-bold placeholder:text-slate-400 placeholder:font-normal outline-none transition-all shadow-inner"
                                             value={manualInput}
                                             onChange={(e) => setManualInput(e.target.value)}
@@ -372,7 +372,7 @@ export default function CashierTerminal() {
 
                                 <div className="flex items-center gap-2 pt-1 text-xs text-slate-400">
                                     <span>💡</span>
-                                    <span>Admite código CLI, teléfono o UUID escaneado.</span>
+                                    <span>Admite ID de cliente, teléfono o UUID escaneado.</span>
                                 </div>
                             </div>
 
@@ -398,7 +398,7 @@ export default function CashierTerminal() {
                                 </h2>
                                 <div className="flex items-center gap-2 mb-2 font-mono">
                                     <span className="bg-slate-100 text-slate-700 border border-slate-200/80 px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-                                        {customer.uniqueCode}
+                                        {String(customer.uniqueCode || "").replace(/^CLI\s*-\s*/i, "").trim()}
                                     </span>
                                 </div>
                                 <div className="text-slate-400 flex items-center gap-1.5 text-xs mt-0.5 font-medium">

@@ -11,7 +11,7 @@ import { BANNER_SIZES, isHttpsUrl, WALLET_LIMITS, type BarcodeFormat, type Walle
 import type { NfcContext } from '@/lib/mimo-nfc';
 
 export type DesignValue = {
-  primaryColor: string; textColor: string; accentColor: string;
+  primaryColor: string; textColor: string; accentColor: string; stampBackgroundColor: string;
   source: 'collection' | 'custom' | 'logo' | null;
   catalogId: string | null; completedUrl: string | null; pendingUrl: string | null;
   effect: PendingEffect; customFile: File | null;
@@ -19,7 +19,7 @@ export type DesignValue = {
 };
 
 export const emptyDesign: DesignValue = {
-  primaryColor: '#FF1F2D', textColor: '#FFFFFF', accentColor: '#FFFFFF',
+  primaryColor: '#FF1F2D', textColor: '#FFFFFF', accentColor: '#FFFFFF', stampBackgroundColor: '#FF1F2D',
   source: null, catalogId: null, completedUrl: null, pendingUrl: null,
   effect: defaultPendingEffect, customFile: null,
   registroSubtitulo: 'TU TARJETA EMPIEZA ACÁ', registroTitulo: 'Cada visita cuenta.',
@@ -55,7 +55,7 @@ function ColorField({ label, value, onChange, disabled }: { label: string; value
 }
 
 async function previewFile(file: File, effect: PendingEffect): Promise<{ complete: string; pending: string; warning: string }> {
-  if (file.type !== 'image/png' || file.size > 2 * 1024 * 1024 || file.size === 0) throw new Error('Elegí un PNG de hasta 2 MB.');
+  if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024 || file.size === 0) throw new Error('Elegí una imagen PNG, JPG o WebP de hasta 2 MB.');
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width < 64 || bitmap.height < 64 || bitmap.width > 2048 || bitmap.height > 2048) throw new Error('La imagen debe medir entre 64 y 2048 píxeles por lado.');
@@ -75,7 +75,7 @@ async function previewFile(file: File, effect: PendingEffect): Promise<{ complet
     const imageData = pendingContext.createImageData(STAMP_SIZE, STAMP_SIZE);
     imageData.data.set(pendingPixels(ctx.getImageData(0, 0, STAMP_SIZE, STAMP_SIZE).data, effect));
     pendingContext.putImageData(imageData, 0, 0);
-    return { complete: complete.toDataURL('image/png'), pending: pending.toDataURL('image/png'), warning: bounds.transparent ? '' : 'Esta imagen no tiene transparencia. Necesitás un PNG sin fondo para generar una silueta o contorno correcto; no se elimina el fondo automáticamente.' };
+    return { complete: complete.toDataURL('image/png'), pending: pending.toDataURL('image/png'), warning: '' };
   } finally { bitmap.close(); }
 }
 
@@ -152,7 +152,7 @@ function ImageUploadField({ label, kind, url, onChange, endpoint, disabled, roun
         <div className="flex flex-wrap items-center gap-2">
           {endpoint && (
             <>
-              <input id={inputId} type="file" accept="image/png, .png" disabled={disabled || uploading} className="sr-only"
+              <input id={inputId} type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" disabled={disabled || uploading} className="sr-only"
                 onClick={e => e.stopPropagation()}
                 onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; upload(file); }} />
               <label htmlFor={inputId} onClick={e => e.stopPropagation()}
@@ -263,7 +263,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
     registroSubtitulo: value.registroSubtitulo, registroTitulo: value.registroTitulo,
   }), [businessName, logoPreview, target, rewardDescription, value.primaryColor, value.textColor, value.accentColor, value.registroSubtitulo, value.registroTitulo, completed, pending]);
   const previewCustomer: CustomerView = useMemo(() => ({
-    id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: 'CLI-12345',
+    id: 'preview', firstName: 'Sofía', lastName: 'López', phone: '', birthdate: '', uniqueCode: '15001',
     currentStamps: previewStage === 'reward' ? target : previewStage === 'stamp' ? Math.max(1, progress) : progress,
     targetStamps: target, businessName: previewContext.businessName, businessLogo: previewContext.businessLogo,
     rewardDescription: previewContext.rewardDescription,
@@ -278,9 +278,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
   const bannerError = wallet?.bannerEnabled && wallet.bannerUrl && !isHttpsUrl(wallet.bannerUrl) ? 'Ingresá una URL pública que empiece con https://' : '';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full">
       {/* Columna Izquierda: Bloques seleccionables */}
-      <div className="lg:col-span-7 space-y-4">
+      <div className="lg:col-span-7 space-y-4 w-full min-w-0">
 
         {/* 01 Identidad visual */}
         <section
@@ -326,8 +326,9 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
           {/* Contenido expandido */}
           {isIdentidad && (
             <div className="mt-6 pt-5 border-t border-gray-100 space-y-5 animate-in fade-in duration-200">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <ColorField label="Fondo de la tarjeta" value={value.primaryColor} onChange={primaryColor => update({ primaryColor })} disabled={disabled} />
+                <ColorField label="Fondo de los sellos" value={value.stampBackgroundColor} onChange={stampBackgroundColor => update({ stampBackgroundColor })} disabled={disabled} />
                 <ColorField label="Textos" value={value.textColor} onChange={textColor => update({ textColor })} disabled={disabled} />
                 <ColorField label="Acentos" value={value.accentColor} onChange={accentColor => update({ accentColor })} disabled={disabled} />
               </div>
@@ -477,7 +478,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                 label="Texto alfanumérico bajo el código"
                 value={wallet.barcodeAltText}
                 onChange={barcodeAltText => patchWallet({ barcodeAltText })}
-                placeholder="CLI-{id}"
+                placeholder="15001"
                 maxLength={WALLET_LIMITS.barcodeAltText}
                 hint="Texto visible o alternativo. {id} se reemplaza por el código único del cliente. Vacío = sin texto."
                 disabled={disabled}
@@ -603,10 +604,10 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
               {value.source === 'custom' && (
                 <div className="mt-4 space-y-4">
                   <label className="block text-sm font-semibold text-gray-700">
-                    PNG con transparencia · 64–2048 px · máximo 2 MB
+                    Imagen PNG, JPG o WebP · 64–2048 px · máximo 2 MB
                     <input
                       type="file"
-                      accept="image/png"
+                      accept="image/png,image/jpeg,image/webp"
                       disabled={disabled || locked}
                       onChange={e => { const file = e.target.files?.[0] || null; update({ customFile: file }); setPreview(null); }}
                       className="mt-2 block w-full rounded-xl border border-gray-200 p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-red-50 file:px-3 file:py-2 file:font-semibold file:text-[#FF1F2D]"
@@ -849,8 +850,8 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
       </div>
 
       {/* Columna Derecha: Previsualización en vivo fija (Sticky e independiente) */}
-      <div className="lg:col-span-5 lg:sticky lg:top-6 self-start w-full space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit max-h-[calc(100vh-3rem)] overflow-y-auto">
+      <div className="lg:col-span-5 lg:sticky lg:top-6 self-start w-full min-w-0 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm h-fit w-full lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
           {/* Header de la previsualización */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <div className="flex items-center gap-2">
@@ -922,6 +923,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}
@@ -935,6 +937,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}
@@ -972,6 +975,7 @@ export function BusinessDesign({ value, onChange, logoPreview, businessName, rew
                     primaryColor={value.primaryColor}
                     textColor={value.textColor}
                     accentColor={value.accentColor}
+                    stampBackgroundColor={value.stampBackgroundColor}
                     currentStamps={progress}
                     targetStamps={target}
                     rewardDescription={rewardDescription}

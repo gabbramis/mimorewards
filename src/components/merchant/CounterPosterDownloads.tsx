@@ -45,22 +45,31 @@ export default function CounterPosterDownloads({ businessId }: { businessId: str
 
   return (
     <div className="w-full space-y-2">
-      <label htmlFor={selectId} className="block text-xs font-bold text-[#1F1F1F]">Cartel para imprimir</label>
-      <select id={selectId} value={format} onChange={event => { setFormat(event.target.value); setError(""); }}
-        disabled={downloading} className="w-full rounded-xl border border-[#D5CFC4] bg-white px-3 py-2.5 text-sm text-[#1F1F1F] disabled:opacity-50">
-        <option value="a4">Grande · A4 (21 × 29,7 cm)</option>
-        <option value="a6">Chico · A6 (10,5 × 14,8 cm)</option>
+      <label htmlFor={selectId} className="block text-xs font-medium text-zinc-300">Cartel para imprimir</label>
+      <select
+        id={selectId}
+        value={format}
+        onChange={event => { setFormat(event.target.value); setError(""); }}
+        disabled={downloading}
+        className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:ring-1 focus:ring-white outline-none disabled:opacity-50"
+      >
+        <option value="a4" className="bg-zinc-900 text-white">Grande · A4 (21 × 29,7 cm)</option>
+        <option value="a6" className="bg-zinc-900 text-white">Chico · A6 (10,5 × 14,8 cm)</option>
       </select>
-      <p className="text-xs leading-relaxed text-[#737373]">
+      <p className="text-xs leading-relaxed text-zinc-400">
         {format === "a6" ? "Versión breve para el mostrador." : "Tu diseño completo con instrucciones para registrarse."}
         {" "}Incluye automáticamente el logo y el QR de este local.
       </p>
-      <button type="button" onClick={handleDownload} disabled={downloading}
-        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#e01826] disabled:opacity-50 sm:text-sm">
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
+        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-black transition hover:bg-gray-200 disabled:opacity-50 sm:text-sm"
+      >
         {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
         {downloading ? "Preparando tu cartel…" : "Descargar PDF con los datos"}
       </button>
-      {error && <p role="alert" className="text-center text-xs text-red-700">{error}</p>}
+      {error && <p role="alert" className="text-center text-xs text-red-400">{error}</p>}
     </div>
   );
 }

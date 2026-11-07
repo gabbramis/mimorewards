@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     } else {
       const variants = getUruguayMobileVariants(identifier);
       if (businessId) {
-        let orFilter = `unique_code.eq.${identifier},phone.eq.${identifier}`;
+        let orFilter = `unique_code.eq.${identifier},unique_code.eq.${identifier.replace(/^CLI\s*-\s*/i, "").trim()},phone.eq.${identifier}`;
         for (const v of variants) {
           if (v !== identifier) {
             orFilter += `,phone.eq.${v}`;
@@ -167,6 +167,7 @@ export async function POST(request: Request) {
       method: method,
       stamps_added: 1,
       idempotency_key: request.headers.get("x-idempotency-key") || crypto.randomUUID(),
+      metadata: { registered_by_email: user.email || null, registered_by_id: user.id },
     });
 
     // 2. Disparador APNs con Delay: Apenas la base de datos confirme el guardado,

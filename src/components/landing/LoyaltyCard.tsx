@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Gift, Heart } from "lucide-react";
+import { getStampGridLayout, normalizeRewardTarget } from "@/lib/wallet-config";
 
 type LoyaltyCardProps = {
   stamps?: number;
@@ -18,21 +19,29 @@ export default function LoyaltyCard({
   rewardUnlocked = false,
   className = "",
 }: LoyaltyCardProps) {
-  const total = Math.max(1, Math.floor(maxStamps));
+  const total = normalizeRewardTarget(maxStamps, 8);
   const filled = Math.min(total, Math.max(0, Math.floor(stamps)));
   const unlocked = rewardUnlocked || filled === total;
+  const { rows, columns } = getStampGridLayout(total);
 
   return (
     <div className={`m-story-card ${className}`} role="img" aria-label={`Tarjeta de fidelización mimo de ${label}. ${filled} de ${total} sellos. ${unlocked ? "Recompensa disponible" : `Próxima recompensa: ${reward}`}.`}>
       <div className="m-story-card-top">
-        <Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="" aria-hidden="true" />
+        <Image src="/images/mimo-wordmark.png" width={1220} height={469} sizes="120px" alt="Vista previa de tarjeta de sellos en celular - Mimo Rewards" />
         <span>TARJETA DE BENEFICIOS</span>
       </div>
       <div className="m-story-card-main">
         <span className="m-story-card-label">{label}</span>
         <strong>Volver tiene<br />su recompensa.</strong>
       </div>
-      <div className="m-story-card-stamps" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
+      <div
+        className="m-story-card-stamps"
+        aria-hidden="true"
+        style={{
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+        }}
+      >
         {Array.from({ length: total }, (_, index) => (
           <span className={index < filled ? "is-filled" : ""} key={index}>
             {index < filled ? <Heart size={19} fill="currentColor" strokeWidth={1.6} /> : <span />}

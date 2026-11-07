@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { availableStamp } from '@/lib/stamp-catalog';
 import { validateEffect } from '@/lib/stamp-image';
 import { prepareStamp, storeStampPair } from '@/lib/stamp-storage';
-import { sanitizeWalletConfig } from '@/lib/wallet-config';
+import { isAllowedRewardTarget, sanitizeWalletConfig } from '@/lib/wallet-config';
 import { updateWalletTemplate } from '@/lib/wallet/sync-template';
 
 const color = (value: FormDataEntryValue | null) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : null;
@@ -35,10 +35,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
     const primaryColor = color(data.get('primaryColor'));
     const textColor = color(data.get('cardTextColor'));
     const accentColor = color(data.get('cardAccentColor'));
+    const stampBackgroundColor = color(data.get('stampBackgroundColor')) || primaryColor;
     const registroSubtitulo = String(data.get('registroSubtitulo') ?? '').trim().slice(0, 60) || 'TU TARJETA EMPIEZA ACÁ';
     const registroTitulo = String(data.get('registroTitulo') ?? '').trim().slice(0, 80) || 'Cada visita cuenta.';
-    if (!name || name.length > 120 || !Number.isInteger(rewardTarget) || rewardTarget < 4 || rewardTarget > 15 || !primaryColor || !textColor || !accentColor) {
-      return NextResponse.json({ error: 'Revisá el nombre, los colores y la meta de 4 a 15 sellos.' }, { status: 400 });
+    if (!name || name.length > 120 || !Number.isInteger(rewardTarget) || !isAllowedRewardTarget(rewardTarget) || !primaryColor || !textColor || !accentColor || !stampBackgroundColor) {
+      return NextResponse.json({ error: 'Revisá el nombre, los colores y la meta de sellos (4, 5, 6, 8 o 10).' }, { status: 400 });
     }
     const { data: existing, error: readError } = await supabase.from('businesses').select('id, logo_url, reward_target, reward_description, stamp_source, stamp_catalog_id, stamp_completed_url, stamp_pending_url, stamp_pending_effect').eq('id', businessId).maybeSingle();
     if (readError) throw readError;
@@ -60,7 +61,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
     let effect;
     try { effect = validateEffect(JSON.parse(String(data.get('stampEffect') || '{}'))); } catch { effect = validateEffect(null); }
     let walletConfig;
-    try { walletConfig = sanitizeWalletConfig(JSON.parse(String(data.get('walletConfig') || '{}'))); } catch { walletConfig = sanitizeWalletConfig(null); }
+    try { walletConfig = sanitizeWalletConfig({ ...JSON.parse(String(data.get('walletConfig') || '{}')), stampBackgroundColor }); } catch { walletConfig = sanitizeWalletConfig({ stampBackgroundColor }); }
     const catalogId = String(data.get('stampCatalogId') || '');
     const stamp = data.get('stampFile');
     const stampFile = stamp instanceof File && stamp.size > 0 ? stamp : null;
@@ -95,14 +96,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ busi
       logoUrl = supabase.storage.from('logos').getPublicUrl(path).data.publicUrl;
     }
 
-    const { data: updated, error: updateError } = await supabase.from('businesses').update({
+    const baseUpdatePayload = {
       name, active: data.get('active') !== 'false', reward_target: rewardTarget, reward_description: rewardDescription,
       logo_url: logoUrl, primary_color: primaryColor, card_text_color: textColor, card_accent_color: accentColor,
       stamp_source: source || null, stamp_catalog_id: selectedId, stamp_completed_url: completedUrl, stamp_pending_url: pendingUrl,
       stamp_pending_effect: source === 'custom' || source === 'logo' ? effect : null,
       wallet_config: walletConfig,
       registro_subtitulo: registroSubtitulo, registro_titulo: registroTitulo,
+    };
+
+    let { data: updated, error: updateError } = await supabase.from('businesses').update({
+      ...baseUpdatePayload,
+      stamp_background_color: stampBackgroundColor,
     }).eq('id', businessId).select('id, name').single();
+
+    if (updateError && updateError.message?.includes('stamp_background_color')) {
+      const retry = await supabase.from('businesses').update(baseUpdatePayload).eq('id', businessId).select('id, name').single();
+      updated = retry.data;
+      updateError = retry.error;
+    }
+
     if (updateError || !updated) throw updateError || new Error('No se pudo actualizar el negocio.');
 
     // Propagación asíncrona de plantilla Wallet (Google Wallet PATCH + Apple Wallet APNs)

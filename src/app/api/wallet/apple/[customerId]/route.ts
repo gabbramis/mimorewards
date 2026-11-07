@@ -40,7 +40,7 @@ export async function GET(
 
     const [{ data: business, error: businessError }, { data: card, error: cardError }] = await Promise.all([
       supabase.from("businesses")
-        .select("id, name, logo_url, reward_target, reward_description, primary_color, card_text_color, card_accent_color, stamp_completed_url, stamp_pending_url, active, active_campaign_message, wallet_config")
+        .select("*")
         .eq("id", customer.business_id)
         .maybeSingle(),
       supabase.from("loyalty_cards")
@@ -86,6 +86,7 @@ export async function GET(
       primaryColor: business.primary_color,
       textColor: business.card_text_color,
       accentColor: business.card_accent_color,
+      stampBackgroundColor: business.stamp_background_color,
       logoImage,
       completedStampImage,
       pendingStampImage,

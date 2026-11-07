@@ -4,5 +4,5 @@ export function BrandHeart({ className = "" }: { className?: string }) {
 
 export function SectionWave({ from }: { from: "cream" | "red" }) {
   const to = from === "cream" ? "var(--m-red)" : "var(--m-cream)";
-  return <div className={`m-section-wave from-${from}`} aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path style={{ fill: to }} d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>;
+  return <div className={`m-section-wave from-${from}`} aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true"><path className="m-wave-back" d="M0,48 C240,88 480,8 720,44 C960,80 1200,18 1440,54 L1440,90 L0,90 Z" /><path style={{ fill: to }} d="M0,60 C260,94 520,24 760,54 C1000,84 1220,34 1440,60 L1440,90 L0,90 Z" /></svg></div>;
 }

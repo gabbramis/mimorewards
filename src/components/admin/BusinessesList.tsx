@@ -21,9 +21,6 @@ import {
   AlertCircle,
   X,
   ChevronDown,
-  Sparkles,
-  ShieldAlert,
-  Zap,
   Lock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -152,7 +149,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
       width: 720,
       margin: 3,
       errorCorrectionLevel: "H",
-      color: { dark: "#1F1F1F", light: "#FFFFFF" },
+      color: { dark: "#09090b", light: "#FFFFFF" },
     })
       .then((dataUrl) => {
         if (!cancelled) setQrDataUrl(dataUrl);
@@ -212,14 +209,12 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
     setUpdatingId(business.id);
 
     try {
-      // Mutación directa en Supabase
       const { error: supaError } = await supabase
         .from("businesses")
         .update({ active: newActive })
         .eq("id", business.id);
 
       if (supaError) {
-        // Fallback a API admin endpoint
         const res = await fetch("/api/admin/businesses", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -236,7 +231,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
         "success"
       );
     } catch (err: any) {
-      // Revertir estado si falló
       setBusinesses((prev) =>
         prev.map((b) => (b.id === business.id ? { ...b, active: prevActive } : b))
       );
@@ -248,7 +242,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
   // 2. Selector de Plan (Mutación de columna `plan` en Supabase)
   const handlePlanChange = async (business: BusinessItem, newPlan: PlanRank) => {
-    // Regla de bloqueo: no permitir si está inactivo
     if (!business.active) {
       showToast("No se puede cambiar el plan de un comercio inactivo. Activalo primero.", "error");
       return;
@@ -259,7 +252,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
     const dbPlan = newPlan === "PRO" ? "PRO" : newPlan === "PREMIUM" ? "BLACK" : "FREE";
     const newPlanType = newPlan === "PRO" ? "pro" : newPlan === "PREMIUM" ? "black" : "inicial";
 
-    // Actualización optimista
     setBusinesses((prev) =>
       prev.map((b) =>
         b.id === business.id
@@ -270,7 +262,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
     setUpdatingId(business.id);
 
     try {
-      // Mutación directa en Supabase en columna plan y plan_type
       const { error: supaError } = await supabase
         .from("businesses")
         .update({
@@ -280,7 +271,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
         .eq("id", business.id);
 
       if (supaError) {
-        // Fallback a API admin endpoint
         const res = await fetch("/api/admin/businesses", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -301,7 +291,6 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
         "success"
       );
     } catch (err: any) {
-      // Revertir optimismo
       setBusinesses((prev) =>
         prev.map((b) =>
           b.id === business.id
@@ -357,23 +346,23 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
   };
 
   const iconButton =
-    "p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-[#FF1F2D] transition-colors cursor-pointer";
+    "p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer";
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto font-sans space-y-6">
+    <div className="w-full max-w-7xl mx-auto font-sans space-y-6">
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 shadow-2xl border text-sm font-semibold transition-all animate-in slide-in-from-bottom-2 duration-200 ${
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl px-5 py-3.5 border text-sm font-semibold transition-all bg-zinc-900 text-white ${
             toast.type === "success"
-              ? "bg-white border-[#10B981] text-[#1F1F1F] shadow-[#10B981]/15"
-              : "bg-white border-[#FF1F2D] text-[#1F1F1F] shadow-[#FF1F2D]/15"
+              ? "border-emerald-500/40"
+              : "border-red-500/40"
           }`}
         >
           {toast.type === "success" ? (
-            <CheckCircle2 size={18} className="text-[#10B981] shrink-0" />
+            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
           ) : (
-            <AlertCircle size={18} className="text-[#FF1F2D] shrink-0" />
+            <AlertCircle size={18} className="text-red-400 shrink-0" />
           )}
           <span>{toast.message}</span>
         </div>
@@ -382,14 +371,14 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
       {/* Header & Controls */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
             Administración de Plataforma
           </span>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mt-0.5">
             Gestión de Comercios
           </h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-1 font-medium">
-            Control de suscripciones, planes y estado operativo de clientes en mimo rewards.
+          <p className="text-zinc-400 text-xs sm:text-sm mt-1">
+            Control de suscripciones, planes y estado operativo de comercios en Mimo Rewards.
           </p>
         </div>
 
@@ -398,7 +387,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"
             />
             <input
               type="search"
@@ -406,13 +395,13 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre o slug…"
               aria-label="Buscar comercio"
-              className="w-full sm:w-64 rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-xs text-gray-900 shadow-xs outline-none transition focus:border-[#FF1F2D] focus:ring-2 focus:ring-red-100"
+              className="w-full sm:w-64 rounded-xl border border-zinc-800 bg-zinc-900 pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-zinc-500 outline-none transition focus:border-white focus:ring-1 focus:ring-white"
             />
           </div>
 
           <Link
             href="/admin/crear-comercio"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#e01826] shrink-0"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-black transition hover:bg-gray-200 shrink-0"
           >
             <Plus size={16} />
             <span>Nuevo Comercio</span>
@@ -422,90 +411,88 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
       {/* KPI Cards / Status Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
             Total Comercios
           </span>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{counts.total}</p>
-          <p className="text-[11px] text-gray-500 mt-0.5">En la plataforma</p>
+          <p className="text-2xl font-semibold text-white mt-1">{counts.total}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">En la plataforma</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
             Comercios Activos
           </span>
-          <p className="text-2xl font-bold text-emerald-700 mt-1">{counts.active}</p>
-          <p className="text-[11px] text-emerald-600 mt-0.5">
+          <p className="text-2xl font-semibold text-white mt-1">{counts.active}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">
             {counts.inactive} inactivos o pausados
           </p>
         </div>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
             Planes PRO
           </span>
-          <p className="text-2xl font-bold text-amber-800 mt-1">{counts.pro}</p>
-          <p className="text-[11px] text-amber-700 mt-0.5">Suscripciones Pro activas</p>
+          <p className="text-2xl font-semibold text-white mt-1">{counts.pro}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Suscripciones Pro activas</p>
         </div>
 
-        <div className="rounded-2xl border border-neutral-300 bg-neutral-900 text-white p-4 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
             Planes Premium
           </span>
-          <p className="text-2xl font-bold text-white mt-1">{counts.premium}</p>
-          <p className="text-[11px] text-neutral-300 mt-0.5">Nivel VIP Premium</p>
+          <p className="text-2xl font-semibold text-white mt-1">{counts.premium}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Nivel VIP Premium</p>
         </div>
       </div>
 
       {/* Tabla de Comercios */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 shadow-xs">
-          <Loader2 className="animate-spin text-[#FF1F2D] mb-3" size={32} />
-          <p className="text-xs font-semibold text-gray-500">Cargando comercios registrados…</p>
+        <div className="flex flex-col items-center justify-center py-24 bg-zinc-900 rounded-2xl border border-zinc-800">
+          <Loader2 className="animate-spin text-white mb-3" size={28} />
+          <p className="text-xs font-medium text-zinc-400">Cargando comercios registrados…</p>
         </div>
       ) : businesses.length === 0 ? (
-        /* Empty state: sin comercios */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-20 text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 text-[#FF1F2D]">
-            <Store size={40} strokeWidth={1.6} />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-20 text-center">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 text-zinc-400">
+            <Store size={32} strokeWidth={1.6} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Todavía no hay comercios</h2>
-          <p className="mt-2 max-w-sm text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-white">Todavía no hay comercios</h2>
+          <p className="mt-2 max-w-sm text-sm text-zinc-400">
             Creá el primer comercio para generar su cuenta, su link NFC y empezar a sumar clientes.
           </p>
           <Link
             href="/admin/crear-comercio"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#FF1F2D] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#e01826]"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-semibold text-black transition hover:bg-gray-200"
           >
             <Plus size={16} /> Crear el primer negocio
           </Link>
         </div>
       ) : filteredBusinesses.length === 0 ? (
-        /* Sin resultados de búsqueda */
-        <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
-          <Search size={32} className="mb-3 text-gray-300" />
-          <p className="font-semibold text-gray-900">Sin resultados para &ldquo;{search}&rdquo;</p>
+        <div className="flex flex-col items-center rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-16 text-center">
+          <Search size={32} className="mb-3 text-zinc-500" />
+          <p className="font-semibold text-white">Sin resultados para &ldquo;{search}&rdquo;</p>
           <button
             onClick={() => setSearch("")}
-            className="mt-3 text-xs font-semibold text-[#FF1F2D] hover:underline cursor-pointer"
+            className="mt-3 text-xs font-medium text-zinc-400 hover:text-white underline cursor-pointer"
           >
             Limpiar búsqueda
           </button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs min-w-[780px]">
               <thead>
-                <tr className="border-b border-gray-200 bg-[#FFF9F5] text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-5">Comercio</th>
-                  <th className="py-3 px-5">Link NFC</th>
-                  <th className="py-3 px-5">Estado</th>
-                  <th className="py-3 px-5">Plan de Suscripción</th>
-                  <th className="py-3 px-5 text-right">Acciones</th>
+                <tr className="border-b border-zinc-800 bg-zinc-950 text-zinc-400 font-medium uppercase tracking-wider text-[10px]">
+                  <th className="py-3.5 px-5 whitespace-nowrap">Comercio</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Link NFC</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Estado</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap">Plan de Suscripción</th>
+                  <th className="py-3.5 px-5 whitespace-nowrap text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-zinc-800/50">
                 {filteredBusinesses.map((business) => {
                   const currentPlan = resolvePlanRank(business);
                   const isInactive = !business.active;
@@ -514,36 +501,35 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                   return (
                     <tr
                       key={business.id}
-                      className={`hover:bg-[#FFF9F5]/60 transition-colors ${
-                        isInactive ? "bg-gray-50/40" : ""
-                      }`}
+                      className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors"
                     >
                       {/* Comercio */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {business.logo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={business.logo_url}
                               alt={`Logo de ${business.name}`}
-                              className="h-10 w-10 shrink-0 rounded-xl border border-gray-200 object-cover bg-white"
+                              className="h-10 w-10 shrink-0 rounded-xl border border-zinc-800 object-cover bg-zinc-950"
                             />
                           ) : (
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xs font-bold text-[#FF1F2D] border border-red-100">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950 text-xs font-semibold text-white border border-zinc-800">
                               {initials(business.name)}
                             </div>
                           )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-gray-900 truncate">
+                              <span className="font-semibold text-white truncate">
                                 {business.name}
                               </span>
                               {business.slug && (
-                                <span className="font-mono text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                <span className="font-mono text-[10px] text-zinc-400 bg-zinc-950 border border-zinc-800 px-1.5 py-0.5 rounded">
                                   /{business.slug}
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                            <div className="text-[11px] text-zinc-400 truncate mt-0.5">
                               {business.reward_target} sellos · {business.reward_description}
                             </div>
                           </div>
@@ -551,11 +537,11 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       </td>
 
                       {/* Link NFC */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {business.nfcUrl ? (
                             <>
-                              <code className="truncate max-w-[120px] rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-bold text-gray-700">
+                              <code className="truncate max-w-[120px] rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1 text-[11px] font-mono text-zinc-300">
                                 {business.nfcId}
                               </code>
                               <button
@@ -566,7 +552,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                                 aria-label="Copiar enlace NFC"
                               >
                                 {copiedId === business.id ? (
-                                  <Check size={14} className="text-emerald-600" />
+                                  <Check size={14} className="text-emerald-400" />
                                 ) : (
                                   <Copy size={14} />
                                 )}
@@ -592,7 +578,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                               </a>
                             </>
                           ) : (
-                            <span className="text-[11px] text-gray-400 italic">
+                            <span className="text-[11px] text-zinc-500 italic">
                               Sin tag NFC
                             </span>
                           )}
@@ -600,7 +586,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                       </td>
 
                       {/* Toggle de Estado (Switch Reactivo) */}
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <button
                             type="button"
@@ -608,8 +594,8 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                             aria-checked={business.active}
                             disabled={isBusy}
                             onClick={() => handleToggleActive(business)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FF1F2D] focus:ring-offset-2 ${
-                              business.active ? "bg-[#10B981]" : "bg-gray-300"
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-white ${
+                              business.active ? "bg-emerald-500" : "bg-zinc-700"
                             } ${isBusy ? "opacity-60 cursor-wait" : ""}`}
                             title={
                               business.active
@@ -620,15 +606,15 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                             <span className="sr-only">Toggle estado activo</span>
                             <span
                               aria-hidden="true"
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white ring-0 transition duration-200 ease-in-out ${
                                 business.active ? "translate-x-5" : "translate-x-0"
                               }`}
                             />
                           </button>
 
                           <span
-                            className={`text-xs font-bold ${
-                              business.active ? "text-emerald-700" : "text-gray-400"
+                            className={`text-xs font-medium ${
+                              business.active ? "text-emerald-400" : "text-zinc-500"
                             }`}
                           >
                             {business.active ? "Activo" : "Inactivo"}
@@ -636,8 +622,8 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                         </div>
                       </td>
 
-                      {/* Selector de Plan (Select Dropdown con Regla de Bloqueo) */}
-                      <td className="py-4 px-5">
+                      {/* Selector de Plan */}
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="relative inline-flex items-center">
                             <select
@@ -646,14 +632,10 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                               onChange={(e) =>
                                 handlePlanChange(business, e.target.value as PlanRank)
                               }
-                              className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all appearance-none pr-7 shadow-2xs outline-none text-gray-900 bg-white ${
+                              className={`rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-all appearance-none pr-7 outline-none focus:ring-1 focus:ring-white ${
                                 isInactive
-                                  ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200 select-none"
-                                  : currentPlan === "PREMIUM"
-                                  ? "cursor-pointer bg-white text-gray-900 border-gray-300 hover:border-gray-400 focus:ring-2 focus:ring-red-100"
-                                  : currentPlan === "PRO"
-                                  ? "cursor-pointer bg-amber-50 text-gray-900 border-amber-300 hover:bg-amber-100 focus:ring-2 focus:ring-amber-200"
-                                  : "cursor-pointer bg-white text-gray-900 border-gray-300 hover:border-gray-400 focus:ring-2 focus:ring-red-100"
+                                  ? "opacity-50 cursor-not-allowed text-zinc-500 select-none"
+                                  : "cursor-pointer hover:border-zinc-700"
                               }`}
                               title={
                                 isInactive
@@ -661,34 +643,32 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                                   : `Plan asignado: ${PLAN_LABELS[currentPlan]}. Clic para cambiar.`
                               }
                             >
-                              <option value="FREE" className="text-gray-900 bg-white font-semibold">
+                              <option value="FREE" className="bg-zinc-900 text-white">
                                 Free
                               </option>
-                              <option value="PRO" className="text-gray-900 bg-white font-semibold">
+                              <option value="PRO" className="bg-zinc-900 text-white">
                                 Pro
                               </option>
-                              <option value="PREMIUM" className="text-gray-900 bg-white font-semibold">
+                              <option value="PREMIUM" className="bg-zinc-900 text-white">
                                 Premium
                               </option>
                             </select>
 
-                            {/* Dropdown Chevron or Lock Icon */}
                             {isInactive ? (
                               <Lock
                                 size={12}
-                                className="absolute right-2.5 pointer-events-none text-gray-400"
+                                className="absolute right-2.5 pointer-events-none text-zinc-500"
                               />
                             ) : (
                               <ChevronDown
                                 size={13}
-                                className="absolute right-2.5 pointer-events-none text-gray-500"
+                                className="absolute right-2.5 pointer-events-none text-zinc-400"
                               />
                             )}
                           </div>
 
-                          {/* Badge de aviso si está inactivo */}
                           {isInactive && (
-                            <span className="text-[10px] text-gray-400 font-medium hidden lg:inline">
+                            <span className="text-[10px] text-zinc-500 font-medium hidden lg:inline">
                               (Bloqueado)
                             </span>
                           )}
@@ -716,7 +696,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                                 setImpersonatingId(null);
                               }
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 px-2.5 py-1.5 text-[11px] font-bold text-[#FF1F2D] hover:bg-[#FF1F2D] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-[11px] font-medium text-zinc-200 hover:bg-white hover:text-black transition-colors cursor-pointer disabled:opacity-50"
                             title={`Entrar como ${business.name}`}
                           >
                             {impersonatingId === business.id ? (
@@ -753,11 +733,11 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
           </div>
 
           {/* Footer de resumen */}
-          <div className="border-t border-gray-200 bg-[#FFF9F5] px-5 py-3 text-xs text-gray-500 flex items-center justify-between">
+          <div className="border-t border-zinc-800 bg-zinc-950 px-5 py-3 text-xs text-zinc-500 flex items-center justify-between">
             <span>
               Mostrando {filteredBusinesses.length} de {businesses.length} comercios
             </span>
-            <span className="font-semibold text-gray-700">
+            <span className="font-medium text-zinc-400">
               {counts.active} activos · {counts.inactive} inactivos
             </span>
           </div>
@@ -766,28 +746,31 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
       {/* MODAL: Código QR NFC */}
       {qrBusiness && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 relative">
             <button
               type="button"
               onClick={() => setQrBusiness(null)}
-              className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
             >
               <X size={18} />
             </button>
             <div className="text-center">
-              <h3 className="text-base font-bold text-gray-900">{qrBusiness.name}</h3>
-              <p className="text-xs text-gray-500 mt-1">Escaneá para probar el link de registro</p>
+              <h3 className="text-base font-semibold text-white">{qrBusiness.name}</h3>
+              <p className="text-xs text-zinc-400 mt-1">Escaneá para probar el link de registro</p>
               {qrDataUrl ? (
                 <div className="mt-4 flex justify-center">
-                  <img
-                    src={qrDataUrl}
-                    alt={`QR de ${qrBusiness.name}`}
-                    className="h-56 w-56 rounded-2xl border border-gray-200 p-2 shadow-xs"
-                  />
+                  <div data-qr-box="true" className="bg-white rounded-xl p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={qrDataUrl}
+                      alt={`QR de ${qrBusiness.name}`}
+                      className="h-52 w-52 rounded-lg"
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="flex h-56 w-56 items-center justify-center mx-auto my-4 text-gray-400">
+                <div className="flex h-56 w-56 items-center justify-center mx-auto my-4 text-zinc-400">
                   <Loader2 className="animate-spin" size={24} />
                 </div>
               )}
@@ -795,14 +778,14 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                 <button
                   type="button"
                   onClick={downloadQr}
-                  className="flex-1 rounded-xl bg-[#1F1F1F] py-2.5 text-xs font-semibold text-white hover:bg-black transition-colors"
+                  className="flex-1 rounded-xl bg-white py-2.5 text-xs font-semibold text-black hover:bg-gray-200 transition-colors cursor-pointer"
                 >
                   Descargar PNG
                 </button>
                 <button
                   type="button"
                   onClick={() => setQrBusiness(null)}
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
                 >
                   Cerrar
                 </button>
@@ -814,16 +797,16 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
 
       {/* MODAL: Confirmar eliminación */}
       {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl relative">
-            <div className="flex items-center gap-3 text-red-600 mb-3">
-              <div className="rounded-full bg-red-100 p-2">
-                <AlertTriangle size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 relative">
+            <div className="flex items-center gap-3 text-red-400 mb-3">
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-2">
+                <AlertTriangle size={22} />
               </div>
-              <h3 className="text-base font-bold text-gray-900">¿Eliminar este comercio?</h3>
+              <h3 className="text-base font-semibold text-white">¿Eliminar este comercio?</h3>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              Estás por eliminar <strong>{confirmAction.business.name}</strong>. Esta acción
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Estás por eliminar <strong className="text-white">{confirmAction.business.name}</strong>. Esta acción
               eliminará su vinculación con clientes y tarjetas emitidas.
             </p>
             <div className="mt-6 flex justify-end gap-3">
@@ -831,7 +814,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                 type="button"
                 disabled={isConfirming}
                 onClick={() => setConfirmAction(null)}
-                className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white"
               >
                 Cancelar
               </button>
@@ -839,7 +822,7 @@ export default function BusinessesList({ initialBusinesses }: BusinessesListProp
                 type="button"
                 disabled={isConfirming}
                 onClick={() => handleDeleteBusiness(confirmAction.business)}
-                className="rounded-xl bg-[#FF1F2D] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#e01826] transition-colors"
+                className="rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-black hover:bg-gray-200 transition-colors"
               >
                 {isConfirming ? "Eliminando…" : "Sí, eliminar"}
               </button>

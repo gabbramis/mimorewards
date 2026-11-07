@@ -129,7 +129,7 @@ export function toCustomerView(customer: any, context: NfcContext) {
     lastName: customer.last_name,
     phone: customer.phone,
     birthdate: customer.birthdate,
-    uniqueCode: customer.unique_code,
+    uniqueCode: String(customer.unique_code ?? "").replace(/^CLI\s*-\s*/i, "").trim(),
     currentStamps: customer.current_stamps || 0,
     totalVisits: customer.total_visits || 0,
     targetStamps: context.rewardTarget,

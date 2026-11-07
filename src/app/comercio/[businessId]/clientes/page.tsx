@@ -20,7 +20,7 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, reward_target, reward_description, plan_type")
+      .select("id, name, reward_target, reward_description, plan_type, plan")
       .eq("id", businessId)
       .maybeSingle(),
     supabase
@@ -42,7 +42,7 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
 
   const customers: CustomerItem[] = (customersData || []).map((c: any) => ({
     id: c.id,
-    unique_code: c.unique_code || "",
+    unique_code: String(c.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim(),
     first_name: c.first_name || null,
     last_name: c.last_name || null,
     phone: c.phone || null,
@@ -65,7 +65,7 @@ export default async function MerchantCustomersPage({ params }: PageProps) {
       rewardDescription={
         business.reward_description || "Café o recompensa disponible"
       }
-      planType={business.plan_type}
+      planType={business.plan_type && business.plan_type !== "inicial" ? business.plan_type : business.plan || business.plan_type}
     />
   );
 }

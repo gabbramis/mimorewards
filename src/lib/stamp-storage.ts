@@ -6,15 +6,16 @@ export const MAX_STAMP_BYTES = 2 * 1024 * 1024;
 export const MAX_STAMP_SIDE = 2048;
 export const MIN_STAMP_SIDE = 64;
 
+const ALLOWED_STAMP_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
 export async function prepareStamp(file: File, effect: PendingEffect) {
-  if (file.type !== 'image/png' || file.size > MAX_STAMP_BYTES || file.size === 0) throw new Error('El sello debe ser un PNG de hasta 2 MB.');
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('El archivo no es un PNG válido.');
-  const declaredWidth = bytes.readUInt32BE(16), declaredHeight = bytes.readUInt32BE(20);
-  if (declaredWidth < MIN_STAMP_SIDE || declaredHeight < MIN_STAMP_SIDE || declaredWidth > MAX_STAMP_SIDE || declaredHeight > MAX_STAMP_SIDE) {
-    throw new Error('El sello debe medir entre 64 y 2048 píxeles por lado.');
+  if (!ALLOWED_STAMP_TYPES.includes(file.type) || file.size > MAX_STAMP_BYTES || file.size === 0) {
+    throw new Error('El sello debe ser una imagen PNG, JPG o WebP de hasta 2 MB.');
   }
-  const image = await loadImage(bytes).catch(() => { throw new Error('No se pudo leer la imagen del sello.'); });
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const image = await loadImage(bytes).catch(() => {
+    throw new Error('No se pudo leer la imagen del sello.');
+  });
   if (image.width < MIN_STAMP_SIDE || image.height < MIN_STAMP_SIDE || image.width > MAX_STAMP_SIDE || image.height > MAX_STAMP_SIDE) {
     throw new Error('El sello debe medir entre 64 y 2048 píxeles por lado.');
   }
@@ -23,7 +24,8 @@ export async function prepareStamp(file: File, effect: PendingEffect) {
   sourceContext.drawImage(image, 0, 0);
   const bounds = alphaBounds(sourceContext.getImageData(0, 0, image.width, image.height).data, image.width, image.height);
   if (bounds.empty) throw new Error('La imagen del sello está vacía.');
-  if (!bounds.transparent) throw new Error('El PNG no tiene transparencia. Necesitás una imagen sin fondo para crear la silueta o el contorno.');
+  // Validación de transparencia deshabilitada para permitir imágenes con fondo sólido (PNG/JPG/WebP)
+  // if (!bounds.transparent) throw new Error('El PNG no tiene transparencia. Necesitás una imagen sin fondo para crear la silueta o el contorno.');
 
   const completed = createCanvas(STAMP_SIZE, STAMP_SIZE);
   const completedContext = completed.getContext('2d');

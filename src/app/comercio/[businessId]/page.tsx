@@ -35,17 +35,14 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const { businessId } = await params;
   const supabase: any = createAdminClient();
 
-  // Fechas de filtro
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Semana actual: Lunes como primer día y Domingo como último día
-  const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  const dayOfWeek = now.getDay();
   const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
   weekStart.setHours(0, 0, 0, 0);
 
-  // Consultas concurrentes filtradas estrictamente por businessId
   const [
     { data: business },
     { count: totalCustomersCount, data: customersData },
@@ -110,7 +107,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   }
 
   const customersList = customersData || [];
-  // 1. Clientes activos: total de clientes únicos asociados a este businessId
   const totalCustomers = Math.max(
     typeof totalCustomersCount === "number" ? totalCustomersCount : 0,
     customersList.length
@@ -120,7 +116,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const stampsWeek = stampsWeekCount || 0;
   const totalRedeems = totalRedeemsCount || 0;
 
-  // 2. Clientes inactivos: cuya last_visit_at sea igual o mayor a 25 días atrás
   const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
   const inactiveCustomers = customersList.filter((c: any) => {
     const visitDate = c.last_visit_at || c.created_at;
@@ -129,8 +124,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
     return diffMs >= TWENTY_FIVE_DAYS_MS;
   }).length;
 
-  // 3. Tasa de retorno: (clientes_recurrentes / clientes_totales) * 100
-  // Si hay 1 cliente en total y tiene más de 1 visita, debe mostrar 100%, no 0.0%
   const recurrentCustomers = customersList.filter(
     (c: any) => Number(c.total_visits || 0) > 1
   ).length;
@@ -140,7 +133,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const returnRate =
     returnRateRaw % 1 === 0 ? returnRateRaw.toFixed(0) : returnRateRaw.toFixed(1);
 
-  // Agrupación por día de la semana para el gráfico: siempre Lunes primero hasta Domingo el último
   const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
   const daysMap: { [key: string]: { label: string; count: number; date: Date; isToday: boolean } } = {};
 
@@ -167,7 +159,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
   const chartDays = Object.values(daysMap);
   const maxDayCount = Math.max(...chartDays.map((d) => d.count), 1);
 
-  // URL del QR del mostrador (siempre apunta al dominio de producción)
   const qrUrl = `https://mimorewards.com/t/${business.slug || business.id}`;
 
   return (
@@ -175,13 +166,13 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       {/* Page Title & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
             Resumen Operativo
           </span>
-          <h2 className="text-2xl font-bold tracking-tight text-[#1F1F1F]">
+          <h2 className="text-2xl font-semibold tracking-tight text-white mt-0.5">
             Dashboard
           </h2>
-          <p className="text-xs text-[#737373] mt-0.5">
+          <p className="text-xs text-zinc-400 mt-0.5">
             Métricas de fidelización en tiempo real para {business.name}.
           </p>
         </div>
@@ -190,19 +181,19 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       {/* 5 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {/* Card 1: Sellos Entregados */}
-        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <span className="text-xs font-semibold text-[#737373]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+          <span className="text-xs font-medium text-zinc-400">
             Sellos entregados
           </span>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+            <div className="text-2xl font-semibold text-white tracking-tight">
               {stampsWeek}{" "}
-              <span className="text-xs font-medium text-[#737373]">
+              <span className="text-xs font-normal text-zinc-400">
                 esta semana
               </span>
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-[#737373]">
-              <span className="inline-flex items-center font-semibold text-[#10B981] bg-[#ECFDF5] px-2 py-0.5 rounded-full text-[11px]">
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-400">
+              <span className="inline-flex items-center font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[11px]">
                 {stampsToday} hoy
               </span>
               <span>acreditados</span>
@@ -211,68 +202,68 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {/* Card 2: Premios Canjeados */}
-        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <span className="text-xs font-semibold text-[#737373]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+          <span className="text-xs font-medium text-zinc-400">
             Premios canjeados
           </span>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+            <div className="text-2xl font-semibold text-white tracking-tight">
               {totalRedeems}
             </div>
-            <p className="mt-2 text-xs text-[#737373] truncate">
+            <p className="mt-2 text-xs text-zinc-400 truncate">
               Premio activo: {business.reward_description || "Recompensa activa"}
             </p>
           </div>
         </div>
 
         {/* Card 3: Clientes Activos */}
-        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <span className="text-xs font-semibold text-[#737373]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+          <span className="text-xs font-medium text-zinc-400">
             Clientes activos
           </span>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+            <div className="text-2xl font-semibold text-white tracking-tight">
               {business.plan_type === "inicial" ? (
                 <>
-                  <span className="text-xs font-medium text-[#737373]">Clientes: </span>
+                  <span className="text-xs font-normal text-zinc-400">Clientes: </span>
                   {totalCustomers}
-                  <span className="text-xs font-medium text-[#737373]"> / 100 (Plan Inicial)</span>
+                  <span className="text-xs font-normal text-zinc-400"> / 100 (Plan Inicial)</span>
                 </>
               ) : (
                 totalCustomers
               )}
             </div>
-            <p className="mt-2 text-xs text-[#737373]">
+            <p className="mt-2 text-xs text-zinc-400">
               Registrados en esta sucursal
             </p>
           </div>
         </div>
 
         {/* Card 4: Clientes Inactivos */}
-        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <span className="text-xs font-semibold text-[#737373]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+          <span className="text-xs font-medium text-zinc-400">
             Clientes inactivos
           </span>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+            <div className="text-2xl font-semibold text-white tracking-tight">
               {inactiveCustomers}
             </div>
-            <p className="mt-2 text-xs text-[#737373]">
+            <p className="mt-2 text-xs text-zinc-400">
               Sin visitas hace 25+ días
             </p>
           </div>
         </div>
 
         {/* Card 5: Tasa de Retorno */}
-        <div className="rounded-2xl border border-[#D5CFC4] bg-white p-5 shadow-xs transition-shadow hover:shadow-sm">
-          <span className="text-xs font-semibold text-[#737373]">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+          <span className="text-xs font-medium text-zinc-400">
             Tasa de retorno
           </span>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-[#1F1F1F] tracking-tight">
+            <div className="text-2xl font-semibold text-white tracking-tight">
               {returnRate}%
             </div>
-            <p className="mt-2 text-xs text-[#737373]">
+            <p className="mt-2 text-xs text-zinc-400">
               {recurrentCustomers} {recurrentCustomers === 1 ? "cliente" : "clientes"} con más de 1 visita
             </p>
           </div>
@@ -282,55 +273,59 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       {/* Gráfico de Actividad Semanal & QR del Mostrador */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          {/* Gráfico de Actividad Semanal */}
-          <div className="h-full flex flex-col justify-between rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-6 shadow-xs">
+          <div className="h-full flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
               <div>
-                <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
+                <h3 className="text-base font-semibold text-white tracking-tight">
                   Actividad semanal
                 </h3>
-                <p className="text-xs text-[#737373] mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Volumen de sellos y visitas por día de la semana.
                 </p>
               </div>
-              <span className="rounded-full bg-[#FFF9F5] border border-[#D5CFC4] px-3 py-1 text-[11px] font-semibold text-[#737373]">
+              <span className="rounded-full bg-zinc-950 border border-zinc-800 px-3 py-1 text-[11px] font-medium text-zinc-400">
                 Lunes a Domingo
               </span>
             </div>
 
             {/* Bar Chart */}
-            <div className="mt-6 flex h-48 items-end justify-between gap-1.5 sm:gap-3 pt-6 sm:px-2">
+            <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3 border-b border-zinc-800 pb-2 sm:px-2">
               {chartDays.map((item, idx) => {
-                const heightPercent = Math.max(
-                  Math.round((item.count / maxDayCount) * 100),
-                  6
-                );
                 const isToday = item.isToday;
                 const isPeak = item.count === maxDayCount && maxDayCount > 0;
 
                 return (
                   <div
                     key={idx}
-                    className="group flex flex-1 flex-col items-center gap-2 h-full justify-end"
+                    className="group flex min-w-0 flex-col items-center gap-1.5"
                   >
-                    <span className="text-[11px] font-bold text-[#1F1F1F] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span
+                      className={`text-[10px] sm:text-xs font-semibold ${
+                        item.count > 0
+                          ? isPeak
+                            ? "text-white font-bold"
+                            : "text-zinc-300"
+                          : "text-zinc-600"
+                      }`}
+                    >
                       {item.count}
                     </span>
-                    <div className="w-full max-w-[40px] flex items-end justify-center h-full">
+                    <div
+                      className="relative h-40 w-full max-w-[40px] flex flex-col justify-end"
+                      title={`${item.count} movimientos el ${item.label}`}
+                    >
                       <div
-                        style={{ height: `${heightPercent}%` }}
-                        className={`w-full rounded-t-xl transition-all duration-300 ${
-                          isPeak
-                            ? "bg-[#FF1F2D] shadow-sm"
-                            : isToday
-                            ? "bg-[#FF7A85]"
-                            : "bg-[#FAD9DC] group-hover:bg-[#FF7A85]"
-                        }`}
+                        className="w-full bg-white rounded-t-sm transition-all duration-500"
+                        style={{
+                          height: maxDayCount > 0 ? `${(item.count / maxDayCount) * 100}%` : "0%",
+                          minHeight: item.count > 0 ? "4px" : "0px",
+                          opacity: item.count > 0 ? 1 : 0,
+                        }}
                       />
                     </div>
                     <span
-                      className={`text-[11px] font-semibold ${
-                        isToday ? "text-[#FF1F2D]" : "text-[#737373]"
+                      className={`mt-1 text-[10px] sm:text-[11px] font-medium uppercase tracking-wider ${
+                        isToday ? "text-white font-semibold" : "text-zinc-400"
                       }`}
                     >
                       {item.label}
@@ -340,9 +335,9 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
               })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#D5CFC4] flex flex-wrap gap-2 items-center justify-between text-xs text-[#737373]">
+            <div className="mt-6 pt-4 border-t border-zinc-800 flex flex-wrap gap-2 items-center justify-between text-xs text-zinc-400">
               <span className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-sm bg-[#FF1F2D]" />
+                <span className="h-3 w-3 rounded-xs bg-white" />
                 Día con más visitas
               </span>
               <span>Total semanal: {stampsWeek} movimientos</span>
@@ -351,7 +346,6 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         <div className="xl:col-span-1">
-          {/* Tu QR para el mostrador */}
           <CounterQrCard
             businessId={business.id}
             businessSlug={business.slug}
@@ -362,19 +356,19 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
       </div>
 
       {/* Resumen Rápido: Últimos 5 Movimientos */}
-      <div className="rounded-2xl border border-[#D5CFC4] bg-white p-4 sm:p-6 shadow-xs">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
+            <h3 className="text-base font-semibold text-white tracking-tight">
               Últimos 5 movimientos
             </h3>
-            <p className="text-xs text-[#737373] mt-0.5">
+            <p className="text-xs text-zinc-400 mt-0.5">
               Transacciones recientes registradas en este local.
             </p>
           </div>
           <Link
             href={`/comercio/${businessId}/historial`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF1F2D] hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-300 hover:text-white transition-colors"
           >
             Ver historial completo
             <ArrowRight size={13} />
@@ -382,25 +376,25 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
         </div>
 
         {recentLogsData && recentLogsData.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
-                <tr className="border-b border-[#D5CFC4] text-[#737373]">
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                <tr className="border-b border-zinc-800 text-zinc-400">
+                  <th className="pb-3 font-medium uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Fecha y Hora
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-medium uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Cliente
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-medium uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Acción
                   </th>
-                  <th className="pb-3 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3 font-medium uppercase tracking-wider text-[10px] whitespace-nowrap">
                     Método
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D5CFC4]">
+              <tbody className="divide-y divide-zinc-800/50">
                 {recentLogsData.map((log: any) => {
                   const customer = log.customers;
                   const isRedeem = log.method === "REDEEM";
@@ -412,50 +406,50 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
                     : "Cliente";
 
                   return (
-                    <tr key={log.id} className="hover:bg-[#FFF9F5] transition-colors">
-                      <td className="py-3.5 pr-4 text-[#737373] whitespace-nowrap">
+                    <tr key={log.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
+                      <td className="py-3.5 pr-4 text-zinc-400 whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
-                          <Clock size={13} className="text-[#A3A3A3]" />
+                          <Clock size={13} className="text-zinc-500" />
                           {formatDate(log.created_at)}
                         </span>
                       </td>
-                      <td className="py-3.5 pr-4 font-semibold text-[#1F1F1F]">
+                      <td className="py-3.5 pr-4 font-semibold text-white whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-[#FFF0F1] text-[#FF1F2D] font-bold text-[10px] flex items-center justify-center shrink-0">
+                          <div className="h-6 w-6 rounded-full bg-zinc-950 border border-zinc-800 text-white font-semibold text-[10px] flex items-center justify-center shrink-0">
                             {clientName.slice(0, 1).toUpperCase()}
                           </div>
                           <div>
                             <p className="leading-tight">{clientName}</p>
                             {customer?.unique_code && (
-                              <p className="text-[10px] text-[#737373]">
-                                {customer.unique_code}
+                              <p className="text-[10px] text-zinc-500 font-mono">
+                                {String(customer.unique_code || "").replace(/^CLI\s*-\s*/i, "").trim()}
                               </p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 pr-4">
+                      <td className="py-3.5 pr-4 whitespace-nowrap">
                         {isRedeem ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0F1] px-2.5 py-1 text-[11px] font-semibold text-[#FF1F2D] border border-[#FFD9DC]">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400 border border-amber-500/20">
                             <Gift size={12} />
                             Premio canjeado
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-2.5 py-1 text-[11px] font-semibold text-[#10B981] border border-[#A7F3D0]">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/20">
                             <Stamp size={12} />
                             +1 Sello acreditado
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 text-[#737373]">
+                      <td className="py-3.5 text-zinc-400 whitespace-nowrap">
                         {isNfc ? (
                           <span className="inline-flex items-center gap-1 text-[11px]">
-                            <Smartphone size={13} className="text-[#0284C7]" />
+                            <Smartphone size={13} className="text-zinc-400" />
                             NFC / Autoservicio
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px]">
-                            <Edit3 size={13} className="text-[#737373]" />
+                            <Edit3 size={13} className="text-zinc-400" />
                             Carga manual
                           </span>
                         )}
@@ -468,11 +462,11 @@ export default async function MerchantDashboardPage({ params }: PageProps) {
           </div>
         ) : (
           <div className="py-10 text-center">
-            <Clock size={28} className="mx-auto text-[#D4D4D4] mb-2" />
-            <p className="text-sm font-semibold text-[#1F1F1F]">
+            <Clock size={28} className="mx-auto text-zinc-500 mb-2" />
+            <p className="text-sm font-semibold text-white">
               Aún no hay movimientos registrados
             </p>
-            <p className="text-xs text-[#737373] mt-1">
+            <p className="text-xs text-zinc-400 mt-1">
               Los sellos y canjes que se registren en caja aparecerán aquí.
             </p>
           </div>

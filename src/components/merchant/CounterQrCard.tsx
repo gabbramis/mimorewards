@@ -44,7 +44,7 @@ export default function CounterQrCard({
         margin: 2,
         errorCorrectionLevel: "H",
         color: {
-          dark: "#1F1F1F",
+          dark: "#09090b",
           light: "#FFFFFF",
         },
       });
@@ -70,15 +70,15 @@ export default function CounterQrCard({
   };
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-2xl border border-[#D5CFC4] bg-white p-6 shadow-xs">
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
       <div>
         {/* Encabezado */}
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FFF0F1] text-[#FF1F2D]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-300">
               <QrIcon size={18} />
             </div>
-            <h3 className="text-base font-bold text-[#1F1F1F] tracking-tight">
+            <h3 className="text-base font-semibold text-white tracking-tight">
               Tu QR para el mostrador
             </h3>
           </div>
@@ -86,9 +86,12 @@ export default function CounterQrCard({
 
         {/* QR centrado */}
         <div className="my-3 flex flex-col items-center justify-center">
-          <div className="relative rounded-2xl border-2 border-[#EBE6DE] bg-white p-4 shadow-xs transition-transform duration-200 hover:scale-[1.01]">
+          <div
+            data-qr-box="true"
+            className="relative rounded-2xl border border-zinc-800 bg-white p-4 transition-transform duration-200 hover:scale-[1.01]"
+          >
             {url ? (
-              <div className="flex items-center justify-center">
+              <div data-qr-box="true" className="flex items-center justify-center bg-white">
                 <QRCode
                   value={url}
                   size={164}
@@ -98,7 +101,7 @@ export default function CounterQrCard({
                 />
               </div>
             ) : (
-              <div className="flex h-[164px] w-[164px] items-center justify-center bg-gray-50 text-gray-400">
+              <div className="flex h-[164px] w-[164px] items-center justify-center bg-zinc-950 text-zinc-400">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             )}
@@ -106,8 +109,8 @@ export default function CounterQrCard({
 
           {/* Enlace público con botón copiar */}
           {url && (
-            <div className="mt-3 flex w-full max-w-[260px] items-center justify-between gap-2 rounded-xl border border-[#EBE6DE] bg-[#FFF9F5] px-3 py-1.5 text-xs">
-              <span className="truncate font-mono text-[11px] text-[#737373]">
+            <div className="mt-3 flex w-full max-w-[260px] items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs">
+              <span className="truncate font-mono text-[11px] text-zinc-400">
                 {url}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -115,10 +118,10 @@ export default function CounterQrCard({
                   type="button"
                   onClick={handleCopy}
                   title="Copiar link"
-                  className="inline-flex items-center gap-1 font-semibold text-[#FF1F2D] hover:text-[#e01826] cursor-pointer"
+                  className="inline-flex items-center gap-1 font-medium text-white hover:text-zinc-300 cursor-pointer"
                 >
                   {copied ? (
-                    <Check size={13} className="text-emerald-600" />
+                    <Check size={13} className="text-emerald-400" />
                   ) : (
                     <Copy size={13} />
                   )}
@@ -129,7 +132,7 @@ export default function CounterQrCard({
                   target="_blank"
                   rel="noreferrer"
                   title="Abrir página de registro"
-                  className="text-gray-400 hover:text-gray-700"
+                  className="text-zinc-400 hover:text-white"
                 >
                   <ExternalLink size={13} />
                 </a>
@@ -140,13 +143,13 @@ export default function CounterQrCard({
       </div>
 
       {/* Acciones y texto de ayuda inferior */}
-      <div className="mt-4 pt-3 border-t border-[#EBE6DE] flex flex-col items-center">
+      <div className="mt-4 pt-3 border-t border-zinc-800 flex flex-col items-center">
         <CounterPosterDownloads businessId={businessId} />
         <button
           type="button"
           onClick={handleDownload}
           disabled={!url || downloading}
-          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F1F1F] text-white px-4 py-2.5 text-xs sm:text-sm font-bold shadow-sm hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 text-xs sm:text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
         >
           {downloading ? (
             <Loader2 size={16} className="animate-spin" />
@@ -156,7 +159,7 @@ export default function CounterQrCard({
           <span>{downloading ? "Generando imagen…" : "Descargar solo QR (PNG)"}</span>
         </button>
 
-        <p className="mt-2.5 text-center text-xs text-[#737373] leading-relaxed">
+        <p className="mt-2.5 text-center text-xs text-zinc-400 leading-relaxed">
           Imprimí este código y dejalo a la vista. Tus clientes lo escanean para llevarse tu tarjeta en su celular.
         </p>
       </div>
