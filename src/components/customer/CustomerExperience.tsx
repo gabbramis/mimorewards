@@ -91,12 +91,12 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
     
     {/* Código QR grande para escaneo en caja */}
     <div className="my-5 flex flex-col items-center justify-center">
-      <div className="w-52 h-52 mx-auto flex items-center justify-center rounded-2xl bg-white p-2 shadow-md border border-white/20">
+      <div className="cx-card-qr mx-auto flex items-center justify-center rounded-2xl bg-white p-2 shadow-md border border-white/20">
         <QRCode
           value={qrValue}
           size={200}
           level="M"
-          className="min-w-[200px] min-h-[200px]"
+          style={{ display: "block", width: "100%", height: "auto" }}
         />
       </div>
       {customer.uniqueCode && (
