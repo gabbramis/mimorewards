@@ -39,7 +39,6 @@ export default function CashierScanner({
 
   const supabase = createClient();
 
-  // Autoresolver el businessId si no vino por props
   useEffect(() => {
     if (propBusinessId) {
       setActiveBusinessId(propBusinessId);
@@ -79,7 +78,6 @@ export default function CashierScanner({
     resolveBusiness();
   }, [propBusinessId, supabase]);
 
-  // Función auxiliar para extraer el ID si el QR contiene una URL completa
   const parseQrContent = (rawText: string): string => {
     const trimmed = rawText.trim();
     try {
@@ -99,7 +97,6 @@ export default function CashierScanner({
     return trimmed;
   };
 
-  // Reproducir sonido sutil de confirmación
   const playBeep = () => {
     try {
       const AudioCtx =
@@ -123,7 +120,6 @@ export default function CashierScanner({
     }
   };
 
-  // Buscar información rápida del cliente (si existe en DB)
   const lookupCustomerDetails = useCallback(async (idOrCode: string) => {
     try {
       let query = supabase
@@ -157,7 +153,6 @@ export default function CashierScanner({
     return idOrCode;
   }, [activeBusinessId, supabase]);
 
-  // Callback de detección de QR con @yudiel/react-qr-scanner
   const handleScanSuccess = useCallback(async (rawText: string) => {
     if (status === "detected" || status === "processing" || status === "success" || isPaused) {
       return;
@@ -179,7 +174,6 @@ export default function CashierScanner({
     await lookupCustomerDetails(detectedId);
   }, [status, isPaused, lookupCustomerDetails]);
 
-  // Reiniciar escaneo para escanear otro cliente
   const handleScanAgain = () => {
     setErrorMessage("");
     setStatus("scanning");
@@ -190,7 +184,6 @@ export default function CashierScanner({
     setIsPaused(false);
   };
 
-  // 5. Conexión: Función handleAddStamp armada para conectar con Supabase / API
   const handleAddStamp = async (targetClientId: string) => {
     const idToSend = resolvedCustomerId || targetClientId;
     if (!idToSend) return;
@@ -198,7 +191,6 @@ export default function CashierScanner({
     setErrorMessage("");
 
     try {
-      // 1. Llamada a la API de sellos de Mimo con method 'QR'
       const response = await fetch("/api/stamps/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,7 +223,6 @@ export default function CashierScanner({
         throw errorObj;
       }
 
-      // Si fue exitoso:
       playBeep();
       setStatus("success");
       const newTotal = typeof data.newTotal === "number" ? data.newTotal : (currentStamps ? currentStamps + 1 : 1);
@@ -250,22 +241,22 @@ export default function CashierScanner({
         "Error desconocido al procesar";
 
       setErrorMessage(String(rawError));
-      setStatus("detected"); // Permite reintentar
+      setStatus("detected");
     }
   };
 
   return (
     <div
-      className={`w-full max-w-md mx-auto flex flex-col rounded-3xl bg-white border border-[#EBE6DE] shadow-xl overflow-hidden font-sans ${className}`}
+      className={`w-full max-w-md mx-auto flex flex-col rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden font-sans ${className}`}
     >
       {/* Cabecera del Escáner */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBE6DE] bg-[#FAF8F5]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-950">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#FF1F2D] shadow-xs">
-            <QrCode size={19} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200">
+            <QrCode size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#1F1F1F] tracking-tight">
+            <h3 className="text-sm font-semibold text-white tracking-tight">
               Escáner de Caja
             </h3>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -276,20 +267,20 @@ export default function CashierScanner({
                       ? "animate-ping bg-emerald-400"
                       : status === "detected"
                       ? "bg-amber-400"
-                      : "bg-gray-300"
+                      : "bg-zinc-600"
                   }`}
                 />
                 <span
                   className={`relative inline-flex rounded-full h-2 w-2 ${
                     status === "scanning"
-                      ? "bg-emerald-500"
+                      ? "bg-emerald-400"
                       : status === "detected"
-                      ? "bg-amber-500"
-                      : "bg-gray-400"
+                      ? "bg-amber-400"
+                      : "bg-zinc-500"
                   }`}
                 />
               </span>
-              <span className="text-[11px] font-semibold text-[#737373]">
+              <span className="text-[11px] font-medium text-zinc-400">
                 {status === "scanning"
                   ? "Cámara activa"
                   : status === "detected"
@@ -308,7 +299,7 @@ export default function CashierScanner({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Cerrar escáner"
           >
             <XCircle size={18} />
@@ -318,8 +309,7 @@ export default function CashierScanner({
 
       {/* Visor de Cámara Central */}
       <div className="relative p-5 flex flex-col items-center">
-        {/* Recuadro contenedor de la cámara */}
-        <div className="relative w-full aspect-square max-w-[320px] rounded-2xl overflow-hidden bg-black shadow-inner border-2 border-[#1F1F1F]">
+        <div className="relative w-full aspect-square max-w-[320px] rounded-2xl overflow-hidden bg-black border border-zinc-800">
           <Scanner
             onScan={(result) => {
               if (result && result.length > 0 && result[0]?.rawValue) {
@@ -337,91 +327,84 @@ export default function CashierScanner({
           />
         </div>
 
-        {/* 2. Texto debajo del recuadro central */}
         {status === "scanning" && (
-          <p className="mt-4 text-center text-xs sm:text-sm font-semibold text-[#737373] tracking-tight">
+          <p className="mt-4 text-center text-xs sm:text-sm font-medium text-zinc-400 tracking-tight">
             Apuntá al QR del cliente para sumar un sello
           </p>
         )}
 
-        {/* 3 & 4. Tarjeta y Acción de confirmación al detectar el QR */}
         {status === "detected" && (
           <div className="w-full mt-4 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
-            {/* Tarjeta con ID/Nombre del cliente detectado */}
-            <div className="rounded-2xl border border-[#EBE6DE] bg-[#FFF9F5] p-4 flex items-center justify-between">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF0F1] text-[#FF1F2D]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-white">
                   <User size={20} />
                 </div>
                 <div className="min-w-0">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#737373]">
+                  <span className="block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
                     Cliente Detectado
                   </span>
-                  <p className="text-sm font-extrabold text-[#1F1F1F] truncate">
+                  <p className="text-sm font-semibold text-white truncate">
                     {clientDisplayName || clientId}
                   </p>
                   {currentStamps !== null && (
-                    <span className="text-[11px] font-medium text-emerald-700">
+                    <span className="text-[11px] font-medium text-emerald-400">
                       Tiene actualmente {currentStamps} {currentStamps === 1 ? "sello" : "sellos"}
                     </span>
                   )}
                 </div>
               </div>
 
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200/60">
+              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/20">
                 QR Válido
               </span>
             </div>
 
             {errorMessage && (
-              <p className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl break-words whitespace-pre-wrap">
+              <p className="text-xs font-mono font-medium text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-xl break-words whitespace-pre-wrap">
                 {errorMessage}
               </p>
             )}
 
-            {/* 4. Botón grande de confirmación */}
             <button
               type="button"
               onClick={() => handleAddStamp(clientId)}
-              className="w-full inline-flex items-center justify-center gap-2.5 rounded-2xl bg-[#FF1F2D] text-white py-3.5 px-4 text-sm font-extrabold shadow-md hover:bg-[#e01826] active:scale-[0.99] transition-all cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-white text-black py-3.5 px-4 text-sm font-semibold hover:bg-gray-200 active:scale-[0.99] transition-all cursor-pointer"
             >
-              <Zap size={18} fill="currentColor" />
+              <Zap size={16} />
               <span>Sumar 1 Sello a {clientDisplayName || clientId}</span>
             </button>
 
-            {/* Botón secundario para descartar y escanear otro */}
             <button
               type="button"
               onClick={handleScanAgain}
-              className="w-full py-2 text-xs font-semibold text-[#737373] hover:text-[#1F1F1F] transition-colors cursor-pointer text-center"
+              className="w-full py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer text-center"
             >
               Descartar y volver a escanear
             </button>
           </div>
         )}
 
-        {/* Estado de procesamiento */}
         {status === "processing" && (
-          <div className="w-full mt-4 p-5 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col items-center justify-center gap-2">
-            <Loader2 size={24} className="animate-spin text-[#FF1F2D]" />
-            <p className="text-xs font-bold text-gray-700">
+          <div className="w-full mt-4 p-5 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col items-center justify-center gap-2">
+            <Loader2 size={24} className="animate-spin text-white" />
+            <p className="text-xs font-medium text-zinc-300">
               Registrando sello en la tarjeta...
             </p>
           </div>
         )}
 
-        {/* 6. Feedback: Alerta verde de éxito y botón para volver a escanear */}
         {status === "success" && (
           <div className="w-full mt-4 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
-            <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-emerald-900 flex items-center gap-3 shadow-xs">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400 flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                 <CheckCircle2 size={24} />
               </div>
               <div className="min-w-0">
-                <h4 className="text-sm font-extrabold text-emerald-950">
+                <h4 className="text-sm font-semibold text-white">
                   Sello sumado con éxito
                 </h4>
-                <p className="text-xs text-emerald-800 leading-tight mt-0.5">
+                <p className="text-xs text-emerald-400 leading-tight mt-0.5">
                   Se acreditó 1 sello a {clientDisplayName || clientId}.
                   {currentStamps !== null && ` Ahora tiene ${currentStamps} sellos.`}
                 </p>
@@ -431,7 +414,7 @@ export default function CashierScanner({
             <button
               type="button"
               onClick={handleScanAgain}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1F1F1F] text-white py-3.5 px-4 text-xs sm:text-sm font-extrabold shadow-sm hover:bg-black active:scale-[0.99] transition-all cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white text-black py-3.5 px-4 text-xs sm:text-sm font-semibold hover:bg-gray-200 active:scale-[0.99] transition-all cursor-pointer"
             >
               <RefreshCw size={16} />
               <span>Volver a escanear</span>
@@ -441,7 +424,7 @@ export default function CashierScanner({
       </div>
 
       {/* Pie de ayuda */}
-      <div className="px-5 py-3 border-t border-[#EBE6DE] bg-[#FAF8F5] flex items-center justify-between text-[11px] text-[#737373]">
+      <div className="px-5 py-3 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between text-[11px] text-zinc-500">
         <span>Terminal de Caja Mimo</span>
         <span className="font-mono">v1.0</span>
       </div>

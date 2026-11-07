@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Gift, Heart } from "lucide-react";
+import { getStampGridLayout, normalizeRewardTarget } from "@/lib/wallet-config";
 
 type LoyaltyCardProps = {
   stamps?: number;
@@ -18,9 +19,10 @@ export default function LoyaltyCard({
   rewardUnlocked = false,
   className = "",
 }: LoyaltyCardProps) {
-  const total = Math.max(1, Math.floor(maxStamps));
+  const total = normalizeRewardTarget(maxStamps, 8);
   const filled = Math.min(total, Math.max(0, Math.floor(stamps)));
   const unlocked = rewardUnlocked || filled === total;
+  const { rows, columns } = getStampGridLayout(total);
 
   return (
     <div className={`m-story-card ${className}`} role="img" aria-label={`Tarjeta de fidelización mimo de ${label}. ${filled} de ${total} sellos. ${unlocked ? "Recompensa disponible" : `Próxima recompensa: ${reward}`}.`}>
@@ -32,7 +34,14 @@ export default function LoyaltyCard({
         <span className="m-story-card-label">{label}</span>
         <strong>Volver tiene<br />su recompensa.</strong>
       </div>
-      <div className="m-story-card-stamps" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
+      <div
+        className="m-story-card-stamps"
+        aria-hidden="true"
+        style={{
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+        }}
+      >
         {Array.from({ length: total }, (_, index) => (
           <span className={index < filled ? "is-filled" : ""} key={index}>
             {index < filled ? <Heart size={19} fill="currentColor" strokeWidth={1.6} /> : <span />}

@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -50,7 +49,7 @@ export default function MerchantShell({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { planType: contextPlanType, isFreePlan: contextIsFree } = useBusiness();
+  const { isFreePlan: contextIsFree } = useBusiness();
   const isFree = planType !== undefined ? isPlanFree(planType) : contextIsFree;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -128,24 +127,24 @@ export default function MerchantShell({
   };
 
   return (
-    <div className="m-merchant-shell flex flex-col h-dvh w-full bg-[#FFF9F5] text-[#1F1F1F] font-sans antialiased overflow-hidden">
+    <div className="m-merchant-shell flex flex-col h-dvh w-full bg-black text-white font-sans antialiased overflow-hidden">
       {/* Banner superior adhesivo de Impersonation (Modo Administrador) */}
       {isImpersonating && (
         <div
           role="region"
           aria-label="Modo Administrador"
-          className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 bg-[#FF1F2D] px-4 py-2.5 text-white shadow-md border-b border-red-700 shrink-0"
+          className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 bg-zinc-900 px-4 py-2.5 text-white border-b border-zinc-800 shrink-0"
         >
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold tracking-tight">
-            <ShieldAlert size={16} className="shrink-0" />
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-tight text-zinc-200">
+            <ShieldAlert size={16} className="shrink-0 text-white" />
             <span>
-              Modo Administrador: Estás viendo la cuenta de {businessName}
+              Modo Administrador: Estás viendo la cuenta de <strong className="text-white">{businessName}</strong>
             </span>
           </div>
           <form action={stopImpersonation}>
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-[#FF1F2D] shadow-xs transition hover:bg-red-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-gray-200 cursor-pointer"
             >
               <LogOut size={13} />
               <span>Cerrar sesión de cliente</span>
@@ -166,8 +165,8 @@ export default function MerchantShell({
 
         {/* Floating Upgrade Toast */}
         {toastMessage && (
-          <div role="status" className="fixed bottom-6 left-4 right-4 sm:left-auto sm:max-w-sm sm:right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#1F1F1F] text-white px-5 py-3.5 shadow-xl border border-neutral-700 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-200">
-            <Lock size={15} className="text-amber-400 shrink-0" />
+          <div role="status" className="fixed bottom-6 left-4 right-4 sm:left-auto sm:max-w-sm sm:right-6 z-50 flex items-center gap-3 rounded-2xl bg-zinc-900 text-white px-5 py-3.5 border border-zinc-800 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-200">
+            <Lock size={15} className="text-zinc-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
         )}
@@ -175,7 +174,7 @@ export default function MerchantShell({
         {/* Mobile Backdrop */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -184,13 +183,13 @@ export default function MerchantShell({
         <aside
           id="merchant-navigation"
           aria-label="Navegación del comercio"
-          className={`fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[86vw] shrink-0 overflow-y-auto flex-col justify-between border-r border-[#D5CFC4] bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[86vw] shrink-0 overflow-y-auto flex-col justify-between border-r border-zinc-800 bg-zinc-950 transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
             sidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full md:visible"
           }`}
         >
           <div className="flex flex-col">
-            {/* Brand Header: Altura fija h-20 (80px) idéntica a la Topbar para alineación continua */}
-            <div className="flex h-16 md:h-20 items-center justify-between border-b border-[#D5CFC4] px-5 box-border">
+            {/* Brand Header */}
+            <div className="flex h-16 md:h-20 items-center justify-between border-b border-zinc-800 px-5 box-border">
               <Link
                 href={`/comercio/${businessId}`}
                 className="flex items-center"
@@ -200,13 +199,13 @@ export default function MerchantShell({
                 <img
                   src="/images/mimo-wordmark.png"
                   alt="mimo rewards"
-                  className="h-8 w-auto object-contain block"
+                  className="h-8 w-auto object-contain block brightness-0 invert"
                 />
               </Link>
               <button
                 type="button"
                 aria-label="Cerrar menú de navegación"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-[#737373] hover:bg-[#FFF9F5] hover:text-[#1F1F1F] md:hidden"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white md:hidden"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X size={18} />
@@ -214,8 +213,8 @@ export default function MerchantShell({
             </div>
 
             {/* Navigation Links */}
-            <nav className="flex flex-col gap-1.5 px-3 py-5">
-              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#737373]">
+            <nav className="flex flex-col gap-1 px-3 py-5">
+              <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                 Gestión Operativa
               </p>
               {navItems.map((item) => {
@@ -237,12 +236,12 @@ export default function MerchantShell({
                         setUpgradeModalOpen(true);
                         showUpgradeToast("Comunicaciones está bloqueado. Actualizá al Plan Pro para acceder.");
                       }}
-                      className="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold opacity-50 cursor-not-allowed select-none text-[#737373] hover:bg-[#FFF9F5]/70 transition-all duration-150"
+                      className="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium opacity-50 cursor-not-allowed select-none text-zinc-500 hover:bg-zinc-900/40 transition-colors"
                       title="Función bloqueada - Requiere Plan Pro"
                     >
-                      <Icon size={17} className="text-[#A3A3A3] shrink-0" />
+                      <Icon size={17} className="text-zinc-600 shrink-0" />
                       <span className="flex-1 text-left">{item.label}</span>
-                      <Lock size={13} className="text-[#737373] shrink-0 ml-auto" />
+                      <Lock size={13} className="text-zinc-500 shrink-0 ml-auto" />
                     </button>
                   );
                 }
@@ -252,27 +251,23 @@ export default function MerchantShell({
                     key={item.href}
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
-                    className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${
+                    className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
                       active
-                        ? "bg-[#FFF0F1] text-[#FF1F2D] shadow-sm"
-                        : "text-[#525252] hover:bg-[#FFF9F5] hover:text-[#1F1F1F]"
+                        ? "bg-zinc-900 text-white font-semibold border border-zinc-800"
+                        : "text-zinc-400 hover:bg-zinc-900/60 hover:text-white border border-transparent"
                     }`}
                   >
-                    {/* Left accent bar */}
-                    {active && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[#FF1F2D]" />
-                    )}
                     <Icon
                       size={17}
                       className={`transition-colors ${
-                        active ? "text-[#FF1F2D]" : "text-[#737373] group-hover:text-[#1F1F1F]"
+                        active ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"
                       }`}
                     />
                     <span className="flex-1">{item.label}</span>
                     <ChevronRight
                       size={13}
-                      className={`transition-transform opacity-40 group-hover:opacity-100 ${
-                        active ? "text-[#FF1F2D] translate-x-0.5" : "text-[#737373]"
+                      className={`transition-transform ${
+                        active ? "text-zinc-400 opacity-80 translate-x-0.5" : "text-zinc-500 opacity-0 group-hover:opacity-60"
                       }`}
                     />
                   </Link>
@@ -282,22 +277,23 @@ export default function MerchantShell({
           </div>
 
           {/* Footer Profile & Logout */}
-          <div className="border-t border-[#D5CFC4] p-3">
-            <div className="flex items-center justify-between rounded-xl bg-[#FFF9F5] p-2.5 border border-[#D5CFC4]">
+          <div className="border-t border-zinc-800 p-3">
+            <div className="flex items-center justify-between rounded-xl bg-zinc-900 p-2.5 border border-zinc-800">
               <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
                 {businessLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={businessLogo}
                     alt={businessName}
-                    className="h-9 w-9 shrink-0 rounded-xl object-cover border border-[#D5CFC4] bg-white shadow-2xs"
+                    className="h-9 w-9 shrink-0 rounded-xl object-cover border border-zinc-700 bg-zinc-950"
                   />
                 ) : (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF1F2D]/10 text-[#FF1F2D] font-bold text-xs border border-[#FFD9DC]">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-white font-semibold text-xs border border-zinc-700">
                     {businessName.slice(0, 2).toUpperCase()}
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-[#1F1F1F]">
+                  <p className="truncate text-xs font-semibold text-white">
                     {businessName}
                   </p>
                 </div>
@@ -306,7 +302,7 @@ export default function MerchantShell({
                 type="button"
                 onClick={handleLogout}
                 title="Cerrar sesión"
-                className="rounded-lg p-1.5 text-[#737373] hover:bg-[#FFF0F1] hover:text-[#FF1F2D] transition-colors shrink-0 ml-1.5"
+                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors shrink-0 ml-1.5"
               >
                 <LogOut size={15} />
               </button>
@@ -315,13 +311,13 @@ export default function MerchantShell({
         </aside>
 
         {/* Main Container */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Top Navbar Header: Alineación vertical centrada en móvil y escritorio */}
-          <header className="flex h-16 md:h-20 shrink-0 items-center justify-between gap-2 border-b border-[#D5CFC4] bg-white px-4 md:px-8 box-border">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black">
+          {/* Top Navbar Header */}
+          <header className="flex h-16 md:h-20 shrink-0 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950 px-4 md:px-8 box-border">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D5CFC4] bg-white text-[#1F1F1F] hover:bg-[#FFF9F5] md:hidden"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white md:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Abrir menú de navegación"
                 aria-expanded={sidebarOpen}
@@ -340,14 +336,14 @@ export default function MerchantShell({
                   <img
                     src="/images/mimo-wordmark.png"
                     alt="mimo rewards"
-                    className="h-7 w-auto object-contain block"
+                    className="h-7 w-auto object-contain block brightness-0 invert"
                   />
                 </Link>
-                <h1 className="hidden sm:block text-base sm:text-lg font-bold text-[#1F1F1F] tracking-tight leading-none truncate">
+                <h1 className="hidden sm:block text-base sm:text-lg font-semibold text-white tracking-tight leading-none truncate">
                   Panel de comercio
                 </h1>
-                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-[11px] font-bold text-[#10B981] border border-[#A7F3D0]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-300 border border-zinc-800">
+                  <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-emerald-400" : "bg-zinc-500"}`} />
                   {isActive ? "Programa Activo" : "Pausado"}
                 </span>
               </div>
@@ -359,20 +355,20 @@ export default function MerchantShell({
                 type="button"
                 onClick={handleCopyCardLink}
                 aria-label={copiedLink ? "¡Link copiado!" : "Copiar link de tarjeta"}
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl px-3 sm:px-3.5 py-2 text-xs font-semibold transition-all duration-150 ${
+                className={`inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-xl border px-3 sm:px-3.5 py-2 text-xs font-semibold transition-colors ${
                   copiedLink
-                    ? "bg-[#ECFDF5] text-[#10B981]"
-                    : "text-[#1F1F1F] hover:bg-[#FFF9F5]"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white"
                 }`}
               >
                 {copiedLink ? (
                   <>
-                    <Check size={14} className="text-[#10B981]" />
+                    <Check size={14} className="text-emerald-400" />
                     <span className="hidden lg:inline">¡Link copiado!</span>
                   </>
                 ) : (
                   <>
-                    <Copy size={14} className="text-[#737373]" />
+                    <Copy size={14} className="text-zinc-400" />
                     <span className="hidden lg:inline">Copiar link de tarjeta</span>
                   </>
                 )}
@@ -381,7 +377,7 @@ export default function MerchantShell({
           </header>
 
           {/* Content Body */}
-          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFF9F5] p-4 md:p-8">
+          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-black p-4 md:p-8">
             <div className="w-full max-w-7xl mx-auto min-w-0">{children}</div>
           </main>
         </div>

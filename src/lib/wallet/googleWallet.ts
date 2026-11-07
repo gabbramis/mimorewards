@@ -5,9 +5,20 @@ import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
 import crypto from 'node:crypto';
-import { formatClientNumericId, googleBarcodeType, isHttpsUrl, resolveWalletText, sanitizeWalletConfig } from '@/lib/wallet-config';
+import {
+    formatClientNumericId,
+    googleBarcodeType,
+    isHttpsUrl,
+    MIN_CLIENT_NUMERIC_ID,
+    normalizeRewardTarget,
+    resolveWalletText,
+    sanitizeWalletConfig,
+} from '@/lib/wallet-config';
 import { readWalletLocations } from './location-store';
 import { googleMerchantLocations } from './locations';
+
+export const DEFAULT_GOOGLE_ISSUER_ID = '3388000000023210017';
+export const DEFAULT_GOOGLE_CLASS_ID = '1e7a4e8a_c812_4614_8da4_76cb92ec8e16';
 
 export interface WalletCredentials {
     client_email: string;
@@ -116,7 +127,7 @@ let cachedCredentials: WalletCredentials | null = null;
  *  2. GOOGLE_WALLET_CREDENTIALS_JSON / GOOGLE_APPLICATION_CREDENTIALS_JSON (JSON completo, plano o base64)
  *  3. google-service-account.json en la raíz del proyecto
  */
-function loadCredentials(): WalletCredentials {
+export function loadCredentials(): WalletCredentials {
     if (cachedCredentials) return cachedCredentials;
 
     const envEmail = (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim();
@@ -150,9 +161,6 @@ function loadCredentials(): WalletCredentials {
  * Returns whether Google Wallet is configured on the server.
  */
 export function googleWalletConfigured(): boolean {
-    const issuerId = (process.env.GOOGLE_WALLET_ISSUER_ID || process.env.GOOGLE_ISSUER_ID)?.trim();
-    if (!issuerId) return false;
-
     const hasEnvCreds = Boolean(
         (process.env.GOOGLE_WALLET_CLIENT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL)?.trim() &&
         (process.env.GOOGLE_WALLET_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY)?.trim()
@@ -164,26 +172,28 @@ export function googleWalletConfigured(): boolean {
 }
 
 /**
- * Validates and retrieves the issuer ID from server environment variables.
+ * Validates and retrieves the issuer ID from server environment variables,
+ * defaulting to 3388000000023210017.
  */
 export function getIssuerId(): string {
     const raw = (process.env.GOOGLE_WALLET_ISSUER_ID || process.env.GOOGLE_ISSUER_ID)?.trim();
     if (!raw) {
-        throw new Error('GOOGLE_WALLET_ISSUER_ID is not configured in server environment variables.');
+        return DEFAULT_GOOGLE_ISSUER_ID;
     }
-    return raw.replace(/^["']|["']$/g, '').trim();
+    return raw.replace(/^["']|["']$/g, '').trim() || DEFAULT_GOOGLE_ISSUER_ID;
 }
 
-export function getGoogleClassId(businessId: string): string {
+export function getGoogleClassId(businessId?: string): string {
     const issuerId = getIssuerId();
-    const safeBusinessId = businessId.replace(/-/g, '_');
-    return `${issuerId}.${safeBusinessId}`;
+    const envClassId = (process.env.GOOGLE_WALLET_CLASS_ID || process.env.GOOGLE_CLASS_ID)?.trim().replace(/^["']|["']$/g, '').trim();
+    const rawClass = envClassId || (businessId ? businessId.replace(/-/g, '_') : DEFAULT_GOOGLE_CLASS_ID);
+    return rawClass.startsWith(`${issuerId}.`) ? rawClass : `${issuerId}.${rawClass}`;
 }
 
 export function getGoogleObjectId(cardId: string): string {
     const issuerId = getIssuerId();
     const safeCardId = cardId.replace(/-/g, '_');
-    return `${issuerId}.${safeCardId}`;
+    return safeCardId.startsWith(`${issuerId}.`) ? safeCardId : `${issuerId}.${safeCardId}`;
 }
 
 /**
@@ -386,25 +396,29 @@ export function generateSavePassUrl(
     customerName: string,
     currentStamps: number,
     maxStamps: number,
-    businessId: string,
+    businessId?: string,
     walletConfig?: unknown,
     rewardDescription?: string,
     customerCode?: string
 ): string {
-    const classId = getGoogleClassId(businessId);
-    const objectId = getGoogleObjectId(cardId);
+    const classId = getGoogleClassId(businessId || DEFAULT_GOOGLE_CLASS_ID);
 
     const credentials = loadCredentials();
 
     const wallet = sanitizeWalletConfig(walletConfig);
     const firstName = customerName.split(' ')[0] || customerName;
+    const validTarget = normalizeRewardTarget(maxStamps, 8);
+    const safeCurrentStamps = Math.max(0, Math.min(Math.floor(Number(currentStamps) || 0), validTarget));
     const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: rewardDescription });
     const reward = resolveWalletText(wallet.rewardText || '{proximo_premio}', { nombre: customerName, proximo_premio: rewardDescription }) || rewardDescription || '';
-    const cleanCustomerCode = formatClientNumericId(customerCode) || String(customerCode || cardId);
-    const altText = formatClientNumericId(resolveWalletText(wallet.barcodeAltText, { id: cleanCustomerCode })) || cleanCustomerCode;
+
+    // Regla estricta: accountId y barcode.value EXCLUSIVAMENTE numéricos (>= 15001), sin "CLI -" ni letras
+    const cleanCustomerCode = formatClientNumericId(customerCode ?? cardId, String(MIN_CLIENT_NUMERIC_ID));
+    const objectId = getGoogleObjectId(cardId || cleanCustomerCode);
     const textModulesData = [
         headline ? { id: 'headline', header: 'Tu tarjeta', body: headline } : null,
         reward ? { id: 'reward', header: 'Próximo premio', body: reward } : null,
+        { id: 'progress', header: 'Progreso de sellos', body: `${safeCurrentStamps} / ${validTarget} sellos` },
     ].filter(Boolean);
 
     const loyaltyObject = {
@@ -416,13 +430,19 @@ export function generateSavePassUrl(
         barcode: {
             type: googleBarcodeType(wallet.barcodeFormat),
             value: cleanCustomerCode,
-            ...(altText ? { alternateText: altText } : {})
+            alternateText: cleanCustomerCode,
         },
         ...(textModulesData.length ? { textModulesData } : {}),
         loyaltyPoints: {
             label: 'Sellos',
             balance: {
-                int: currentStamps
+                int: safeCurrentStamps
+            }
+        },
+        secondaryLoyaltyPoints: {
+            label: 'Objetivo',
+            balance: {
+                string: `${safeCurrentStamps} / ${validTarget}`
             }
         }
     };
@@ -437,9 +457,9 @@ export function generateSavePassUrl(
         }
     };
 
-    const token = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
+    const signedJwt = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
 
-    return `https://pay.google.com/gp/v/save/${token}`;
+    return `https://pay.google.com/gp/v/save/${signedJwt}`;
 }
 
 export type UpdatePointsOptions = {
@@ -540,4 +560,3 @@ export async function broadcastGoogleWalletClassMessage(
         return { success: false, error: err?.message };
     }
 }
-

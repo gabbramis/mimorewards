@@ -40,21 +40,21 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
   });
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-      <div className="p-5 sm:p-6 border-b border-gray-100 bg-white">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden flex flex-col">
+      <div className="p-5 sm:p-6 border-b border-zinc-800 bg-zinc-900">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <Clock size={20} className="text-[#FF1F2D]" />
+            <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
+              <Clock size={18} className="text-zinc-400" />
               Flujo de Actividad Reciente
             </h2>
-            <p className="text-xs text-gray-500 font-medium mt-0.5">
+            <p className="text-xs text-zinc-400 mt-0.5">
               Últimas transacciones, sellos emitidos y canjes en todos los comercios.
             </p>
           </div>
 
           <div className="relative w-full sm:w-72">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
               <Search size={16} />
             </div>
             <input
@@ -62,21 +62,21 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
               placeholder="Buscar por cliente, código o comercio..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-xl pl-9 pr-4 py-2 focus:bg-white focus:ring-2 focus:ring-[#FF1F2D]/20 focus:border-[#FF1F2D] outline-none transition"
+              className="w-full bg-zinc-900 border border-zinc-800 text-white placeholder:text-zinc-500 text-xs sm:text-sm rounded-xl pl-9 pr-4 py-2 focus:ring-1 focus:ring-white focus:border-white outline-none transition"
             />
           </div>
         </div>
 
-        <div className="flex bg-gray-100/80 rounded-xl p-1 w-full sm:w-auto self-start inline-flex">
+        <div className="flex bg-zinc-950 border border-zinc-800 rounded-xl p-1 w-full sm:w-auto self-start inline-flex">
           {["Todos", "Sellos", "Canjes"].map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setActiveFilter(f)}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 activeFilter === f
-                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/60"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-black"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               {f}
@@ -87,7 +87,7 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
 
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left font-medium min-w-[650px]">
-          <thead className="bg-gray-50/70 text-[11px] uppercase tracking-wider text-gray-400 border-b border-gray-100 font-bold">
+          <thead className="bg-zinc-950 text-[11px] uppercase tracking-wider text-zinc-400 border-b border-zinc-800 font-medium">
             <tr>
               <th className="px-6 py-3.5 whitespace-nowrap">Cliente</th>
               <th className="px-6 py-3.5 whitespace-nowrap">Operación</th>
@@ -95,10 +95,10 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
               <th className="px-6 py-3.5 whitespace-nowrap text-right">Fecha y Hora</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
+          <tbody className="divide-y divide-zinc-800/50 text-sm">
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-xs text-gray-400">
+                <td colSpan={4} className="px-6 py-12 text-center text-xs text-zinc-500">
                   No se encontraron actividades con los filtros aplicados.
                 </td>
               </tr>
@@ -113,15 +113,6 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
                   ? `${log.customers.first_name?.[0] || "?"}${log.customers.last_name?.[0] || ""}`.toUpperCase()
                   : "??";
 
-                const colors = [
-                  "bg-amber-100 text-amber-700",
-                  "bg-red-100 text-[#FF1F2D]",
-                  "bg-emerald-100 text-emerald-700",
-                  "bg-blue-100 text-blue-700",
-                  "bg-indigo-100 text-indigo-700",
-                ];
-                const colorClass = colors[(log.customers?.first_name?.length || 0) % colors.length];
-
                 const dateObj = new Date(log.created_at);
                 const formattedDate = dateObj.toLocaleDateString("es-AR", {
                   day: "2-digit",
@@ -133,18 +124,16 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
                 });
 
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
+                  <tr key={log.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors">
                     <td className="px-6 py-4 flex items-center gap-3 whitespace-nowrap">
-                      <div
-                        className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs ${colorClass} shadow-xs border border-white shrink-0`}
-                      >
+                      <div className="h-9 w-9 rounded-full flex items-center justify-center font-semibold text-xs bg-zinc-950 text-zinc-200 border border-zinc-800 shrink-0">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-gray-900 text-sm truncate">
+                        <div className="font-semibold text-white text-sm truncate">
                           {clientName}
                         </div>
-                        <div className="text-[11px] text-gray-400 font-mono">
+                        <div className="text-[11px] text-zinc-500 font-mono">
                           {shortCode}
                         </div>
                       </div>
@@ -152,33 +141,27 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
 
                     <td className="px-6 py-4 whitespace-nowrap">
                       {isRedeem ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
                           <Gift size={12} /> CANJE DE PREMIO
                         </span>
                       ) : (
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                            log.method === "QR"
-                              ? "bg-red-50 text-[#FF1F2D] border-red-100"
-                              : "bg-blue-50 text-blue-700 border-blue-100"
-                          }`}
-                        >
-                          <Star size={12} /> SELLO {log.method}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-zinc-950 text-zinc-200 border border-zinc-800">
+                          <Star size={12} className="text-zinc-400" /> SELLO {log.method}
                         </span>
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-xs font-semibold text-gray-700 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 border border-gray-200/60 max-w-[200px] truncate">
+                    <td className="px-6 py-4 text-xs font-medium text-zinc-300 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-950 text-zinc-300 border border-zinc-800 max-w-[200px] truncate">
                         {log.businesses?.name || "Comercio"}
                       </span>
                     </td>
 
                     <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <div className="font-semibold text-xs text-gray-700">
+                      <div className="font-semibold text-xs text-white">
                         {formattedDate}
                       </div>
-                      <div className="text-[11px] text-gray-400">
+                      <div className="text-[11px] text-zinc-500">
                         {formattedTime} hs
                       </div>
                     </td>
@@ -190,7 +173,7 @@ export function DashboardActivityFeed({ logs }: { logs: ActivityLog[] }) {
         </table>
       </div>
 
-      <div className="bg-gray-50/70 p-3.5 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500 font-medium">
+      <div className="bg-zinc-950 p-3.5 border-t border-zinc-800 flex justify-between items-center text-xs text-zinc-500 font-medium">
         <span>Mostrando {filteredLogs.length} de {logs.length} registros recientes</span>
       </div>
     </div>

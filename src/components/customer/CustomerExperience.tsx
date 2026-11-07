@@ -6,7 +6,12 @@ import Link from "next/link";
 import { ArrowRight, Check, Gift, Heart, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { NfcContext } from "@/lib/mimo-nfc";
-import { getStampGridLayout } from "@/lib/wallet-config";
+import {
+  formatClientNumericId,
+  getStampGridLayout,
+  MIN_CLIENT_NUMERIC_ID,
+  normalizeRewardTarget,
+} from "@/lib/wallet-config";
 import AppleWalletButton from "@/components/shared/AppleWalletButton";
 import GoogleWalletButton from "@/components/shared/GoogleWalletButton";
 import { useDevicePlatform } from "@/hooks/useDevicePlatform";
@@ -59,13 +64,18 @@ function messageFor(status: string | null, firstName: string) {
 }
 
 function StampGrid({ customer, context }: { customer: CustomerView; context: NfcContext }) {
-  const target = Math.max(1, Math.min(customer.targetStamps || context.rewardTarget, 15));
-  const current = Math.min(customer.currentStamps, target);
-  const { columns } = getStampGridLayout(target);
+  // Objetivos válidos: únicamente 4, 5, 6, 8 o 10.
+  // Disposición visual: 4 (2 arriba y 2 abajo), 5 (5 en línea), 6 (3 arriba y 3 abajo), 8 (4 y 4), 10 (5 y 5).
+  const target = normalizeRewardTarget(customer.targetStamps || context.rewardTarget, 8);
+  const current = Math.min(Math.max(0, customer.currentStamps), target);
+  const { rows, columns } = getStampGridLayout(target);
   return (
     <div
       className="cx-stamps w-full max-w-full min-w-0"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+      }}
       aria-label={`${current} de ${target} sellos`}
     >
       {Array.from({ length: target }, (_, index) => {
@@ -92,9 +102,10 @@ function StampGrid({ customer, context }: { customer: CustomerView; context: Nfc
 }
 
 function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView; context: NfcContext; celebrate: boolean }) {
-  const completed = customer.currentStamps >= customer.targetStamps;
-  const cleanCode = String(customer.uniqueCode || "").replace(/^CLI\s*-\s*/i, "").trim();
-  const qrValue = cleanCode || customer.id || "15001";
+  const validTarget = normalizeRewardTarget(customer.targetStamps || context.rewardTarget, 8);
+  const completed = customer.currentStamps >= validTarget;
+  const cleanCode = formatClientNumericId(customer.uniqueCode, String(MIN_CLIENT_NUMERIC_ID));
+  const qrValue = cleanCode;
   return (
     <div className={`cx-card w-full max-w-full min-w-0 mx-auto overflow-hidden box-border ${celebrate ? "cx-card-celebrate" : ""}`}>
       <div className="cx-card-top">
@@ -105,7 +116,7 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
         <span className="min-w-0 truncate">{context.businessName}</span>
       </div>
       <div className="cx-card-progress">
-        <strong>{customer.currentStamps}<span> / {customer.targetStamps}</span></strong>
+        <strong>{customer.currentStamps}<span> / {validTarget}</span></strong>
         <span>sellos</span>
       </div>
       <StampGrid customer={customer} context={context} />
@@ -128,7 +139,7 @@ function LoyaltyCard({ customer, context, celebrate }: { customer: CustomerView;
             className="h-auto w-full max-w-full"
           />
         </div>
-        {customer.uniqueCode && (
+        {cleanCode && (
           <span
             className="mt-2.5 max-w-full truncate text-center font-mono text-xs font-bold tracking-widest"
             style={{ color: "var(--cx-card-text)" }}
@@ -302,16 +313,30 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     if (googleWalletUrl) { window.location.href = googleWalletUrl; return; }
     setWalletBusy(true); setError("");
     try {
-      const response = await fetch("/api/wallet/generate", {
+      const cleanNumericId = formatClientNumericId(customer.uniqueCode, String(MIN_CLIENT_NUMERIC_ID));
+      const validTarget = normalizeRewardTarget(customer.targetStamps || context?.rewardTarget, 8);
+      const response = await fetch("/api/wallet/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer.id }),
+        body: JSON.stringify({
+          customerId: customer.id,
+          accountId: cleanNumericId,
+          uniqueCode: cleanNumericId,
+          customerName: `${customer.firstName || ""} ${customer.lastName || ""}`.trim(),
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          currentStamps: customer.currentStamps,
+          targetStamps: validTarget,
+          businessName: customer.businessName || context?.businessName,
+          rewardDescription: customer.rewardDescription || context?.rewardDescription,
+        }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload.saveUrl) {
+      const targetUrl = payload.url || payload.saveUrl;
+      if (!response.ok || !targetUrl) {
         throw new Error(payload.error || "Google Wallet no está disponible en este momento.");
       }
-      window.location.href = payload.saveUrl;
+      window.location.href = targetUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al abrir Google Wallet.");
       setWalletBusy(false);

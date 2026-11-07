@@ -21,11 +21,31 @@ export function normalizeRewardTarget(value: unknown, fallback: AllowedRewardTar
 }
 
 /**
- * Normaliza el ID visual del cliente a un string directo sin prefijos "CLI -" o "CLI-".
+ * Normaliza el ID visual del cliente a un string EXCLUSIVAMENTE numérico (>= 15001),
+ * eliminando cualquier letra o prefijo como "CLI -" o "CLI-".
  */
-export function formatClientNumericId(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  return String(value).replace(/^CLI\s*-\s*/i, '').trim();
+export const MIN_CLIENT_NUMERIC_ID = 15001;
+
+export function formatClientNumericId(value: unknown, fallback: string = ''): string {
+  if (value === null || value === undefined) return fallback;
+  const raw = String(value).replace(/^CLI\s*-\s*/i, '').trim();
+  if (!raw) return fallback;
+
+  // Evitar convertir un UUID en una cadena gigante de dígitos
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(raw)) {
+    return fallback;
+  }
+
+  const digitsOnly = raw.replace(/\D+/g, '');
+  if (!digitsOnly) return fallback;
+
+  const parsed = Number.parseInt(digitsOnly, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+
+  if (parsed < MIN_CLIENT_NUMERIC_ID) {
+    return String(MIN_CLIENT_NUMERIC_ID + parsed - 1);
+  }
+  return String(parsed);
 }
 
 /**
