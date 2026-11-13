@@ -426,7 +426,13 @@ export default function MerchantCustomersClient({
         }),
       });
 
-      const data = await res.json();
+      if (res.status === 504 || res.status === 500 || res.status >= 500) {
+        alert("El servidor está despertando, intenta de nuevo");
+        showToast("El servidor está despertando, intenta de nuevo.", "error");
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.error || "No se pudo sumar el sello.");
       }
@@ -454,6 +460,10 @@ export default function MerchantCustomersClient({
         "success"
       );
     } catch (err: any) {
+      console.error("Error al sumar sello manualmente:", err);
+      if (err instanceof TypeError) {
+        alert("El servidor está despertando, intenta de nuevo");
+      }
       showToast(err.message || "Error al sumar sello.", "error");
     } finally {
       setActionLoadingId(null);

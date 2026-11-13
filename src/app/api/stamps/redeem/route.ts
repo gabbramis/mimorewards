@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessBusiness } from '@/lib/authz';
@@ -77,6 +78,15 @@ export async function POST(request: Request) {
                     registered_by_id: user.id,
                 },
             });
+        }
+
+        // Invalidación de caché de la tarjeta del cliente tras el canje
+        try {
+            revalidatePath(`/tarjeta/${customer.id}`);
+            revalidatePath('/tarjeta/[customer_id]', 'page');
+            revalidatePath('/t/[nfcId]', 'page');
+        } catch (revalErr) {
+            console.warn('[Cache] No se pudo revalidar la ruta de la tarjeta tras canje:', revalErr);
         }
 
         // Notificar a los dispositivos Apple Wallet y Google Wallet

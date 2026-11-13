@@ -205,9 +205,16 @@ export default function CashierTerminal() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ identifier: customer.id, businessId, method: 'MANUAL' })
             });
-            const result = await res.json();
 
-            if (!res.ok) throw new Error(result.error);
+            if (res.status === 504 || res.status === 500 || res.status >= 500) {
+                alert("El servidor está despertando, intenta de nuevo");
+                setErrorMsg("El servidor está despertando, intenta de nuevo.");
+                return;
+            }
+
+            const result = await res.json().catch(() => ({}));
+
+            if (!res.ok) throw new Error(result.error || "No se pudo sumar el sello.");
 
             setSuccessMessage(result.cycleCompleted ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello." : (result.message || "¡Sello agregado con éxito!"));
             setCustomer(prev => prev ? ({
@@ -220,7 +227,11 @@ export default function CashierTerminal() {
                 setCustomer(null);
             }, 2000);
         } catch (err: any) {
-            setErrorMsg(err.message || 'Error occurred');
+            console.error("Error en handleAddStamp (Caja):", err);
+            if (err instanceof TypeError) {
+                alert("El servidor está despertando, intenta de nuevo");
+            }
+            setErrorMsg(err.message || 'Error al sumar sello');
         } finally {
             setIsLoading(false);
         }

@@ -5,6 +5,8 @@ import { toCustomerView, type NfcContext } from "@/lib/mimo-nfc";
 import CustomerExperience from "@/components/customer/CustomerExperience";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function TarjetaPage(props: {
   params: Promise<{ customer_id: string }> | { customer_id: string };

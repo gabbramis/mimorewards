@@ -38,6 +38,17 @@ type FormValues = { firstName: string; lastName: string; phone: string; birthdat
 
 const emptyForm: FormValues = { firstName: "", lastName: "", phone: "", birthdate: "" };
 
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
 function readableBrand(hex: string) {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) return "#9C302E";
   const rgb = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
@@ -282,15 +293,56 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
     return () => window.clearTimeout(timeout);
   }, [appleWalletBusy]);
 
+  // Registro del Service Worker para notificaciones Web Push
+  useEffect(() => {
+    if (preview || typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(err => {
+      console.warn("[Service Worker] No se pudo registrar:", err);
+    });
+  }, [preview]);
+
   function updateField(name: keyof FormValues, value: string) { setForm(current => ({ ...current, [name]: value })); }
+
+  async function subscribeCustomerToPush(customerId?: string, businessId?: string) {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey || !("serviceWorker" in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = (await registration.pushManager.getSubscription()) || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription, customerId, businessId }),
+      });
+    } catch (err) {
+      // La suscripción push es opcional: nunca bloquea la creación de la tarjeta.
+      console.warn("[Push] No se pudo completar la suscripción:", err);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>, recover: boolean) {
     event.preventDefault();
     if (preview || !nfcId || busy) return;
+
+    // 1. PRIMERO: pedir permiso de notificaciones antes de cualquier petición de red,
+    //    dentro del gesto del usuario, para que Safari/iOS no bloquee el prompt.
+    let pushPermission: NotificationPermission | null = null;
+    if (!recover && whatsappMarketingOptIn && typeof window !== "undefined" && "Notification" in window) {
+      try {
+        pushPermission = await Notification.requestPermission();
+      } catch {
+        pushPermission = null;
+      }
+    }
+
     setBusy(true); setError(""); setLocalNotice("");
     try {
       const cleanPhone = formatCustomerSubmitPhone(form.phone, countryCode);
 
+      // 2. SEGUNDO: guardar al cliente (incluye el booleano de WhatsApp)
       const response = await fetch(recover ? "/api/recover" : "/api/customers", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(recover ? { nfcId, phone: cleanPhone } : { ...form, phone: cleanPhone, nfcId, legalAccepted, whatsappMarketingOptIn }),
@@ -303,6 +355,11 @@ export default function CustomerExperience({ nfcId, initialContext, initialCusto
       setPhase("card");
       setLocalNotice(recover || payload.isNewCustomer === false ? (payload.message || "Tu tarjeta está lista.") : "");
       setCelebrate(!recover && payload.stampAdded !== false);
+
+      // 3. TERCERO: si el permiso fue concedido, suscribir y asociar al cliente recién creado
+      if (pushPermission === "granted") {
+        void subscribeCustomerToPush(payload.customer?.id, payload.context?.businessId);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos completar la solicitud.");
     } finally { setBusy(false); }

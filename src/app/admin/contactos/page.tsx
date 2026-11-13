@@ -216,7 +216,16 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ identifier: id, method: 'MANUAL' })
             });
-            const payload = await res.json();
+
+            if (res.status === 504 || res.status === 500 || res.status >= 500) {
+                alert("El servidor está despertando, intenta de nuevo");
+                await fetchCustomers();
+                setStampSuccessId(null);
+                showToast("El servidor está despertando, intenta de nuevo.");
+                return;
+            }
+
+            const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 await fetchCustomers();
                 if (payload.reason === 'reward_pending') {
@@ -230,10 +239,11 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
             await fetchCustomers();
             showToast(payload.message || 'Sello sumado correctamente.');
         } catch (err) {
-            console.error(err);
+            console.error("Error en handleManualStamp:", err);
+            alert("El servidor está despertando, intenta de nuevo");
             await fetchCustomers();
             setStampSuccessId(null);
-            showToast("Hubo un error de conexión.");
+            showToast("El servidor está despertando, intenta de nuevo.");
         }
 
         setTimeout(() => {

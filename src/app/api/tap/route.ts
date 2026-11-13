@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { customerCookieName, readCustomerSession, readTapTestToken } from "@/lib/mimo-customer-session";
@@ -62,6 +63,15 @@ async function processTap(request: NextRequest, nfcId: string, testToken?: strin
   const result = firstResult(data);
 
   if (result?.accepted) {
+    try {
+      revalidatePath(`/tarjeta/${customerId}`);
+      revalidatePath(`/t/${nfcId}`);
+      revalidatePath("/tarjeta/[customer_id]", "page");
+      revalidatePath("/t/[nfcId]", "page");
+    } catch (revalErr) {
+      console.warn("[Cache] No se pudo revalidar tras tap NFC:", revalErr);
+    }
+
     scheduleCustomerWalletUpdate({
       customerId,
       businessId: tag.business_id,

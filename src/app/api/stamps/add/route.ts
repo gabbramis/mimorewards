@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
-import { after } from "next/server";
+import { NextResponse, after } from "next/server";
+import { revalidatePath } from "next/cache";
+import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessBusiness } from "@/lib/authz";
 import { scheduleCustomerWalletUpdate } from "@/lib/wallet-notifications";
-import { normalizeUruguayMobile, cleanUruguayPhone, getUruguayMobileVariants } from "@/lib/customer-phone";
+import { getUruguayMobileVariants } from "@/lib/customer-phone";
 import { sendApnsNotification } from "@/lib/wallet/apns";
 import { PASS_TYPE_ID } from "@/lib/wallet/appleWallet";
+import { getCustomerPushSubscription } from "@/lib/web-push-store";
 
-/**
- * Envía la notificación push silenciosa a APNs para Apple Wallet.
- * Apple Wallet requiere que el payload sea {} y que se use el passTypeIdentifier como topic.
- */
 /**
  * Envía la notificación push silenciosa a APNs para Apple Wallet.
  * Reglas estrictas de Apple Wallet:
@@ -30,12 +28,58 @@ async function enviarPushAPNs(pushToken: string, passTopic?: string) {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DB_OPERATION_TIMEOUT_MS = 7000;
+
+/**
+ * Ejecuta una operación contra la base de datos protegida con un AbortController y timeout estricto.
+ * Evita que la ruta quede colgada (hanging) ante conexiones "zombie" o cold starts en Vercel.
+ */
+async function withDbTimeout<T>(
+  operationName: string,
+  operation: (signal: AbortSignal) => PromiseLike<T>,
+  timeoutMs: number = DB_OPERATION_TIMEOUT_MS
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new Error(`Timeout en base de datos durante "${operationName}" (${timeoutMs}ms)`));
+  }, timeoutMs);
+
+  try {
+    return await operation(controller.signal);
+  } catch (err: any) {
+    console.error(`[stamps/add DB Timeout/Error] Falló "${operationName}":`, err);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function POST(request: Request) {
+  const requestController = new AbortController();
+  const requestTimeout = setTimeout(() => {
+    requestController.abort(new Error("Timeout global en /api/stamps/add"));
+  }, 9000);
+
   try {
     const sessionClient = await createClient();
-    const { data: { user } } = await sessionClient.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Necesitás iniciar sesión para sumar un sello desde el panel." }, { status: 401 });
+    const {
+      data: { user },
+      error: authError,
+    } = await withDbTimeout("auth.getUser", () => sessionClient.auth.getUser());
+
+    if (authError) {
+      console.error("[stamps/add] Error al verificar sesión en Supabase Auth:", authError);
+      return NextResponse.json(
+        { error: "Error al verificar sesión con la base de datos.", details: authError.message },
+        { status: 500 }
+      );
+    }
+    if (!user) {
+      return NextResponse.json(
+        { error: "Necesitás iniciar sesión para sumar un sello desde el panel." },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const identifier = String(body.identifier || body.customerId || body.clientId || "").trim();
@@ -46,24 +90,26 @@ export async function POST(request: Request) {
       method = "NFC";
     }
     if (!identifier) return NextResponse.json({ error: "Falta el identificador del cliente." }, { status: 400 });
-    if (!['QR', 'MANUAL', 'NFC'].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
+    if (!["QR", "MANUAL", "NFC"].includes(method)) return NextResponse.json({ error: "Método de sello inválido." }, { status: 400 });
 
     const supabase: any = createAdminClient();
     const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
 
-    let customerQuery = supabase
-      .from("customers")
-      .select("*")
-      .limit(1);
+    const customerResult: any = await withDbTimeout("customers.select", (signal) => {
+      let customerQuery = supabase
+        .from("customers")
+        .select("*")
+        .abortSignal(signal)
+        .limit(1);
 
-    if (businessId) {
-      customerQuery = customerQuery.eq("business_id", businessId);
-    }
+      if (businessId) {
+        customerQuery = customerQuery.eq("business_id", businessId);
+      }
 
-    let customerResult;
-    if (UUID_PATTERN.test(identifier)) {
-      customerResult = await customerQuery.eq("id", identifier).maybeSingle();
-    } else {
+      if (UUID_PATTERN.test(identifier)) {
+        return customerQuery.eq("id", identifier).maybeSingle();
+      }
+
       const variants = getUruguayMobileVariants(identifier);
       if (businessId) {
         let orFilter = `unique_code.eq.${identifier},unique_code.eq.${identifier.replace(/^CLI\s*-\s*/i, "").trim()},phone.eq.${identifier}`;
@@ -72,38 +118,64 @@ export async function POST(request: Request) {
             orFilter += `,phone.eq.${v}`;
           }
         }
-        customerResult = await customerQuery.or(orFilter).maybeSingle();
-      } else {
-        customerResult = await customerQuery.eq("unique_code", identifier).maybeSingle();
+        return customerQuery.or(orFilter).maybeSingle();
       }
-    }
-    const { data: customer, error: customerError } = customerResult;
+      return customerQuery.eq("unique_code", identifier).maybeSingle();
+    });
 
-    if (customerError || !customer) return NextResponse.json({ error: "Cliente no encontrado." }, { status: 404 });
-    if (!await canAccessBusiness(customer.business_id)) {
+    const { data: customer, error: customerError } = customerResult || {};
+
+    if (customerError) {
+      console.error("[stamps/add] Error de base de datos al buscar cliente:", customerError);
+      return NextResponse.json(
+        { error: "Error de base de datos al buscar el cliente.", details: customerError.message },
+        { status: 500 }
+      );
+    }
+    if (!customer) {
+      return NextResponse.json({ error: "Cliente no encontrado." }, { status: 404 });
+    }
+
+    const hasAccess = await withDbTimeout("canAccessBusiness", () =>
+      canAccessBusiness(customer.business_id)
+    );
+    if (!hasAccess) {
       return NextResponse.json({ error: "No tenés permisos para operar sobre este comercio." }, { status: 403 });
     }
 
-    // 1. Buscá el comercio y la tarjeta activa del cliente
-    const { data: business } = await supabase
-      .from("businesses")
-      .select("id, active, reward_target, reward_description")
-      .eq("id", customer.business_id)
-      .maybeSingle();
+    // 1. Buscar el comercio y la tarjeta activa del cliente
+    const { data: business, error: businessError }: any = await withDbTimeout(
+      "businesses.select",
+      (signal) =>
+        supabase
+          .from("businesses")
+          .select("id, name, active, reward_target, reward_description")
+          .abortSignal(signal)
+          .eq("id", customer.business_id)
+          .maybeSingle()
+    );
+
+    if (businessError) {
+      console.error("[stamps/add] Error de base de datos al consultar comercio:", businessError);
+      return NextResponse.json(
+        { error: "Error de base de datos al consultar el comercio.", details: businessError.message },
+        { status: 500 }
+      );
+    }
 
     if (!business || business.active === false) {
       return NextResponse.json({ error: "El negocio está inactivo." }, { status: 400 });
     }
 
+    // 2. Suma correcta: obtener los sellos actuales de la base de datos y sumar los nuevos sellos (current + nuevos)
     const maxStamps = Number(business.reward_target) || 10;
     const currentStamps = Number(customer.current_stamps) || 0;
-
-    // 2. Si stamps < max_stamps: sumá stamps + 1.
-    // 3. Si stamps === max_stamps (la tarjeta estaba llena):
-    //    - Reseteá stamps a 1 (comenzando el nuevo ciclo con el sello recién escaneado).
-    //    - (Opcional/Recomendado) Sumá +1 a un contador de rewards_available si existe esa columna.
-    const isFull = currentStamps >= maxStamps;
-    const newStamps = isFull ? 1 : currentStamps + 1;
+    const stampsToAdd = Math.max(
+      1,
+      Math.floor(Number(body.stamps ?? body.stampsToAdd ?? body.nuevos ?? 1) || 1)
+    );
+    const newStamps = currentStamps + stampsToAdd;
+    const isFull = newStamps >= maxStamps;
 
     const now = new Date().toISOString();
     const updateCustomerPayload: Record<string, any> = {
@@ -117,24 +189,45 @@ export async function POST(request: Request) {
       updateCustomerPayload.rewards_available = (customer.rewards_available || 0) + 1;
     }
 
-    // Actualización segura de customers mediante UPDATE (sin crear registros duplicados)
-    const { error: updateCustomerError } = await supabase
-      .from("customers")
-      .update(updateCustomerPayload)
-      .eq("id", customer.id);
+    // Actualización segura de customers mediante UPDATE con control estricto de errores
+    const { error: updateCustomerError }: any = await withDbTimeout(
+      "customers.update",
+      (signal) =>
+        supabase
+          .from("customers")
+          .update(updateCustomerPayload)
+          .abortSignal(signal)
+          .eq("id", customer.id)
+    );
 
     if (updateCustomerError) {
-      console.error("Error al actualizar cliente en customers:", updateCustomerError);
-      throw updateCustomerError;
+      console.error("[stamps/add] Error crítico al actualizar cliente en customers:", updateCustomerError);
+      return NextResponse.json(
+        { error: "No se pudo actualizar los sellos del cliente en la base de datos.", details: updateCustomerError.message },
+        { status: 500 }
+      );
     }
 
     // Actualizar la tarjeta activa en loyalty_cards
-    const { data: loyaltyCard } = await supabase
-      .from("loyalty_cards")
-      .select("*")
-      .eq("customer_id", customer.id)
-      .eq("business_id", customer.business_id)
-      .maybeSingle();
+    const { data: loyaltyCard, error: loyaltyCardSelectError }: any = await withDbTimeout(
+      "loyalty_cards.select",
+      (signal) =>
+        supabase
+          .from("loyalty_cards")
+          .select("*")
+          .abortSignal(signal)
+          .eq("customer_id", customer.id)
+          .eq("business_id", customer.business_id)
+          .maybeSingle()
+    );
+
+    if (loyaltyCardSelectError) {
+      console.error("[stamps/add] Error al consultar loyalty_cards:", loyaltyCardSelectError);
+      return NextResponse.json(
+        { error: "Error al consultar la tarjeta de fidelidad en la base de datos.", details: loyaltyCardSelectError.message },
+        { status: 500 }
+      );
+    }
 
     if (loyaltyCard) {
       const updateCardPayload: Record<string, any> = {
@@ -144,58 +237,143 @@ export async function POST(request: Request) {
       if (isFull && loyaltyCard.rewards_available !== undefined && typeof loyaltyCard.rewards_available === "number") {
         updateCardPayload.rewards_available = (loyaltyCard.rewards_available || 0) + 1;
       }
-      await supabase
-        .from("loyalty_cards")
-        .update(updateCardPayload)
-        .eq("id", loyaltyCard.id);
+      const { error: updateCardError }: any = await withDbTimeout(
+        "loyalty_cards.update",
+        (signal) =>
+          supabase
+            .from("loyalty_cards")
+            .update(updateCardPayload)
+            .abortSignal(signal)
+            .eq("id", loyaltyCard.id)
+      );
+      if (updateCardError) {
+        console.error("[stamps/add] Error al actualizar loyalty_cards:", updateCardError);
+        return NextResponse.json(
+          { error: "Error al actualizar la tarjeta de fidelidad.", details: updateCardError.message },
+          { status: 500 }
+        );
+      }
     } else {
-      await supabase
-        .from("loyalty_cards")
-        .upsert({
-          customer_id: customer.id,
-          business_id: customer.business_id,
-          current_stamps: newStamps,
-          wallet_status: "ACTIVE",
-          updated_at: now,
-        }, { onConflict: "customer_id,business_id" });
+      const { error: upsertCardError }: any = await withDbTimeout(
+        "loyalty_cards.upsert",
+        (signal) =>
+          supabase
+            .from("loyalty_cards")
+            .upsert(
+              {
+                customer_id: customer.id,
+                business_id: customer.business_id,
+                current_stamps: newStamps,
+                wallet_status: "ACTIVE",
+                updated_at: now,
+              },
+              { onConflict: "customer_id,business_id" }
+            )
+            .abortSignal(signal)
+      );
+      if (upsertCardError) {
+        console.error("[stamps/add] Error al crear/actualizar loyalty_cards:", upsertCardError);
+        return NextResponse.json(
+          { error: "Error al sincronizar la tarjeta de fidelidad.", details: upsertCardError.message },
+          { status: 500 }
+        );
+      }
     }
 
     // Registrar en stamp_logs
-    await supabase.from("stamp_logs").insert({
-      customer_id: customer.id,
-      business_id: customer.business_id,
-      method: method,
-      stamps_added: 1,
-      idempotency_key: request.headers.get("x-idempotency-key") || crypto.randomUUID(),
-      metadata: { registered_by_email: user.email || null, registered_by_id: user.id },
-    });
+    const { error: stampLogError }: any = await withDbTimeout(
+      "stamp_logs.insert",
+      (signal) =>
+        supabase
+          .from("stamp_logs")
+          .insert({
+            customer_id: customer.id,
+            business_id: customer.business_id,
+            method: method,
+            stamps_added: stampsToAdd,
+            idempotency_key: request.headers.get("x-idempotency-key") || crypto.randomUUID(),
+            metadata: { registered_by_email: user.email || null, registered_by_id: user.id },
+          })
+          .abortSignal(signal)
+    );
 
-    // 2. Disparador APNs con Delay: Apenas la base de datos confirme el guardado,
-    // recuperar el pushToken del dispositivo del cliente
-    let cardId = loyaltyCard?.id;
-    if (!cardId) {
-      const { data: createdCard } = await supabase
-        .from("loyalty_cards")
-        .select("id")
-        .eq("customer_id", customer.id)
-        .eq("business_id", customer.business_id)
-        .maybeSingle();
-      cardId = createdCard?.id;
+    if (stampLogError) {
+      console.error("[stamps/add] Error al registrar el movimiento en stamp_logs:", stampLogError);
     }
 
+    // 3. Invalidación de Caché de Next.js justo después de actualizar la base de datos
+    try {
+      revalidatePath(`/tarjeta/${customer.id}`);
+      if (customer.unique_code) {
+        revalidatePath(`/tarjeta/${customer.unique_code}`);
+      }
+      revalidatePath("/tarjeta/[customer_id]", "page");
+      revalidatePath("/t/[nfcId]", "page");
+    } catch (revalErr) {
+      console.warn("[Cache] No se pudo revalidar la ruta de la tarjeta:", revalErr);
+    }
+
+    // 4. Aislamiento de Web Push: bloque try/catch independiente para que nunca interrumpa el guardado de sellos
+    try {
+      const pushSubscription = body.subscription || getCustomerPushSubscription(customer);
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+      const vapidSubject = process.env.VAPID_SUBJECT || "mailto:contacto@tu-dominio.com";
+
+      if (pushSubscription?.endpoint && vapidPublicKey && vapidPrivateKey) {
+        webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+        await webpush.sendNotification(
+          pushSubscription,
+          JSON.stringify({
+            title: business.name || "Mimo Rewards",
+            body: isFull
+              ? `¡Completaste tu tarjeta! Tu premio (${business.reward_description || "Recompensa"}) ya está listo para canjear.`
+              : `¡Sumaste ${stampsToAdd === 1 ? "un sello" : `${stampsToAdd} sellos`}! Llevás ${newStamps} de ${maxStamps}.`,
+          }),
+          { timeout: 4000 }
+        );
+      }
+    } catch (webPushError) {
+      console.error("[WebPush] Error enviando notificación push (flujo aislado):", webPushError);
+    }
+
+    // 5. Disparador APNs con Delay para Apple Wallet (protegido contra bloqueos)
+    let cardId = loyaltyCard?.id;
     let applePushTokens: Array<{ token: string; passType?: string }> = [];
     try {
-      let regQuery = supabase
-        .from("wallet_registrations")
-        .select("push_token, pass_type_identifier");
-
-      if (cardId) {
-        regQuery = regQuery.or(`serial_number.eq.${cardId},customer_id.eq.${customer.id}`);
-      } else {
-        regQuery = regQuery.eq("customer_id", customer.id);
+      if (!cardId) {
+        const { data: createdCard }: any = await withDbTimeout(
+          "loyalty_cards.selectCreatedId",
+          (signal) =>
+            supabase
+              .from("loyalty_cards")
+              .select("id")
+              .abortSignal(signal)
+              .eq("customer_id", customer.id)
+              .eq("business_id", customer.business_id)
+              .maybeSingle(),
+          3000
+        );
+        cardId = createdCard?.id;
       }
 
-      const { data: registrations } = await regQuery;
+      const { data: registrations }: any = await withDbTimeout(
+        "wallet_registrations.select",
+        (signal) => {
+          let regQuery = supabase
+            .from("wallet_registrations")
+            .select("push_token, pass_type_identifier")
+            .abortSignal(signal);
+
+          if (cardId) {
+            regQuery = regQuery.or(`serial_number.eq.${cardId},customer_id.eq.${customer.id}`);
+          } else {
+            regQuery = regQuery.eq("customer_id", customer.id);
+          }
+          return regQuery;
+        },
+        3000
+      );
 
       const tokenMap = new Map<string, string | undefined>();
       if (registrations) {
@@ -211,24 +389,6 @@ export async function POST(request: Request) {
         tokenMap.set(customer.apple_push_token, PASS_TYPE_ID);
       }
 
-      // Fallback por todas las tarjetas del cliente
-      if (tokenMap.size === 0) {
-        const { data: allCards } = await supabase
-          .from("loyalty_cards")
-          .select("id")
-          .eq("customer_id", customer.id);
-        const cardIds = (allCards || []).map((c: any) => c.id);
-        if (cardIds.length > 0) {
-          const { data: regByCards } = await supabase
-            .from("wallet_registrations")
-            .select("push_token, pass_type_identifier")
-            .in("serial_number", cardIds);
-          (regByCards || []).forEach((r: any) => {
-            if (r.push_token) tokenMap.set(r.push_token, r.pass_type_identifier);
-          });
-        }
-      }
-
       applePushTokens = Array.from(tokenMap.entries()).map(([token, passType]) => ({
         token,
         passType,
@@ -236,15 +396,10 @@ export async function POST(request: Request) {
 
       console.log(`[stamps/add] Cliente: ${customer.first_name} (${customer.unique_code}), Sellos: ${currentStamps} -> ${newStamps}`);
       console.log(`[stamps/add] Apple Wallet tokens encontrados: ${applePushTokens.length}`);
-      if (applePushTokens.length === 0) {
-        console.warn("[stamps/add] No se encontraron tokens de Apple Wallet para este cliente. Asegurate de que la tarjeta esté instalada en el dispositivo.");
-      }
     } catch (tokenErr) {
-      console.warn("[APNs] Error al recuperar pushToken de Apple Wallet:", tokenErr);
+      console.warn("[APNs] Error al recuperar pushToken de Apple Wallet (no bloqueante):", tokenErr);
     }
 
-    // 3. Efecto diferido: Disparar la notificación push a los servidores de APNs
-    // de forma asíncrona a los 2 segundos exactos, sin bloquear la respuesta 200 OK del cajero.
     if (applePushTokens.length > 0) {
       let executed = false;
       const dispararPushConDelay = async () => {
@@ -261,22 +416,17 @@ export async function POST(request: Request) {
         }
       };
 
-      // Disparar vía setTimeout a los 2 segundos exactos
-      setTimeout(dispararPushConDelay, 2000);
-
-      // Compatibilidad serverless: after() garantiza tiempo de ejecución sin pausar el hilo ni demorar el 200 OK
       try {
         after(async () => {
           await new Promise((resolve) => setTimeout(resolve, 2000));
           await dispararPushConDelay();
         });
       } catch {
-        // Fallback a setTimeout en entornos donde after() no esté disponible
+        setTimeout(dispararPushConDelay, 2000);
       }
     }
 
     // Notificar a Google Wallet y fallback a Apple Wallet si no hubo tokens directos
-    // skipApple: true evita push inmediato duplicado ya que se programó a los 2s
     scheduleCustomerWalletUpdate({
       customerId: customer.id,
       businessId: customer.business_id,
@@ -284,7 +434,7 @@ export async function POST(request: Request) {
       targetStamps: maxStamps,
       skipApple: applePushTokens.length > 0,
       notificationMessage: isFull
-        ? `¡Tarjeta completada! Comenzaste un nuevo ciclo con 1 de ${maxStamps} sellos.`
+        ? `¡Tarjeta completada! Ya tenés ${newStamps} de ${maxStamps} sellos para reclamar tu premio.`
         : `¡Sumaste sellos! Llevás ${newStamps} de ${maxStamps}.`,
     });
 
@@ -293,15 +443,17 @@ export async function POST(request: Request) {
       newTotal: newStamps,
       cycleCompleted: isFull,
       message: isFull
-        ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello."
+        ? "¡Tarjeta completada! El premio ya está disponible para canjear."
         : "Sello sumado correctamente.",
     });
   } catch (error: any) {
-    console.error("Error adding stamp:", error);
+    console.error("[stamps/add] Error crítico al sumar sello:", error);
     const rawError = error?.message || error?.details || (typeof error === "object" ? JSON.stringify(error) : String(error));
     return NextResponse.json({
       error: rawError || "No se pudo sumar el sello.",
       details: error?.details || error?.hint || error?.code || null,
     }, { status: 500 });
+  } finally {
+    clearTimeout(requestTimeout);
   }
 }
