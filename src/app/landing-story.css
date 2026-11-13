@@ -85,6 +85,7 @@
 .m-landing .m-contact-simple-success p { margin-top: 16px; color: #69645f; font-size: 14px; line-height: 1.8; }
 .m-landing .m-contact-success-note { display: inline-flex; align-items: center; gap: 9px; margin-top: 24px; font-size: 12px; color: #73665c; }
 .m-landing .m-contact-simple-error { margin-top: 16px; padding: 12px; border: 1px solid #e4b3aa; border-radius: 10px; background: #fff0eb; color: #9e1924; font-size: 12px; }
+.m-landing .m-contact-field-error { color: #df1424; font-size: 11px; font-weight: 500; line-height: 1.3; }
 .m-landing .m-contact-plan { margin-bottom: 20px; padding: 8px 12px; border-radius: 8px; background: #ffe5e0; color: #a81623; font-size: 12px; }
 @media (min-width: 761px) and (max-width: 1000px) {
   .m-landing .m-contact-simple-inner { grid-template-columns: .85fr 1.15fr; gap: 32px; }
