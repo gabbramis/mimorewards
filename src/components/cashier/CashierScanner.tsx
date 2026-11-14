@@ -39,44 +39,54 @@ export default function CashierScanner({
 
   const supabase = createClient();
 
-  useEffect(() => {
+  const resolveCurrentBusinessId = useCallback(async (): Promise<string> => {
     if (propBusinessId) {
-      setActiveBusinessId(propBusinessId);
-      return;
-    }
-    async function resolveBusiness() {
-      try {
-        if (typeof window !== "undefined") {
-          const params = new URLSearchParams(window.location.search);
-          const bParam = params.get("businessId");
-          if (bParam) {
-            setActiveBusinessId(bParam);
-            return;
-          }
-          const match = window.location.pathname.match(/\/comercio\/([^/]+)/);
-          if (match && match[1]) {
-            setActiveBusinessId(match[1]);
-            return;
-          }
-        }
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: member } = await supabase
-            .from("business_members")
-            .select("business_id")
-            .eq("user_id", user.id)
-            .limit(1)
-            .maybeSingle();
-          if (member?.business_id) {
-            setActiveBusinessId(member.business_id);
-          }
-        }
-      } catch (err) {
-        console.warn("No se pudo resolver el businessId:", err);
+      if (activeBusinessId !== propBusinessId) {
+        setActiveBusinessId(propBusinessId);
       }
+      return propBusinessId;
     }
-    resolveBusiness();
-  }, [propBusinessId, supabase]);
+    if (activeBusinessId) {
+      return activeBusinessId;
+    }
+
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const bParam = params.get("businessId")?.trim();
+        if (bParam) {
+          setActiveBusinessId(bParam);
+          return bParam;
+        }
+        const match = window.location.pathname.match(/\/comercio\/([^/]+)/);
+        if (match && match[1]) {
+          const pathBizId = decodeURIComponent(match[1]).trim();
+          setActiveBusinessId(pathBizId);
+          return pathBizId;
+        }
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: member } = await supabase
+          .from("business_members")
+          .select("business_id")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle();
+        if (member?.business_id) {
+          setActiveBusinessId(member.business_id);
+          return member.business_id;
+        }
+      }
+    } catch (err) {
+      console.warn("No se pudo resolver el businessId:", err);
+    }
+    return "";
+  }, [propBusinessId, activeBusinessId, supabase]);
+
+  useEffect(() => {
+    void resolveCurrentBusinessId();
+  }, [resolveCurrentBusinessId]);
 
   const parseQrContent = (rawText: string): string => {
     const trimmed = rawText.trim();
@@ -121,37 +131,39 @@ export default function CashierScanner({
   };
 
   const lookupCustomerDetails = useCallback(async (idOrCode: string) => {
+    const cleanInput = idOrCode.replace(/^CLI\s*-\s*/i, "").trim();
     try {
+      const currentBusinessId = await resolveCurrentBusinessId();
+      if (!currentBusinessId) {
+        setClientDisplayName(cleanInput);
+        return cleanInput;
+      }
+
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanInput);
       let query = supabase
         .from("customers")
         .select("id, first_name, last_name, unique_code, current_stamps, business_id");
 
-      if (activeBusinessId) {
-        query = query.eq("business_id", activeBusinessId);
+      if (isUUID) {
+        query = query.eq("id", cleanInput).eq("business_id", currentBusinessId);
+      } else {
+        query = query.eq("unique_code", cleanInput).eq("business_id", currentBusinessId);
       }
 
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
-      const orQuery = isUUID
-        ? `id.eq.${idOrCode},unique_code.ilike.${idOrCode},phone.eq.${idOrCode}`
-        : `unique_code.ilike.${idOrCode},phone.eq.${idOrCode}`;
-
-      const { data } = await query.or(orQuery).maybeSingle();
+      const { data } = await query.maybeSingle();
       if (data) {
         const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-        setClientDisplayName(fullName || data.unique_code || idOrCode);
-        setCurrentStamps(typeof data.current_stamps === "number" ? data.current_stamps : null);
+        setClientDisplayName(fullName || data.unique_code || cleanInput);
+        setCurrentStamps(typeof data.current_stamps === "number" ? data.current_stamps : 0);
         setResolvedCustomerId(data.id);
-        if (!activeBusinessId && data.business_id) {
-          setActiveBusinessId(data.business_id);
-        }
         return data.id;
       }
     } catch (err) {
       console.warn("No se pudo obtener el nombre previo del cliente:", err);
     }
-    setClientDisplayName(idOrCode);
-    return idOrCode;
-  }, [activeBusinessId, supabase]);
+    setClientDisplayName(cleanInput);
+    return cleanInput;
+  }, [resolveCurrentBusinessId, supabase]);
 
   const handleScanSuccess = useCallback(async (rawText: string) => {
     if (status === "detected" || status === "processing" || status === "success" || isPaused) {
@@ -185,12 +197,17 @@ export default function CashierScanner({
   };
 
   const handleAddStamp = async (targetClientId: string) => {
-    const idToSend = resolvedCustomerId || targetClientId;
+    const idToSend = (resolvedCustomerId || targetClientId).replace(/^CLI\s*-\s*/i, "").trim();
     if (!idToSend) return;
     setStatus("processing");
     setErrorMessage("");
 
     try {
+      const currentBusinessId = await resolveCurrentBusinessId();
+      if (!currentBusinessId) {
+        throw new Error("No se pudo identificar el comercio autenticado (businessId).");
+      }
+
       const response = await fetch("/api/stamps/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,7 +215,7 @@ export default function CashierScanner({
           identifier: idToSend,
           clientId: idToSend,
           customerId: resolvedCustomerId || undefined,
-          businessId: activeBusinessId || undefined,
+          businessId: currentBusinessId,
           method: "QR",
         }),
       });

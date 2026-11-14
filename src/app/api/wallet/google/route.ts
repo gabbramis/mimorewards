@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "El identificador del cliente (accountId / QR) debe ser exclusivamente numérico a partir de 15001.",
+          error: "El identificador del cliente (accountId / QR) debe ser exclusivamente numérico de al menos 4 dígitos (1000–9999).",
         },
         { status: 400 }
       );

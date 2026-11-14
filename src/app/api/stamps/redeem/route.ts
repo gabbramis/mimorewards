@@ -11,32 +11,31 @@ export async function POST(request: Request) {
         const { data: { user } } = await sessionClient.auth.getUser();
         if (!user) return NextResponse.json({ error: 'Necesitás iniciar sesión para canjear una recompensa.' }, { status: 401 });
 
-        const supabase: any = createAdminClient();
         const body = await request.json();
         const { identifier } = body;
 
-        const businessId = typeof body.businessId === "string" ? body.businessId.trim() : null;
+        const currentBusinessId = typeof body.businessId === "string" ? body.businessId.trim() : "";
 
         if (!identifier) {
             return NextResponse.json({ error: 'Missing customer identifier' }, { status: 400 });
         }
+        if (!currentBusinessId) {
+            return NextResponse.json({ error: 'Falta el businessId del comercio.' }, { status: 400 });
+        }
 
+        const supabase: any = createAdminClient();
         const cleanId = String(identifier).trim();
-        const cleanCode = cleanId.replace(/^CLI\s*-\s*/i, '').trim();
+        const scannedCode = cleanId.replace(/^CLI\s*-\s*/i, '').trim();
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanId);
 
         let query = supabase
             .from('customers')
             .select('id, current_stamps, business_id');
 
-        if (businessId) {
-            query = query.eq('business_id', businessId);
-        }
-
         if (isUUID) {
-            query = query.eq('id', cleanId);
+            query = query.eq('id', cleanId).eq('business_id', currentBusinessId);
         } else {
-            query = query.or(`unique_code.eq.${cleanId},unique_code.eq.${cleanCode}${businessId ? `,phone.eq.${cleanId}` : ''}`);
+            query = query.eq('unique_code', scannedCode).eq('business_id', currentBusinessId);
         }
 
         const { data: customer, error: customerError } = await query.maybeSingle();

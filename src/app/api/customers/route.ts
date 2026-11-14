@@ -21,33 +21,42 @@ function clean(value: unknown) {
 }
 
 /**
- * Obtiene el valor actual de `next_client_sequence` del negocio (ej. "15001")
- * y luego incrementa `next_client_sequence` en la base de datos.
+ * Genera un código aleatorio puramente numérico de 4 dígitos (entre 1000 y 9999),
+ * sin prefijos de letras ("CLI -"), verificando en bucle que no esté en uso
+ * dentro del `businessId` actual antes de retornarlo.
  */
-async function claimNextClientSequence(supabase: any, businessId: string): Promise<string> {
-  const { data: business, error } = await supabase
-    .from("businesses")
-    .select("next_client_sequence")
-    .eq("id", businessId)
-    .maybeSingle();
+async function generateUniqueClientCode(supabase: any, businessId: string): Promise<string> {
+  let isUnique = false;
+  let candidateCode = "";
+  let attempts = 0;
+  const maxAttempts = 50;
 
-  if (error) {
-    console.warn("[claimNextClientSequence] Error leyendo next_client_sequence, usando fallback:", error);
+  while (!isUnique && attempts < maxAttempts) {
+    attempts++;
+    candidateCode = String(Math.floor(1000 + Math.random() * 9000));
+
+    const { data: existing, error } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("unique_code", candidateCode)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[generateUniqueClientCode] Error consultando código en uso:", error);
+    }
+
+    if (!existing) {
+      isUnique = true;
+    }
   }
 
-  const currentSeq =
-    typeof business?.next_client_sequence === "number" && Number.isFinite(business.next_client_sequence) && business.next_client_sequence >= 1
-      ? business.next_client_sequence
-      : 15001;
+  if (!isUnique || !candidateCode) {
+    throw new Error("No se pudo generar un código de 4 dígitos disponible para este comercio.");
+  }
 
-  const assignedId = String(currentSeq);
-
-  await supabase
-    .from("businesses")
-    .update({ next_client_sequence: currentSeq + 1 })
-    .eq("id", businessId);
-
-  return assignedId;
+  return candidateCode;
 }
 
 const PLAN_CUSTOMER_LIMITS: Record<string, number | null> = {
@@ -202,9 +211,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: PLAN_LIMIT_ERROR, code: "PLAN_LIMIT_REACHED" }, { status: 403 });
     }
 
-    // 4. Flujo de registro nuevo con ID 100% numérico y secuencial desde next_client_sequence
+    // 4. Flujo de registro nuevo con código aleatorio de 4 cifras exactas (1000–9999) único por comercio
     const acceptedAt = new Date().toISOString();
-    const numericClientCode = await claimNextClientSequence(supabase, context.businessId);
+    const numericClientCode = await generateUniqueClientCode(supabase, context.businessId);
     let createdCustomer: any = null;
 
     const { data: newCustomer, error: customerError } = await supabase

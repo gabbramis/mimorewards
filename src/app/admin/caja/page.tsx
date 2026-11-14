@@ -6,6 +6,7 @@ import QRCode from "react-qr-code";
 import { Search, CreditCard, Send, CheckCircle2, User, Phone, Gift, AlertCircle, QrCode, X, ArrowLeft } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { getUruguayMobileVariants, normalizeCustomerPhone, normalizeUruguayMobile } from '@/lib/customer-phone';
+import NotificationBell from '@/components/merchant/NotificationBell';
 
 export default function CashierTerminal() {
     const router = useRouter();
@@ -135,29 +136,34 @@ export default function CashierTerminal() {
         setErrorMsg("");
 
         try {
-            const cleanQuery = typeof identifier === 'string' ? identifier.trim() : identifier;
-            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
-            const variants = getUruguayMobileVariants(cleanQuery);
-
-            let orQuery = isUUID
-                ? `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery},id.eq.${cleanQuery}`
-                : `unique_code.ilike.${cleanQuery},phone.eq.${cleanQuery}`;
-
-            for (const v of variants) {
-                if (v !== cleanQuery) {
-                    orQuery += `,phone.eq.${v}`;
-                }
+            if (!businessId) {
+                setErrorMsg("No se pudo identificar el comercio actual.");
+                return;
             }
+            const cleanQuery = (typeof identifier === 'string' ? identifier.trim() : String(identifier)).replace(/^CLI\s*-\s*/i, '').trim();
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
+            const isShortCode = /^\d{4,6}$/.test(cleanQuery);
 
             let query = supabase
                 .from('customers')
                 .select('id, first_name, last_name, phone, current_stamps, unique_code, business_id');
 
-            if (businessId) {
-                query = query.eq('business_id', businessId);
+            if (isUUID) {
+                query = query.eq('id', cleanQuery).eq('business_id', businessId);
+            } else if (isShortCode) {
+                query = query.eq('unique_code', cleanQuery).eq('business_id', businessId);
+            } else {
+                const variants = getUruguayMobileVariants(cleanQuery);
+                let orQuery = `unique_code.eq.${cleanQuery},phone.eq.${cleanQuery}`;
+                for (const v of variants) {
+                    if (v !== cleanQuery) {
+                        orQuery += `,phone.eq.${v}`;
+                    }
+                }
+                query = query.eq('business_id', businessId).or(orQuery);
             }
 
-            const { data, error } = await query.or(orQuery).maybeSingle();
+            const { data, error } = await query.maybeSingle();
 
             if (error) throw error;
 
@@ -216,7 +222,7 @@ export default function CashierTerminal() {
 
             if (!res.ok) throw new Error(result.error || "No se pudo sumar el sello.");
 
-            setSuccessMessage(result.cycleCompleted ? "¡Tarjeta completada! Comenzó un nuevo ciclo con 1 sello." : (result.message || "¡Sello agregado con éxito!"));
+            setSuccessMessage((result.prizeTriggered || result.cycleCompleted) ? "🎉 ¡Tarjeta completada! El premio ya está disponible para canjear." : (result.message || "¡Sello agregado con éxito!"));
             setCustomer(prev => prev ? ({
                 ...prev,
                 currentStamps: result.newTotal
@@ -299,19 +305,22 @@ export default function CashierTerminal() {
                         </div>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setOrigin(window.location.origin);
-                            setQrToken(Date.now());
-                            setIsQrModalOpen(true);
-                        }}
-                        className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50/50 px-3 py-2 text-xs font-bold text-slate-800 hover:text-[#FF1F2D] transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
-                    >
-                        <QrCode size={15} className="text-[#FF1F2D]" />
-                        <span className="hidden sm:inline">Ver QR Cliente</span>
-                        <span className="sm:hidden">QR Cliente</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {businessId && <NotificationBell businessId={businessId} variant="light" />}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setOrigin(window.location.origin);
+                                setQrToken(Date.now());
+                                setIsQrModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50/50 px-3 py-2 text-xs font-bold text-slate-800 hover:text-[#FF1F2D] transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
+                        >
+                            <QrCode size={15} className="text-[#FF1F2D]" />
+                            <span className="hidden sm:inline">Ver QR Cliente</span>
+                            <span className="sm:hidden">QR Cliente</span>
+                        </button>
+                    </div>
                 </header>
 
                 {/* Contenido Principal */}

@@ -455,10 +455,17 @@ export default function MerchantCustomersClient({
         void fetchCustomerHistory(customerId);
       }
 
-      showToast(
-        `¡Sello acreditado a ${clientName}! Total: ${data.newTotal}/${rewardTarget}`,
-        "success"
-      );
+      if (data.prizeTriggered) {
+        showToast(
+          `🎉 ¡${clientName} completó la tarjeta (${data.newTotal}/${rewardTarget}) y desbloqueó su premio!`,
+          "success"
+        );
+      } else {
+        showToast(
+          `¡Sello acreditado a ${clientName}! Total: ${data.newTotal}/${rewardTarget}`,
+          "success"
+        );
+      }
     } catch (err: any) {
       console.error("Error al sumar sello manualmente:", err);
       if (err instanceof TypeError) {

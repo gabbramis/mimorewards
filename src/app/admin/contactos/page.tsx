@@ -210,11 +210,18 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
         }));
         setStampSuccessId(id);
 
+        const targetCustomer = customers.find((c: any) => c.id === id);
+        const targetBusinessId = targetCustomer?.business_id || currentBusiness?.id;
+
         try {
             const res = await fetch('/api/stamps/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: id, method: 'MANUAL' })
+                body: JSON.stringify({
+                    identifier: id,
+                    businessId: targetBusinessId,
+                    method: 'MANUAL',
+                })
             });
 
             if (res.status === 504 || res.status === 500 || res.status >= 500) {
@@ -237,7 +244,11 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                 return;
             }
             await fetchCustomers();
-            showToast(payload.message || 'Sello sumado correctamente.');
+            if (payload.prizeTriggered) {
+                showToast(payload.message || '🎉 ¡Tarjeta completada! Premio listo para canjear.');
+            } else {
+                showToast(payload.message || 'Sello sumado correctamente.');
+            }
         } catch (err) {
             console.error("Error en handleManualStamp:", err);
             alert("El servidor está despertando, intenta de nuevo");
@@ -254,11 +265,13 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
     const handleRedeem = async (id: string) => {
         if (!window.confirm('¿Confirmás el canje de la recompensa?')) return;
         setRedeemLoadingId(id);
+        const targetCustomer = customers.find((c: any) => c.id === id);
+        const targetBusinessId = targetCustomer?.business_id || currentBusiness?.id;
         try {
             const response = await fetch('/api/stamps/redeem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: id }),
+                body: JSON.stringify({ identifier: id, businessId: targetBusinessId }),
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || 'No se pudo canjear la recompensa.');
@@ -456,7 +469,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors mb-5 group cursor-pointer"
                         >
                             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-                            <span>← Volver a negocios</span>
+                            <span>Volver</span>
                         </button>
                     )}
 

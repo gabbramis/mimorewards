@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useBusiness, isPlanFree } from "@/contexts/BusinessContext";
 import { stopImpersonation } from "@/app/actions/impersonation";
 import UpgradeModal from "./UpgradeModal";
+import NotificationBell from "./NotificationBell";
 
 interface MerchantShellProps {
   children: React.ReactNode;
@@ -351,6 +352,7 @@ export default function MerchantShell({
 
             {/* Quick Actions */}
             <div className="flex shrink-0 items-center gap-2.5">
+              <NotificationBell businessId={businessId} />
               <button
                 type="button"
                 onClick={handleCopyCardLink}

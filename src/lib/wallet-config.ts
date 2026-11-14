@@ -21,10 +21,10 @@ export function normalizeRewardTarget(value: unknown, fallback: AllowedRewardTar
 }
 
 /**
- * Normaliza el ID visual del cliente a un string EXCLUSIVAMENTE numérico (>= 15001),
+ * Normaliza el ID visual del cliente a un string EXCLUSIVAMENTE numérico (4 dígitos: 1000–9999, o legado >= 1000),
  * eliminando cualquier letra o prefijo como "CLI -" o "CLI-".
  */
-export const MIN_CLIENT_NUMERIC_ID = 15001;
+export const MIN_CLIENT_NUMERIC_ID = 1000;
 
 export function formatClientNumericId(value: unknown, fallback: string = ''): string {
   if (value === null || value === undefined) return fallback;
@@ -43,7 +43,7 @@ export function formatClientNumericId(value: unknown, fallback: string = ''): st
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 
   if (parsed < MIN_CLIENT_NUMERIC_ID) {
-    return String(MIN_CLIENT_NUMERIC_ID + parsed - 1);
+    return String(MIN_CLIENT_NUMERIC_ID + (parsed % 9000));
   }
   return String(parsed);
 }
