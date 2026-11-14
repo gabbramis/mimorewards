@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_FETCH_TIMEOUT_MS = 8000;
+const SUPABASE_FETCH_TIMEOUT_MS = 5000;
 
 /**
  * Fetch wrapper con AbortController y sin caché para evitar conexiones "zombie"
