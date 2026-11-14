@@ -42,7 +42,7 @@ export async function GET() {
                 business_id: business.id,
                 first_name: 'Franco',
                 last_name: 'Dev',
-                unique_code: '15001',
+                unique_code: '4812',
                 birthdate: '1995-10-01',
                 phone: '1122334455',
                 current_stamps: 2,

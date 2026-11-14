@@ -469,7 +469,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors mb-5 group cursor-pointer"
                         >
                             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-                            <span>Volver</span>
+                            <span>Volver a negocios</span>
                         </button>
                     )}
 
@@ -540,7 +540,7 @@ export function ContactsCRM({ businessId: initialBusinessId, merchantMode = fals
                             </div>
                             <input
                                 type="text"
-                                placeholder="Buscar por ID de cliente (ej. 15001), nombre o teléfono..."
+                                placeholder="Buscar por ID de cliente (ej. 4812), nombre o teléfono..."
                                 className="w-full pl-9 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-white focus:border-white outline-none transition text-xs sm:text-sm text-white placeholder:text-zinc-500"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}

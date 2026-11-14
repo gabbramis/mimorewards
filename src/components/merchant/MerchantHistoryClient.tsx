@@ -315,7 +315,7 @@ export default function MerchantHistoryClient({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por cliente, teléfono o ID (ej. 15001)..."
+            placeholder="Buscar por cliente, teléfono o ID (ej. 4812)..."
             className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-10 pr-4 text-xs text-white placeholder:text-zinc-500 focus:border-white focus:ring-1 focus:ring-white focus:outline-none"
           />
           {searchQuery && (

@@ -51,7 +51,7 @@ export interface GoogleWalletRequestBody {
 /**
  * POST /api/wallet/google
  * Recibe por body los datos del cliente, valida las reglas estrictas de negocio:
- * - Identificador numérico secuencial >= 15001 (sin letras ni prefijo "CLI -")
+ * - Identificador numérico aleatorio de 4 dígitos (sin letras ni prefijo "CLI -")
  * - Objetivos de sellos válidos únicamente: 4, 5, 6, 8 o 10
  * Firma el JWT (RS256) del LoyaltyObject y devuelve https://pay.google.com/gp/v/save/${signedJwt}
  */
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       )
     );
 
-    // 2. Identificador del cliente EXCLUSIVAMENTE numérico (>= 15001), sin letras ni "CLI -"
+    // 2. Identificador del cliente EXCLUSIVAMENTE numérico (4 dígitos aleatorios), sin letras ni "CLI -"
     const rawIdentifier =
       body.accountId ??
       body.uniqueCode ??

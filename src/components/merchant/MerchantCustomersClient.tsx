@@ -671,7 +671,7 @@ export default function MerchantCustomersClient({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por nombre, teléfono o ID de cliente (ej. 15001)..."
+            placeholder="Buscar por nombre, teléfono o ID de cliente (ej. 4812)..."
             className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-10 pr-4 text-xs text-white placeholder:text-zinc-500 focus:border-white focus:ring-1 focus:ring-white focus:outline-none transition-colors"
           />
           {searchQuery && (
@@ -1336,7 +1336,7 @@ export default function MerchantCustomersClient({
                     type="text"
                     value={modalSearch}
                     onChange={(e) => setModalSearch(e.target.value)}
-                    placeholder="Escribí nombre, teléfono o ID (ej. 15001)..."
+                    placeholder="Escribí nombre, teléfono o ID (ej. 4812)..."
                     className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:border-white focus:ring-1 focus:ring-white focus:outline-none"
                   />
                 </div>

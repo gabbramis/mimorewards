@@ -363,7 +363,7 @@ export default function CashierTerminal() {
                                     <div className="relative flex-1">
                                         <input
                                             type="text"
-                                            placeholder="Ej: 15001 o Teléfono..."
+                                            placeholder="Ej: 4812 o Teléfono..."
                                             className="w-full h-14 sm:h-16 pl-4 pr-11 sm:pr-4 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-[#FF1F2D] focus:bg-white text-slate-900 text-base sm:text-lg font-bold placeholder:text-slate-400 placeholder:font-normal outline-none transition-all shadow-inner"
                                             value={manualInput}
                                             onChange={(e) => setManualInput(e.target.value)}

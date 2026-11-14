@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import webpush from "web-push";
+import * as webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerPushSubscription } from "@/lib/web-push-store";
 import { scheduleCustomerWalletUpdate } from "@/lib/wallet-notifications";

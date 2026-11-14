@@ -412,7 +412,7 @@ export function generateSavePassUrl(
     const headline = resolveWalletText(wallet.headline, { nombre: firstName, proximo_premio: rewardDescription });
     const reward = resolveWalletText(wallet.rewardText || '{proximo_premio}', { nombre: customerName, proximo_premio: rewardDescription }) || rewardDescription || '';
 
-    // Regla estricta: accountId y barcode.value EXCLUSIVAMENTE numéricos (>= 15001), sin "CLI -" ni letras
+    // Regla estricta: accountId y barcode.value EXCLUSIVAMENTE numéricos (4 dígitos aleatorios), sin "CLI -" ni letras
     const cleanCustomerCode = formatClientNumericId(customerCode ?? cardId, String(MIN_CLIENT_NUMERIC_ID));
     const objectId = getGoogleObjectId(cardId || cleanCustomerCode);
     const textModulesData = [
